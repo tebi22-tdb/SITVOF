@@ -146,7 +146,17 @@ el sistema lo enlaza con ese slug para filtrar su bandeja.
 2. Campos relevantes:
    - nombre:           nombre exacto que verá el egresado en el formulario
    - mesesVigencia:    duración en meses (dejar vacío si no aplica, ej. CENEVAL)
-   - esResidencia:     true SOLO si es Residencia Profesional (afecta flujo de certificación)
+   - esResidencia:     true si la modalidad es de tipo residencia profesional.
+                        IMPORTANTE: este campo controla TODO el flujo de la modalidad:
+                        · El expediente aparece en /home/departamento-academico (card del
+                          departamento) en lugar de la bandeja global de coordinación.
+                        · En la bandeja del departamento muestra el botón "Liberar"
+                          en vez de "Revisar expediente".
+                        · En el detalle del egresado muestra "Asesor interno" y
+                          "Asesor externo" en lugar de "Director", "Asesor 1", "Asesor 2".
+                        · Afecta el flujo de certificación y generación de documentos.
+                        NO uses el nombre de la modalidad para determinar si es residencia;
+                        usa siempre este campo.
    - esCursoTitulacion: true si la modalidad SOLO aplica cuando el egresado
                         marca "Curso de titulación" en el formulario de alta
                         (ej. Monografía). Las demás modalidades dejan esto en false.
@@ -237,6 +247,42 @@ carrera esté en la lista "carreras" de ese documento.
 
 Esto significa que si cambias las carreras de un departamento en el catálogo,
 el filtro de la bandeja cambia automáticamente, sin reiniciar el servidor.
+
+
+================================================================================
+11. CORRECCIÓN IMPORTANTE — DETECCIÓN DE MODALIDAD RESIDENCIA (mayo 2026)
+================================================================================
+
+PROBLEMA QUE SE CORRIGIÓ:
+Antes, el sistema detectaba si una modalidad era "residencia" comparando el
+nombre exacto "Residencia Profesional" en el código (backend y frontend).
+Esto hacía que cualquier modalidad nueva con esResidencia = true pero un
+nombre diferente fuera tratada como modalidad estándar, causando que:
+
+  · El expediente apareciera en la bandeja global (/home/revisiones)
+    en lugar de la card del departamento académico.
+  · Se mostrara el botón "Revisar expediente" en vez de "Liberar".
+  · Se mostraran los campos "Director / Asesor 1 / Asesor 2" en vez de
+    "Asesor interno / Asesor externo".
+
+CÓMO QUEDÓ:
+El backend (EgresadoService.kt) ahora consulta el campo esResidencia del
+catálogo en MongoDB. El frontend usa catalogoService.esResidencia(modalidad)
+que también lee el campo esResidencia del catálogo, no el nombre.
+
+REGLA PARA COLABORADORES:
+· NUNCA compares modalidad === "Residencia Profesional" en el código.
+· SIEMPRE usa catalogoService.esResidencia(modalidad) en el frontend,
+  o consulta el catálogo en el backend.
+· Si agregas una nueva modalidad de tipo residencia, activa el campo
+  esResidencia = true en el catálogo. No hay que tocar código.
+
+ARCHIVOS CORREGIDOS:
+  src/main/kotlin/.../service/EgresadoService.kt     → fun esResidenciaProfesional()
+  frontend/.../departamento-academico.component.ts   → método esResidencia()
+  frontend/.../departamento-academico.component.html → botones Liberar/Revisar
+  frontend/.../home.component.ts                     → método esResidencia()
+  frontend/.../home.component.html                   → campos de mentores
 
 
 ================================================================================
