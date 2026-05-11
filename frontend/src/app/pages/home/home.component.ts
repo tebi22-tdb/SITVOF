@@ -183,6 +183,10 @@ export class HomeComponent implements OnInit {
     this.cargarLista();
   }
 
+  esResidencia(modalidad: string): boolean {
+    return this.catalogoService.esResidencia(modalidad);
+  }
+
   volverInicio(): void {
     this.router.navigate(['/home']);
   }

@@ -1397,8 +1397,12 @@ class EgresadoService(
         }
     }
 
-    private fun esResidenciaProfesional(e: Egresado): Boolean =
-        e.datos_proyecto.modalidad.trim().equals("Residencia Profesional", ignoreCase = true)
+    private fun esResidenciaProfesional(e: Egresado): Boolean {
+        val nombre = e.datos_proyecto.modalidad.trim()
+        val cat = catalogoRepository.findByTipoAndActivoTrue("modalidad")
+            .find { it.nombre.trim().equals(nombre, ignoreCase = true) }
+        return cat?.esResidencia ?: nombre.equals("Residencia Profesional", ignoreCase = true)
+    }
 
     /** Revisión académica/CAT: liberación vía campo clásico o flujo extendido no residencia. */
     private fun liberacionRevisionCompletada(e: Egresado): Boolean =

@@ -201,11 +201,11 @@
             <div class="sit-campo"><dt>Nombre del proyecto</dt><dd>{{ detalle.datos_proyecto.nombre_proyecto || '—' }}</dd></div>
             <div class="sit-campo sit-campo-half"><dt>Modalidad</dt><dd>{{ detalle.datos_proyecto.modalidad }}</dd></div>
             <div class="sit-campo sit-campo-half"><dt>Curso de titulación</dt><dd>{{ detalle.datos_proyecto.curso_titulacion === 'si' ? 'Sí' : 'No' }}</dd></div>
-            <ng-container *ngIf="detalle.datos_proyecto.modalidad === 'Residencia Profesional'">
+            <ng-container *ngIf="esResidencia(detalle.datos_proyecto.modalidad)">
               <div class="sit-campo sit-campo-half"><dt>Asesor interno</dt><dd>{{ detalle.datos_proyecto.asesor_interno || '—' }}</dd></div>
               <div class="sit-campo sit-campo-half"><dt>Asesor externo</dt><dd>{{ detalle.datos_proyecto.asesor_externo || '—' }}</dd></div>
             </ng-container>
-            <ng-container *ngIf="detalle.datos_proyecto.modalidad && detalle.datos_proyecto.modalidad !== 'Residencia Profesional'">
+            <ng-container *ngIf="detalle.datos_proyecto.modalidad && !esResidencia(detalle.datos_proyecto.modalidad)">
               <div class="sit-campo sit-campo-half"><dt>Director</dt><dd>{{ detalle.datos_proyecto.director || '—' }}</dd></div>
               <div class="sit-campo sit-campo-half"><dt>Asesor 1</dt><dd>{{ detalle.datos_proyecto.asesor_1 || '—' }}</dd></div>
               <div class="sit-campo sit-campo-half"><dt>Asesor 2</dt><dd>{{ detalle.datos_proyecto.asesor_2 || '—' }}</dd></div>

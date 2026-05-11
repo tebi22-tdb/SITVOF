@@ -115,7 +115,7 @@
                 </p>
                 <div class="departamento-doc-card-acciones">
                   <button
-                    *ngIf="seleccionado.modalidad === 'Residencia Profesional' && seleccionado.estado_revision !== 'aprobado'"
+                    *ngIf="esResidencia(seleccionado.modalidad) && seleccionado.estado_revision !== 'aprobado'"
                     type="button"
                     class="departamento-btn-liberar departamento-btn-liberar--panel"
                     (click)="liberar(seleccionado.id)"
@@ -124,7 +124,7 @@
                     {{ liberandoId === seleccionado.id ? 'Liberando…' : 'Liberar' }}
                   </button>
                   <button
-                    *ngIf="seleccionado.modalidad !== 'Residencia Profesional' && seleccionado.estado_revision !== 'aprobado'"
+                    *ngIf="!esResidencia(seleccionado.modalidad) && seleccionado.estado_revision !== 'aprobado'"
                     type="button"
                     class="departamento-btn-revision-panel"
                     (click)="irARevision(seleccionado)"
@@ -245,7 +245,7 @@
           <td class="departamento-td departamento-td--fecha">{{ ultimoCambio(item) }}</td>
           <td class="departamento-td departamento-td--accion">
             <button
-              *ngIf="item.modalidad === 'Residencia Profesional' && item.estado_revision !== 'aprobado'"
+              *ngIf="esResidencia(item.modalidad) && item.estado_revision !== 'aprobado'"
               type="button"
               class="departamento-btn-liberar"
               (click)="liberar(item.id); $event.stopPropagation()"
@@ -254,7 +254,7 @@
               {{ liberandoId === item.id ? '…' : 'Liberar' }}
             </button>
             <button
-              *ngIf="item.modalidad !== 'Residencia Profesional' && item.estado_revision !== 'aprobado'"
+              *ngIf="!esResidencia(item.modalidad) && item.estado_revision !== 'aprobado'"
               type="button"
               class="departamento-btn-liberar"
               (click)="irARevision(item); $event.stopPropagation()"

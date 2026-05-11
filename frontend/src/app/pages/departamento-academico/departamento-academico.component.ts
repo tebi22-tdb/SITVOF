@@ -151,9 +151,13 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Abre Revisión de documento (solo para modalidades que no son Residencia Profesional). */
+  esResidencia(modalidad: string): boolean {
+    return this.catalogoService.esResidencia(modalidad);
+  }
+
+  /** Abre Revisión de documento (solo para modalidades que no son residencia). */
   irARevision(item: DepartamentoListItem): void {
-    if (item.modalidad === 'Residencia Profesional') return;
+    if (this.catalogoService.esResidencia(item.modalidad)) return;
     if (this.authService.isAcademico()) {
       this.router.navigate(['/departamento-academico/revision', item.id]);
     } else {
