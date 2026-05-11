@@ -19,11 +19,14 @@ class VerificacionController(
     fun verificar(@PathVariable uuid: String): ResponseEntity<Map<String, Any?>> {
         val egresado = egresadoRepository.findByCertUuid(uuid.trim())
         return if (egresado != null) {
+            // Buscar el proceso específico que tiene este cert_uuid
+            val proceso = egresado.procesos.find { it.cert_uuid?.trim() == uuid.trim() }
+                ?: egresado.procesoActivoOrNull()
             val p = egresado.datos_personales
             val nombre = listOf(p.nombre, p.apellido_paterno, p.apellido_materno)
                 .filter { !it.isNullOrBlank() }
                 .joinToString(" ")
-            val estatus = when (egresado.estado_general) {
+            val estatus = when (proceso?.estado_general) {
                 "titulado" -> "Finalizado"
                 "vencido"  -> "Vencido"
                 else       -> "En proceso"
@@ -33,11 +36,11 @@ class VerificacionController(
                     "valido" to true,
                     "nombre" to nombre,
                     "numero_control" to egresado.numero_control,
-                    "titulo_proyecto" to egresado.datos_proyecto.nombre_proyecto,
-                    "modalidad" to egresado.datos_proyecto.modalidad,
+                    "titulo_proyecto" to (proceso?.datos_proyecto?.nombre_proyecto ?: ""),
+                    "modalidad" to (proceso?.datos_proyecto?.modalidad ?: ""),
                     "carrera" to p.carrera,
                     "institucion" to "TECNM Campus Oaxaca",
-                    "fecha_certificacion" to egresado.fechaCertificacion?.let { formatter.format(it) },
+                    "fecha_certificacion" to proceso?.fechaCertificacion?.let { formatter.format(it) },
                     "estatus" to estatus,
                 ),
             )

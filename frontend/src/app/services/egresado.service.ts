@@ -48,6 +48,10 @@ export interface EgresadoDetail {
   estado_general: string;
   fecha_creacion?: string;
   fecha_actualizacion?: string;
+  /** ID del proceso activo de titulación. */
+  proceso_id?: string;
+  /** Cantidad de procesos de titulación (1 = primera vez, 2+ = reintentos). */
+  total_procesos?: number;
   /** Fecha en que se marcó "Enviado al departamento académico" (paso 1.1). */
   fecha_envio_solicitud_registro_anteproyecto_depto_academico?: string;
   fecha_recepcion_trabajo_division_estudios_prof?: string;
@@ -233,6 +237,15 @@ export class EgresadoService {
 
   eliminar(id: string): Observable<unknown> {
     return this.http.post(`${API}/eliminar/${id}`, {});
+  }
+
+  activarNuevoProceso(id: string, datos: EgresadoForm, archivo: File | null): Observable<unknown> {
+    const form = new FormData();
+    Object.entries(datos).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) form.append(key, String(value));
+    });
+    if (archivo) form.append('archivo', archivo, archivo.name);
+    return this.http.post(`${API}/${id}/nuevo-proceso`, form);
   }
 
   enviarDepartamentoAcademico(id: string): Observable<unknown> {

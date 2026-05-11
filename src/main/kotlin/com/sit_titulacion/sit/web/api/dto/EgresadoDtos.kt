@@ -134,6 +134,10 @@ data class EgresadoDetailDto(
     val estado_general: String,
     val fecha_creacion: String?,
     val fecha_actualizacion: String?,
+    /** ID del proceso de titulación activo (último en la lista). */
+    @JsonProperty("proceso_id") val proceso_id: String? = null,
+    /** Cuántos procesos de titulación tiene el egresado (1 en primera solicitud, 2+ si reintentó). */
+    @JsonProperty("total_procesos") val total_procesos: Int = 1,
     @JsonProperty("fecha_envio_solicitud_registro_anteproyecto_depto_academico")
     val fecha_envio_solicitud_registro_anteproyecto_depto_academico: String? = null,
     @JsonProperty("fecha_recepcion_trabajo_division_estudios_prof")

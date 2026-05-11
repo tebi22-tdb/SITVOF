@@ -10,6 +10,7 @@ import java.time.Instant
 data class DocumentacionEscaneada(
     @Id val id: ObjectId? = null,
     @Field("egresado_id") val egresadoId: ObjectId,
+    @Field("proceso_id") val procesoId: ObjectId,
     @Field("numero_control") val numeroControl: String,
     @Field("nombre_completo") val nombreCompleto: String,
     @Field("carrera") val carrera: String? = null,

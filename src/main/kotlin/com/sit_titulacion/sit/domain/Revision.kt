@@ -19,6 +19,7 @@ data class RevisionDocumentoAdjunto(
 data class Revision(
     @Id val id: ObjectId? = null,
     @Field("egresado_id") val egresadoId: ObjectId,
+    @Field("proceso_id") val procesoId: ObjectId,
     @Field("numero_revision") val numeroRevision: Int,
     val fecha: Instant = Instant.now(),
     @Field("revisado_por") val revisadoPor: String = "academico",

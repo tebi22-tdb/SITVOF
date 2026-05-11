@@ -3,7 +3,7 @@
   Leer antes de trabajar en cualquier área relacionada
 ================================================================================
 
-ESTADO: En diseño / pendiente de implementar
+ESTADO: Cambio 1 IMPLEMENTADO — Cambio 2 pendiente
 FECHA:  Mayo 2026
 
 AVISO IMPORTANTE
@@ -58,7 +58,23 @@ FLUJO NUEVO:
     · frontend/src/app/pages/home/home.component.*
     · frontend/src/app/pages/departamento-academico/departamento-academico.component.*
 
-NO TOQUES ESTAS ÁREAS HASTA QUE SE DEFINA LA IMPLEMENTACIÓN.
+IMPLEMENTADO. La BD de prueba debe limpiarse (drop colección "registro") antes
+de arrancar el backend con el nuevo modelo.
+
+ARCHIVOS MODIFICADOS:
+  src/main/kotlin/.../domain/ProcesoTitulacion.kt  (nuevo)
+  src/main/kotlin/.../domain/Egresado.kt           (solo datos de cuenta + procesos[])
+  src/main/kotlin/.../domain/Revision.kt           (agregado procesoId)
+  src/main/kotlin/.../domain/DocumentacionEscaneada.kt (agregado procesoId)
+  src/main/kotlin/.../repository/EgresadoRepository.kt (rutas actualizadas a procesos.xxx)
+  src/main/kotlin/.../repository/RevisionRepository.kt (queries por procesoId)
+  src/main/kotlin/.../service/EgresadoService.kt   (toda la lógica refactorizada)
+  src/main/kotlin/.../service/RevisionService.kt   (usa procesoId)
+  src/main/kotlin/.../web/api/EgresadoController.kt (nuevo endpoint /{id}/nuevo-proceso)
+  src/main/kotlin/.../web/api/VerificacionController.kt (busca proceso por cert_uuid)
+  src/main/kotlin/.../web/api/dto/EgresadoDtos.kt  (proceso_id, total_procesos en DetailDto)
+  frontend/.../services/egresado.service.ts        (proceso_id, total_procesos en EgresadoDetail)
+                                                    (nuevo método activarNuevoProceso())
 
 
 ================================================================================

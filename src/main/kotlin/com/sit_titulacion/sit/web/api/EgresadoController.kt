@@ -412,6 +412,24 @@ class EgresadoController(
         }
     }
 
+    /**
+     * Abre un nuevo proceso de titulación para un egresado cuyo proceso anterior venció o se tituló.
+     * El proceso anterior queda en el historial. Solo el coordinador puede invocar esto.
+     */
+    @PostMapping("/{id}/nuevo-proceso", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun activarNuevoProceso(
+        @PathVariable id: String,
+        @ModelAttribute datos: EgresadoRequestDto,
+        @RequestPart(required = false) archivo: MultipartFile?,
+    ): ResponseEntity<*> {
+        val error = egresadoService.activarNuevoProceso(id, datos, archivo)
+        return if (error == null) {
+            ResponseEntity.ok().build<Void>()
+        } else {
+            ResponseEntity.badRequest().body(mapOf("error" to error))
+        }
+    }
+
     /** Marca el egresado como "Enviado al departamento académico" (paso 1.1 del seguimiento). */
     @PostMapping("/{id}/enviar-departamento-academico")
     fun enviarDepartamentoAcademico(@PathVariable id: String): ResponseEntity<*> {

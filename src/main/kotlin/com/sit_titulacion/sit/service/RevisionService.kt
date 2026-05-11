@@ -35,15 +35,16 @@ class RevisionService(
         archivoAdjunto: MultipartFile? = null,
     ): RevisionDto? {
         val oid = try { ObjectId(egresadoId) } catch (_: Exception) { return null }
-        if (!egresadoRepository.existsById(oid)) return null
-        val siguiente = (revisionRepository.countByEgresadoId(oid) + 1).toInt()
+        val eg = egresadoRepository.findById(oid).orElse(null) ?: return null
+        val p = eg.procesoActivoOrNull() ?: return null
+        val siguiente = (revisionRepository.countByEgresadoIdAndProcesoId(oid, p.id) + 1).toInt()
         val adjunto = if (archivoAdjunto != null && !archivoAdjunto.isEmpty) {
             toAdjunto(archivoAdjunto) ?: return null
-        } else {
-            null
-        }
+        } else null
+
         val rev = Revision(
             egresadoId = oid,
+            procesoId = p.id,
             numeroRevision = siguiente,
             revisadoPor = revisadoPor,
             resultado = body.resultado.trim().lowercase().takeIf { it in listOf("observaciones", "aprobado") } ?: "observaciones",
@@ -51,61 +52,52 @@ class RevisionService(
             documentoAdjunto = adjunto,
         )
         val guardada = revisionRepository.save(rev)
+
         if (guardada.resultado == "aprobado") {
-            val eg = egresadoRepository.findById(oid).orElse(null)
-            if (eg != null) {
-                val esResidencia =
-                    eg.datos_proyecto.modalidad.trim().equals("Residencia Profesional", ignoreCase = true)
-                val flujoNoResExtendido = !esResidencia && eg.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null
-                val yaLiberado =
-                    eg.fechaRecibidoRegistroLiberacion != null || eg.fechaLiberacionDocumentoCoordinacionCat != null
-                if (!esResidencia && eg.fechaEnviadoDepartamentoAcademico != null && !yaLiberado) {
-                    val ahora = Instant.now()
-
-                    // Intentar certificar el documento antes de marcar como aprobado
-                    var docAdjunto = eg.documento_adjunto
-                    var certUuid: String? = null
-                    var certHash: String? = null
-                    var fechaCert: Instant? = null
-                    try {
-                        val resultado = certService.certificarDocumento(eg)
-                        if (resultado != null) {
-                            docAdjunto = docAdjunto.copy(gridfs_id = resultado.nuevoGridFsId)
-                            certUuid = resultado.certUuid
-                            certHash = resultado.certHash
-                            fechaCert = ahora
-                        } else {
-                            log.warn("Certificacion no completada para egresado id={}: documento faltante o no PDF", egresadoId)
-                        }
-                    } catch (ex: Exception) {
-                        log.error("Error al certificar documento para egresado id={}: {}", egresadoId, ex.message, ex)
-                    }
-
-                    if (flujoNoResExtendido) {
-                        egresadoRepository.save(
-                            eg.copy(
-                                fechaLiberacionDocumentoCoordinacionCat = ahora,
-                                fechaConfirmacionRecibidosAnexoXxxiXxxii = ahora,
-                                fecha_actualizacion = ahora,
-                                documento_adjunto = docAdjunto,
-                                cert_uuid = certUuid,
-                                cert_hash = certHash,
-                                fechaCertificacion = fechaCert,
-                            ),
-                        )
+            val esResidencia = catalogoEsResidencia(eg, p.datos_proyecto.modalidad)
+            val flujoNoResExtendido = !esResidencia && p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null
+            val yaLiberado = p.fechaRecibidoRegistroLiberacion != null || p.fechaLiberacionDocumentoCoordinacionCat != null
+            if (!esResidencia && p.fechaEnviadoDepartamentoAcademico != null && !yaLiberado) {
+                val ahora = Instant.now()
+                var docAdjunto = p.documento_adjunto
+                var certUuid: String? = null
+                var certHash: String? = null
+                var fechaCert: Instant? = null
+                try {
+                    val resultado = certService.certificarDocumento(eg)
+                    if (resultado != null) {
+                        docAdjunto = docAdjunto.copy(gridfs_id = resultado.nuevoGridFsId)
+                        certUuid = resultado.certUuid
+                        certHash = resultado.certHash
+                        fechaCert = ahora
                     } else {
-                        egresadoRepository.save(
-                            eg.copy(
-                                fechaRecibidoRegistroLiberacion = ahora,
-                                fecha_actualizacion = ahora,
-                                documento_adjunto = docAdjunto,
-                                cert_uuid = certUuid,
-                                cert_hash = certHash,
-                                fechaCertificacion = fechaCert,
-                            ),
-                        )
+                        log.warn("Certificacion no completada para egresado id={}", egresadoId)
                     }
+                } catch (ex: Exception) {
+                    log.error("Error al certificar documento para egresado id={}: {}", egresadoId, ex.message, ex)
                 }
+
+                val pActualizado = if (flujoNoResExtendido) {
+                    p.copy(
+                        fechaLiberacionDocumentoCoordinacionCat = ahora,
+                        fechaConfirmacionRecibidosAnexoXxxiXxxii = ahora,
+                        fecha_actualizacion = ahora,
+                        documento_adjunto = docAdjunto,
+                        cert_uuid = certUuid,
+                        cert_hash = certHash,
+                        fechaCertificacion = fechaCert,
+                    )
+                } else {
+                    p.copy(
+                        fechaRecibidoRegistroLiberacion = ahora,
+                        fecha_actualizacion = ahora,
+                        documento_adjunto = docAdjunto,
+                        cert_uuid = certUuid,
+                        cert_hash = certHash,
+                        fechaCertificacion = fechaCert,
+                    )
+                }
+                egresadoRepository.save(eg.actualizarProcesoActivo(pActualizado))
             }
         }
         return toDto(guardada)
@@ -113,12 +105,16 @@ class RevisionService(
 
     fun listarPorEgresado(egresadoId: String): List<RevisionDto> {
         val oid = try { ObjectId(egresadoId) } catch (_: Exception) { return emptyList() }
-        return revisionRepository.findByEgresadoIdOrderByNumeroRevisionDesc(oid).map { toDto(it) }
+        val eg = egresadoRepository.findById(oid).orElse(null) ?: return emptyList()
+        val pid = eg.procesoActivoOrNull()?.id ?: return emptyList()
+        return revisionRepository.findByEgresadoIdAndProcesoIdOrderByNumeroRevisionDesc(oid, pid).map { toDto(it) }
     }
 
     fun listarEnviadasAlEgresado(egresadoId: String): List<RevisionDto> {
         val oid = try { ObjectId(egresadoId) } catch (_: Exception) { return emptyList() }
-        return revisionRepository.findEnviadasAlEgresado(oid).map { toDto(it) }
+        val eg = egresadoRepository.findById(oid).orElse(null) ?: return emptyList()
+        val pid = eg.procesoActivoOrNull()?.id ?: return emptyList()
+        return revisionRepository.findEnviadasAlEgresadoPorProceso(oid, pid).map { toDto(it) }
     }
 
     fun enviarRevisionAlEgresado(egresadoId: String, revisionId: String): RevisionDto? {
@@ -127,23 +123,14 @@ class RevisionService(
         val existente = revisionRepository.findByIdAndEgresadoId(revisionOid, egresadoOid) ?: return null
         if (existente.resultado != "observaciones") return null
         if (existente.enviadoAlEgresado) return toDto(existente)
-        val enviada = revisionRepository.save(
-            existente.copy(
-                enviadoAlEgresado = true,
-                fechaEnvioEgresado = Instant.now(),
-            ),
-        )
+        val enviada = revisionRepository.save(existente.copy(enviadoAlEgresado = true, fechaEnvioEgresado = Instant.now()))
         return toDto(enviada)
     }
 
-    fun ultimaRevision(egresadoId: ObjectId): Revision? =
-        revisionRepository.findByEgresadoIdOrderByNumeroRevisionDesc(egresadoId).firstOrNull()
+    fun ultimaRevision(egresadoId: ObjectId, procesoId: ObjectId): Revision? =
+        revisionRepository.findByEgresadoIdAndProcesoIdOrderByNumeroRevisionDesc(egresadoId, procesoId).firstOrNull()
 
-    fun obtenerDocumentoAdjunto(
-        egresadoId: String,
-        revisionId: String,
-        requiereEnviadaEgresado: Boolean,
-    ): RevisionDocumentoDescarga? {
+    fun obtenerDocumentoAdjunto(egresadoId: String, revisionId: String, requiereEnviadaEgresado: Boolean): RevisionDocumentoDescarga? {
         val egresadoOid = try { ObjectId(egresadoId) } catch (_: Exception) { return null }
         val revisionOid = try { ObjectId(revisionId) } catch (_: Exception) { return null }
         val rev = revisionRepository.findByIdAndEgresadoId(revisionOid, egresadoOid) ?: return null
@@ -155,6 +142,9 @@ class RevisionService(
             fileName = doc.nombreOriginal.ifBlank { "revision-adjunta.pdf" },
         )
     }
+
+    private fun catalogoEsResidencia(eg: com.sit_titulacion.sit.domain.Egresado, modalidad: String): Boolean =
+        modalidad.trim().equals("Residencia Profesional", ignoreCase = true)
 
     private fun toAdjunto(archivo: MultipartFile): RevisionDocumentoAdjunto? {
         val nombreOriginal = (archivo.originalFilename ?: "revision-adjunta.pdf").trim().ifBlank { "revision-adjunta.pdf" }

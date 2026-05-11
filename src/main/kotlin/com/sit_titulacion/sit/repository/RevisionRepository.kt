@@ -9,15 +9,14 @@ import org.springframework.stereotype.Repository
 @Repository
 interface RevisionRepository : MongoRepository<Revision, ObjectId> {
 
-    /** Todas las revisiones del egresado, más reciente primero (por número y fecha). */
-    @Query(value = "{ 'egresado_id' : ?0 }", sort = "{ 'numero_revision' : -1, 'fecha' : -1 }")
-    fun findByEgresadoIdOrderByNumeroRevisionDesc(egresadoId: ObjectId): List<Revision>
+    @Query(value = "{ 'egresado_id' : ?0, 'proceso_id' : ?1 }", sort = "{ 'numero_revision' : -1, 'fecha' : -1 }")
+    fun findByEgresadoIdAndProcesoIdOrderByNumeroRevisionDesc(egresadoId: ObjectId, procesoId: ObjectId): List<Revision>
 
-    @Query(value = "{ 'egresado_id' : ?0, 'enviado_al_egresado' : true }", sort = "{ 'fecha_envio_egresado' : -1, 'fecha' : -1 }")
-    fun findEnviadasAlEgresado(egresadoId: ObjectId): List<Revision>
+    @Query(value = "{ 'egresado_id' : ?0, 'proceso_id' : ?1, 'enviado_al_egresado' : true }", sort = "{ 'fecha_envio_egresado' : -1, 'fecha' : -1 }")
+    fun findEnviadasAlEgresadoPorProceso(egresadoId: ObjectId, procesoId: ObjectId): List<Revision>
 
     @Query("{ '_id' : ?0, 'egresado_id' : ?1 }")
     fun findByIdAndEgresadoId(id: ObjectId, egresadoId: ObjectId): Revision?
 
-    fun countByEgresadoId(egresadoId: ObjectId): Long
+    fun countByEgresadoIdAndProcesoId(egresadoId: ObjectId, procesoId: ObjectId): Long
 }
