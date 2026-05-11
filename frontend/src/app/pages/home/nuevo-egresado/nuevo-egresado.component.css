@@ -1,0 +1,271 @@
+.form-nuevo-egresado {
+  max-width: 720px;
+  padding: 1rem 0;
+}
+
+.form-obligatorio {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+/* Cuando el campo está inválido y tocado: borde rojo en input/select */
+.form-campo-error input,
+.form-campo-error select {
+  border-color: #b91c1c;
+  background-color: #fef2f2;
+}
+
+.form-error-msg {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: #b91c1c;
+}
+
+.form-aviso-requeridos {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: #991b1b;
+  font-size: 0.9rem;
+}
+
+.form-seccion {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.form-seccion:last-of-type {
+  border-bottom: none;
+}
+
+.form-seccion-titulo {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  color: #1a365d;
+  font-weight: 600;
+}
+
+.form-subseccion h4 {
+  margin: 0.75rem 0 0.5rem;
+  font-size: 0.95rem;
+  color: #2d3748;
+  font-weight: 500;
+}
+
+.form-subseccion:first-child h4 {
+  margin-top: 0;
+}
+
+.form-campo {
+  margin-bottom: 0.9rem;
+}
+
+.form-campo label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.form-campo input,
+.form-campo select,
+.form-campo textarea {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.form-campo input:focus,
+.form-campo select:focus,
+.form-campo textarea:focus {
+  outline: none;
+  border-color: #2c5282;
+  box-shadow: 0 0 0 2px rgba(44, 82, 130, 0.2);
+}
+
+.form-campo input[type="date"] {
+  cursor: pointer;
+}
+
+.form-campo-checkbox {
+  margin-top: 0.5rem;
+}
+
+.form-label-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+  color: #374151;
+}
+
+.form-label-checkbox input[type="checkbox"] {
+  width: auto;
+  cursor: pointer;
+}
+
+.form-checkbox-hint {
+  margin: 0.35rem 0 0 1.75rem;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.form-archivo-actual {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+}
+
+.form-archivo-actual p {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+  color: #166534;
+}
+
+.btn-quitar-archivo {
+  min-height: 28px;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid #b91c1c;
+  border-radius: 5px;
+  background: #fff;
+  color: #b91c1c;
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+
+.btn-quitar-archivo:hover {
+  background: #fef2f2;
+}
+
+.form-archivo-quitado {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: #92400e;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #2563eb;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
+  padding: 0;
+}
+
+.form-file {
+  padding: 0.4rem 0;
+  font-size: 0.95rem;
+}
+
+.form-file-hint,
+.form-file-selected {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.form-file-selected strong {
+  color: #1e293b;
+}
+
+.form-fila {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+.form-fila-2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.form-acciones {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.btn-cancelar {
+  min-height: 32px;
+  padding: 0.34rem 0.78rem;
+  border: 1px solid #cbd5e0;
+  background: #fff;
+  color: #4a5568;
+  border-radius: 5px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-cancelar:hover {
+  background: #f7fafc;
+}
+
+.btn-agregar {
+  min-height: 32px;
+  padding: 0.34rem 0.78rem;
+  border: none;
+  background: #2c5282;
+  color: #fff;
+  border-radius: 5px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-agregar:hover {
+  background: #1a365d;
+}
+
+.originalidad-indicador {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.orig-comprobando {
+  color: #64748b;
+}
+
+.orig-libre {
+  color: #16a34a;
+}
+
+.orig-advertencia {
+  color: #b45309;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.orig-bloqueado {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+@media (max-width: 640px) {
+  .form-fila {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,207 @@
+<form [formGroup]="form" (ngSubmit)="onSubmit()" class="form-nuevo-egresado">
+  <div class="form-seccion">
+    <h3 class="form-seccion-titulo">Datos generales</h3>
+    <div class="form-campo" [class.form-campo-error]="campoInvalido('numero_control') || controlAltaEstado === 'BLOQUEADO'">
+      <label for="numero_control">Número de control <span class="form-obligatorio">*</span></label>
+      <input id="numero_control" type="text" formControlName="numero_control" placeholder="Ej. 20201234" />
+      <span class="form-error-msg" *ngIf="campoInvalido('numero_control')">Campo obligatorio</span>
+      <div class="originalidad-indicador" *ngIf="controlAltaEstado">
+        <span *ngIf="controlAltaEstado === 'comprobando'" class="orig-comprobando">Verificando número de control...</span>
+        <span *ngIf="controlAltaEstado === 'LIBRE'" class="orig-libre">Número de control disponible</span>
+        <span *ngIf="controlAltaEstado === 'BLOQUEADO'" class="orig-bloqueado">{{ mensajeBloqueoNumeroControl }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-seccion">
+    <h3 class="form-seccion-titulo">Datos personales</h3>
+    <div class="form-fila">
+      <div class="form-campo" [class.form-campo-error]="campoInvalido('nombre')">
+        <label for="nombre">Nombre <span class="form-obligatorio">*</span></label>
+        <input id="nombre" type="text" formControlName="nombre" />
+        <span class="form-error-msg" *ngIf="campoInvalido('nombre')">Campo obligatorio</span>
+      </div>
+      <div class="form-campo" [class.form-campo-error]="campoInvalido('apellido_paterno')">
+        <label for="apellido_paterno">Apellido paterno <span class="form-obligatorio">*</span></label>
+        <input id="apellido_paterno" type="text" formControlName="apellido_paterno" />
+        <span class="form-error-msg" *ngIf="campoInvalido('apellido_paterno')">Campo obligatorio</span>
+      </div>
+      <div class="form-campo" [class.form-campo-error]="campoInvalido('apellido_materno')">
+        <label for="apellido_materno">Apellido materno <span class="form-obligatorio">*</span></label>
+        <input id="apellido_materno" type="text" formControlName="apellido_materno" />
+        <span class="form-error-msg" *ngIf="campoInvalido('apellido_materno')">Campo obligatorio</span>
+      </div>
+    </div>
+    <div class="form-fila">
+      <div class="form-campo" [class.form-campo-error]="campoInvalido('carrera')">
+        <label for="carrera">Carrera <span class="form-obligatorio">*</span></label>
+        <select id="carrera" formControlName="carrera">
+          <option value="">Seleccione carrera</option>
+          <option *ngFor="let c of carreras" [value]="c">{{ c }}</option>
+        </select>
+        <span class="form-error-msg" *ngIf="campoInvalido('carrera')">Campo obligatorio</span>
+      </div>
+      <div class="form-campo" [class.form-campo-error]="campoInvalido('nivel')">
+        <label for="nivel">Nivel <span class="form-obligatorio">*</span></label>
+        <select id="nivel" formControlName="nivel">
+          <option value="">Seleccione nivel</option>
+          <option *ngFor="let n of niveles" [value]="n">{{ n }}</option>
+        </select>
+        <span class="form-error-msg" *ngIf="campoInvalido('nivel')">Campo obligatorio</span>
+      </div>
+    </div>
+    <div class="form-campo" [class.form-campo-error]="campoInvalido('direccion')">
+      <label for="direccion">Dirección <span class="form-obligatorio">*</span></label>
+      <input id="direccion" type="text" formControlName="direccion" />
+      <span class="form-error-msg" *ngIf="campoInvalido('direccion')">Campo obligatorio</span>
+    </div>
+    <div class="form-fila">
+      <div class="form-campo" [class.form-campo-error]="campoInvalido('telefono')">
+        <label for="telefono">Teléfono <span class="form-obligatorio">*</span></label>
+        <input id="telefono" type="tel" formControlName="telefono" />
+        <span class="form-error-msg" *ngIf="campoInvalido('telefono')">Campo obligatorio</span>
+      </div>
+      <div class="form-campo" [class.form-campo-error]="campoInvalido('correo_electronico')">
+        <label for="correo_electronico">Correo electrónico <span class="form-obligatorio">*</span></label>
+        <input id="correo_electronico" type="email" formControlName="correo_electronico" />
+        <span class="form-error-msg" *ngIf="campoInvalido('correo_electronico')">Campo obligatorio</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-seccion">
+    <h3 class="form-seccion-titulo">Datos del proyecto</h3>
+    <div class="form-campo" [class.form-campo-error]="campoInvalido('nombre_proyecto') || originalidadEstado === 'BLOQUEADO' || originalidadEstado === 'ADVERTENCIA'">
+      <label for="nombre_proyecto">Nombre del proyecto <span class="form-obligatorio">*</span></label>
+      <input id="nombre_proyecto" type="text" formControlName="nombre_proyecto" />
+      <span class="form-error-msg" *ngIf="campoInvalido('nombre_proyecto')">Campo obligatorio</span>
+      <div class="originalidad-indicador" *ngIf="originalidadEstado">
+        <span *ngIf="originalidadEstado === 'comprobando'" class="orig-comprobando">Verificando...</span>
+        <span *ngIf="originalidadEstado === 'LIBRE'" class="orig-libre">Nombre disponible</span>
+        <span *ngIf="originalidadEstado === 'ADVERTENCIA'" class="orig-advertencia">Debe usar un título distinto; es demasiado similar a: {{ originalidadTituloSimilar }}</span>
+        <span *ngIf="originalidadEstado === 'BLOQUEADO'" class="orig-bloqueado">{{ mensajeBloqueoNombreProyecto }}</span>
+      </div>
+    </div>
+    <div class="form-campo form-campo-checkbox">
+      <label class="form-label-checkbox">
+        <input type="checkbox" formControlName="curso_titulacion" />
+        <span>Curso de titulación</span>
+      </label>
+    </div>
+    <div class="form-campo" [class.form-campo-error]="campoInvalido('modalidad')">
+      <label for="modalidad">Modalidad <span class="form-obligatorio">*</span></label>
+      <select id="modalidad" formControlName="modalidad">
+        <option value="">Seleccione modalidad</option>
+        <option *ngFor="let m of opcionesModalidad" [value]="m">{{ m }}</option>
+      </select>
+      <span class="form-error-msg" *ngIf="campoInvalido('modalidad')">Campo obligatorio</span>
+    </div>
+    <ng-container *ngIf="catalogoService.tipoMentoresPorNombre(form.get('modalidad')?.value || '') === 'residencia'">
+      <div class="form-fila form-fila-2">
+        <div class="form-campo" [class.form-campo-error]="campoInvalido('asesor_interno')">
+          <label for="asesor_interno">Asesor interno <span class="form-obligatorio">*</span></label>
+          <input id="asesor_interno" type="text" formControlName="asesor_interno" />
+          <span class="form-error-msg" *ngIf="campoInvalido('asesor_interno')">Campo obligatorio</span>
+        </div>
+        <div class="form-campo" [class.form-campo-error]="campoInvalido('asesor_externo')">
+          <label for="asesor_externo">Asesor externo <span class="form-obligatorio">*</span></label>
+          <input id="asesor_externo" type="text" formControlName="asesor_externo" />
+          <span class="form-error-msg" *ngIf="campoInvalido('asesor_externo')">Campo obligatorio</span>
+        </div>
+      </div>
+    </ng-container>
+    <ng-container *ngIf="catalogoService.tipoMentoresPorNombre(form.get('modalidad')?.value || '') === 'estandar'">
+      <div class="form-campo" [class.form-campo-error]="campoInvalido('director')">
+        <label for="director">Director <span class="form-obligatorio">*</span></label>
+        <input id="director" type="text" formControlName="director" />
+        <span class="form-error-msg" *ngIf="campoInvalido('director')">Campo obligatorio</span>
+      </div>
+      <div class="form-fila form-fila-2">
+        <div class="form-campo" [class.form-campo-error]="campoInvalido('asesor_1')">
+          <label for="asesor_1">Asesor 1 <span class="form-obligatorio">*</span></label>
+          <input id="asesor_1" type="text" formControlName="asesor_1" />
+          <span class="form-error-msg" *ngIf="campoInvalido('asesor_1')">Campo obligatorio</span>
+        </div>
+        <div class="form-campo" [class.form-campo-error]="campoInvalido('asesor_2')">
+          <label for="asesor_2">Asesor 2 <span class="form-obligatorio">*</span></label>
+          <input id="asesor_2" type="text" formControlName="asesor_2" />
+          <span class="form-error-msg" *ngIf="campoInvalido('asesor_2')">Campo obligatorio</span>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+
+  <div class="form-seccion">
+    <h3 class="form-seccion-titulo">Documentos</h3>
+    <div class="form-subseccion">
+      <h4>Anexo XXXI</h4>
+      <div class="form-campo" [class.form-campo-error]="campoInvalido('fecha_registro_anexo')">
+        <label for="fecha_registro_anexo">Fecha de registro <span class="form-obligatorio">*</span></label>
+        <input id="fecha_registro_anexo" type="date" formControlName="fecha_registro_anexo" />
+        <span class="form-error-msg" *ngIf="campoInvalido('fecha_registro_anexo')">Campo obligatorio</span>
+      </div>
+    </div>
+    <div class="form-subseccion">
+      <h4>Constancia no inconveniencia</h4>
+      <div class="form-campo" [class.form-campo-error]="campoInvalido('fecha_expedicion_constancia')">
+        <label for="fecha_expedicion_constancia">Fecha de expedición <span class="form-obligatorio">*</span></label>
+        <input id="fecha_expedicion_constancia" type="date" formControlName="fecha_expedicion_constancia" />
+        <span class="form-error-msg" *ngIf="campoInvalido('fecha_expedicion_constancia')">Campo obligatorio</span>
+      </div>
+    </div>
+    <div class="form-subseccion">
+      <h4>Documento adjunto (PDF o Word)</h4>
+      <div class="form-campo" [class.form-campo-error]="archivoRequeridoError">
+        <label for="documento_adjunto">Subir archivo (un solo archivo por alumno) <span class="form-obligatorio">*</span></label>
+        <ng-container *ngIf="editando && tieneArchivoActual && !quitarArchivoSeleccionado">
+          <div class="form-archivo-actual">
+            <p><strong>Archivo actual:</strong> {{ egresadoParaEditar?.documento_adjunto?.nombre_original || 'documento' }} ({{ egresadoParaEditar?.documento_adjunto?.tamanio_bytes | number }} bytes)</p>
+            <button type="button" class="btn-quitar-archivo" (click)="onQuitarArchivoActual()">Quitar archivo actual</button>
+          </div>
+        </ng-container>
+        <ng-container *ngIf="editando && tieneArchivoActual && quitarArchivoSeleccionado">
+          <p class="form-archivo-quitado">Se quitará el archivo al guardar. <button type="button" class="btn-link" (click)="onRestaurarArchivoActual()">Deshacer</button></p>
+        </ng-container>
+        <input
+          id="documento_adjunto"
+          type="file"
+          accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          (change)="onFileSelected($event)"
+          class="form-file"
+        />
+        <span class="form-error-msg" *ngIf="archivoRequeridoError">Campo obligatorio</span>
+        <p class="form-file-hint" *ngIf="!archivoSeleccionado && !archivoRequeridoError">
+          {{ editando ? 'Opcional. Deje vacío para conservar el actual; suba uno para reemplazar.' : 'Ningún archivo seleccionado. Formatos: PDF, DOC, DOCX.' }}
+        </p>
+        <p class="form-file-selected" *ngIf="archivoSeleccionado">
+          Nuevo archivo: <strong>{{ archivoSeleccionado.name }}</strong> ({{ archivoSeleccionado.size | number }} bytes)
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-seccion">
+    <div class="form-campo">
+      <label for="observaciones">Observaciones / Notas</label>
+      <textarea id="observaciones" formControlName="observaciones" rows="4" placeholder="Cuadro para agregar información adicional"></textarea>
+    </div>
+  </div>
+
+  <div class="form-acciones">
+    <button type="button" class="btn btn-cancelar" [disabled]="guardando" (click)="onCancelar()">Cancelar</button>
+    <button
+      type="submit"
+      class="btn btn-agregar"
+      [disabled]="
+        guardando ||
+        originalidadEstado === 'BLOQUEADO' ||
+        originalidadEstado === 'ADVERTENCIA' ||
+        originalidadEstado === 'comprobando' ||
+        controlAltaEstado === 'BLOQUEADO' ||
+        controlAltaEstado === 'comprobando'
+      "
+    >
+      {{ guardando ? (editando ? 'Guardando cambios...' : 'Agregando...') : (editando ? 'Guardar cambios' : 'Agregar') }}
+    </button>
+  </div>
+</form>

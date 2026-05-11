@@ -1,0 +1,268 @@
+<app-header
+  (nuevoClick)="mostrarFormulario = true; mostrarFormularioUsuario = false"
+  [showAgregarUsuarioButton]="esAdminUsuariosStaff"
+  [showVolverInicioButton]="true"
+  (agregarUsuarioClick)="abrirModalAgregarUsuario()"
+  (volverInicioClick)="volverInicio()"
+></app-header>
+
+<div class="sit-contenido">
+  <aside class="sit-panel-izq">
+    <div class="sit-panel-izq-cabecera">
+    <label for="buscar" class="sit-buscar-label">Buscar (número de control):</label>
+    <div class="sit-buscar-row">
+      <input
+        id="buscar"
+        type="text"
+        class="sit-buscar-input"
+        placeholder="Ej. 20201234"
+        [(ngModel)]="textoBusqueda"
+        (keyup.enter)="onBuscar()"
+      />
+      <button type="button" class="sit-btn-buscar" (click)="onBuscar()">Buscar</button>
+      <button
+        type="button"
+        class="sit-btn-filtro"
+        [class.sit-btn-filtro-activo]="mostrarFiltro || fechaDesde || fechaHasta"
+        (click)="mostrarFiltro = !mostrarFiltro"
+        title="Filtrar por fecha"
+        aria-label="Filtrar por fecha"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+        </svg>
+      </button>
+    </div>
+    <div *ngIf="mostrarFiltro && tabLista === 'egresados'" class="sit-filtro-fechas">
+      <label for="tipo-filtro">Filtrar por</label>
+      <select id="tipo-filtro" [(ngModel)]="tipoFiltroFecha">
+        <option value="anexo_xxxi">Anexo XXXI — Fecha registro</option>
+        <option value="constancia">Constancia — Fecha expedición</option>
+      </select>
+      <label for="fecha-desde">Desde</label>
+      <input id="fecha-desde" type="date" [(ngModel)]="fechaDesde" />
+      <label for="fecha-hasta">Hasta</label>
+      <input id="fecha-hasta" type="date" [(ngModel)]="fechaHasta" />
+      <div class="sit-filtro-acciones">
+        <button type="button" class="sit-btn-aplicar" (click)="onBuscar(); mostrarFiltro = false">Aplicar</button>
+        <button type="button" class="sit-btn-limpiar" (click)="fechaDesde = ''; fechaHasta = ''; onBuscar()">Limpiar</button>
+      </div>
+    </div>
+    <div class="sit-vista-selector" *ngIf="esAdminUsuariosStaff; else soloEgresadosVista">
+      <label for="sit-vista-select" class="sit-vista-label">Vista</label>
+      <select
+        id="sit-vista-select"
+        class="sit-vista-select"
+        [ngModel]="tabLista"
+        (ngModelChange)="onCambioVista($event)"
+      >
+        <option value="egresados">Egresados</option>
+        <option value="usuarios">Usuarios</option>
+      </select>
+    </div>
+    <ng-template #soloEgresadosVista>
+      <div class="sit-vista-chip">Vista: Egresados</div>
+    </ng-template>
+    </div>
+    <div class="sit-lista-cards">
+      <p *ngIf="cargandoLista" class="sit-lista-sin-resultados">Cargando lista...</p>
+      <p *ngIf="errorLista" class="sit-lista-error">{{ errorLista }}</p>
+      <ng-container *ngIf="tabLista === 'egresados'">
+        <button
+          *ngFor="let item of lista"
+          type="button"
+          class="sit-card"
+          [class.sit-card-selected]="detalle?.id === item.id"
+          (click)="onSeleccionar(item)"
+        >
+          <span class="sit-card-numero">{{ item.numero_control || '—' }}</span>
+          <span class="sit-card-nombre">{{ item.nombre || '—' }}</span>
+          <span class="sit-card-carrera">{{ item.carrera || '—' }}</span>
+        </button>
+      </ng-container>
+      <ng-container *ngIf="esAdminUsuariosStaff && tabLista === 'usuarios'">
+        <button
+          *ngFor="let u of listaUsuarios"
+          type="button"
+          class="sit-card"
+          [class.sit-card-selected]="usuarioSeleccionado?.id === u.id"
+          (click)="onSeleccionarUsuario(u)"
+        >
+          <span class="sit-card-numero">{{ u.username }}</span>
+          <span class="sit-card-nombre">{{ u.nombre || '—' }}</span>
+          <span class="sit-card-carrera">{{ u.rol }}{{ u.segmento_academico ? (' • ' + u.segmento_academico) : '' }}{{ u.curp ? (' • CURP: ' + u.curp) : '' }}</span>
+        </button>
+      </ng-container>
+      <p *ngIf="!cargandoLista && !errorLista && tabLista === 'egresados' && lista.length === 0 && !mostrarFormulario" class="sit-lista-sin-resultados">No hay egresados o no hay resultados.</p>
+      <p
+        *ngIf="esAdminUsuariosStaff && !cargandoLista && !errorLista && tabLista === 'usuarios' && listaUsuarios.length === 0 && !mostrarFormularioUsuario"
+        class="sit-lista-sin-resultados"
+      >
+        No hay usuarios o no hay resultados.
+      </p>
+    </div>
+  </aside>
+
+  <main class="sit-panel-der">
+    <p *ngIf="mensaje" class="sit-mensaje" [class.sit-mensaje-error]="mensaje.startsWith('Error')">{{ mensaje }}</p>
+    <app-nuevo-egresado
+      *ngIf="mostrarFormulario"
+      [guardando]="guardandoEgresado"
+      (cancelar)="mostrarFormulario = false"
+      (agregar)="onAgregar($event)"
+    ></app-nuevo-egresado>
+    <section *ngIf="esAdminUsuariosStaff && mostrarFormularioUsuario" class="sit-usuario-bloque">
+      <h2 class="sit-usuario-titulo">Agregar usuario</h2>
+      <form (ngSubmit)="guardarUsuario()" class="sit-usuario-form">
+        <label for="usuario-nombre">Nombre del usuario</label>
+        <input
+          id="usuario-nombre"
+          type="text"
+          [(ngModel)]="usuarioForm.nombre"
+          name="usuarioNombre"
+          placeholder="Nombre completo"
+        />
+        <label for="usuario-perfil">Departamento / división</label>
+        <select
+          id="usuario-perfil"
+          [(ngModel)]="usuarioForm.perfil"
+          name="usuarioPerfil"
+          (ngModelChange)="onCambioPerfilUsuario()"
+        >
+          <option *ngFor="let p of perfilesCreacionUsuario" [value]="p.id">{{ p.etiqueta }}</option>
+        </select>
+        <ng-container *ngIf="usuarioForm.rol === 'academico' && usuarioForm.carreras_asignadas.length">
+          <label for="usuario-carreras">Carreras que atenderá este usuario</label>
+          <textarea
+            id="usuario-carreras"
+            name="usuarioCarreras"
+            [value]="carrerasAsignadasTexto"
+            rows="3"
+            readonly
+          ></textarea>
+        </ng-container>
+        <label for="usuario-curp">CURP</label>
+        <input
+          id="usuario-curp"
+          type="text"
+          [(ngModel)]="usuarioForm.curp"
+          name="usuarioCurp"
+          placeholder="Ej. PEGA010101HOCXXX00"
+        />
+        <label for="usuario-correo">Correo electrónico</label>
+        <input
+          id="usuario-correo"
+          type="email"
+          [(ngModel)]="usuarioForm.correo_electronico"
+          name="usuarioCorreo"
+          placeholder="correo@ejemplo.com"
+        />
+        <p *ngIf="mensajeUsuario" class="sit-modal-error">{{ mensajeUsuario }}</p>
+        <div class="sit-modal-botones">
+          <button type="button" class="sit-btn-cancelar" (click)="cerrarModalAgregarUsuario()">Cancelar</button>
+          <button type="submit" class="sit-btn-guardar" [disabled]="guardandoUsuario">
+            {{ guardandoUsuario ? 'Guardando...' : 'Guardar' }}
+          </button>
+        </div>
+      </form>
+    </section>
+    <app-nuevo-egresado
+      *ngIf="editando && detalle"
+      [egresadoParaEditar]="detalle"
+      [guardando]="guardandoEgresado"
+      (cancelar)="editando = false"
+      (actualizar)="onActualizar($event)"
+    ></app-nuevo-egresado>
+    <div *ngIf="!mostrarFormulario && !mostrarFormularioUsuario && !editando && tabLista === 'egresados' && detalle" class="sit-detalle">
+      <div class="sit-detalle-header">
+        <h2>Información del egresado</h2>
+        <div class="sit-detalle-botones">
+          <button type="button" class="sit-btn-editar" (click)="editando = true">Editar</button>
+          <button type="button" class="sit-btn-eliminar" (click)="onEliminar()">Eliminar</button>
+          <button type="button" class="sit-btn-cerrar" (click)="cerrarDetalle()">Cerrar</button>
+        </div>
+      </div>
+      <div class="sit-detalle-cards">
+        <section class="sit-detalle-card sit-detalle-card-personales">
+          <h3>Datos personales</h3>
+          <dl class="sit-detalle-campos">
+            <div class="sit-campo"><dt>Número de control</dt><dd>{{ detalle.numero_control }}</dd></div>
+            <div class="sit-campo"><dt>Nombre</dt><dd>{{ detalle.datos_personales.nombre }} {{ detalle.datos_personales.apellido_paterno }} {{ detalle.datos_personales.apellido_materno }}</dd></div>
+            <div class="sit-campo sit-campo-half"><dt>Carrera</dt><dd>{{ detalle.datos_personales.carrera }}</dd></div>
+            <div class="sit-campo sit-campo-half"><dt>Nivel</dt><dd>{{ detalle.datos_personales.nivel }}</dd></div>
+            <div class="sit-campo"><dt>Dirección</dt><dd>{{ detalle.datos_personales.direccion || '—' }}</dd></div>
+            <div class="sit-campo sit-campo-half"><dt>Teléfono</dt><dd>{{ detalle.datos_personales.telefono || '—' }}</dd></div>
+            <div class="sit-campo sit-campo-half"><dt>Correo</dt><dd>{{ detalle.datos_personales.correo_electronico || '—' }}</dd></div>
+          </dl>
+        </section>
+        <section class="sit-detalle-card sit-detalle-card-proyecto">
+          <h3>Datos del proyecto</h3>
+          <dl class="sit-detalle-campos">
+            <div class="sit-campo"><dt>Nombre del proyecto</dt><dd>{{ detalle.datos_proyecto.nombre_proyecto || '—' }}</dd></div>
+            <div class="sit-campo sit-campo-half"><dt>Modalidad</dt><dd>{{ detalle.datos_proyecto.modalidad }}</dd></div>
+            <div class="sit-campo sit-campo-half"><dt>Curso de titulación</dt><dd>{{ detalle.datos_proyecto.curso_titulacion === 'si' ? 'Sí' : 'No' }}</dd></div>
+            <ng-container *ngIf="detalle.datos_proyecto.modalidad === 'Residencia Profesional'">
+              <div class="sit-campo sit-campo-half"><dt>Asesor interno</dt><dd>{{ detalle.datos_proyecto.asesor_interno || '—' }}</dd></div>
+              <div class="sit-campo sit-campo-half"><dt>Asesor externo</dt><dd>{{ detalle.datos_proyecto.asesor_externo || '—' }}</dd></div>
+            </ng-container>
+            <ng-container *ngIf="detalle.datos_proyecto.modalidad && detalle.datos_proyecto.modalidad !== 'Residencia Profesional'">
+              <div class="sit-campo sit-campo-half"><dt>Director</dt><dd>{{ detalle.datos_proyecto.director || '—' }}</dd></div>
+              <div class="sit-campo sit-campo-half"><dt>Asesor 1</dt><dd>{{ detalle.datos_proyecto.asesor_1 || '—' }}</dd></div>
+              <div class="sit-campo sit-campo-half"><dt>Asesor 2</dt><dd>{{ detalle.datos_proyecto.asesor_2 || '—' }}</dd></div>
+            </ng-container>
+          </dl>
+        </section>
+        <section class="sit-detalle-card sit-detalle-card-documentos">
+          <h3>Documentos</h3>
+          <dl class="sit-detalle-campos">
+            <div class="sit-campo sit-campo-half"><dt>Anexo XXXI — Fecha registro</dt><dd>{{ (detalle.documentos.anexo_xxxi?.fecha_registro | date:'dd/MM/yyyy') || '—' }}</dd></div>
+            <div class="sit-campo sit-campo-half"><dt>Anexo XXXI — Estado</dt><dd>{{ detalle.documentos.anexo_xxxi?.estado || '—' }}</dd></div>
+            <div class="sit-campo sit-campo-half"><dt>Constancia — Fecha expedición</dt><dd>{{ (detalle.documentos.constancia_no_inconveniencia?.fecha_expedicion | date:'dd/MM/yyyy') || '—' }}</dd></div>
+            <div class="sit-campo sit-campo-half"><dt>Constancia — Estado</dt><dd>{{ detalle.documentos.constancia_no_inconveniencia?.estado || '—' }}</dd></div>
+            <div class="sit-campo"><dt>Documento adjunto</dt><dd>{{ detalle.documento_adjunto?.nombre_original ? ((detalle.documento_adjunto?.nombre_original ?? '') + ' (' + ((detalle.documento_adjunto?.tamanio_bytes ?? 0) | number) + ' bytes)') : '—' }}</dd></div>
+          </dl>
+        </section>
+      </div>
+      <div class="sit-detalle-estado"><span class="sit-estado-badge">{{ detalle.estado_general }}</span></div>
+    </div>
+    <div *ngIf="esAdminUsuariosStaff && !mostrarFormulario && !mostrarFormularioUsuario && tabLista === 'usuarios' && usuarioSeleccionado" class="sit-detalle">
+      <div class="sit-detalle-header">
+        <h2>Información del usuario</h2>
+      </div>
+      <div class="sit-detalle-cards">
+        <section class="sit-detalle-card">
+          <h3>Datos de acceso</h3>
+          <dl class="sit-detalle-campos">
+            <div class="sit-campo"><dt>Usuario</dt><dd>{{ usuarioSeleccionado.username }}</dd></div>
+            <div class="sit-campo"><dt>Nombre</dt><dd>{{ usuarioSeleccionado.nombre || '—' }}</dd></div>
+            <div class="sit-campo"><dt>Rol</dt><dd>{{ usuarioSeleccionado.rol }}</dd></div>
+            <div class="sit-campo"><dt>Segmento académico</dt><dd>{{ usuarioSeleccionado.segmento_academico || '—' }}</dd></div>
+            <div class="sit-campo">
+              <dt>Carreras asignadas</dt>
+              <dd>{{ (usuarioSeleccionado.carreras_asignadas && usuarioSeleccionado.carreras_asignadas.length) ? usuarioSeleccionado.carreras_asignadas.join(', ') : '—' }}</dd>
+            </div>
+            <div class="sit-campo"><dt>CURP</dt><dd>{{ usuarioSeleccionado.curp || '—' }}</dd></div>
+            <div class="sit-campo"><dt>Correo</dt><dd>{{ usuarioSeleccionado.correo_electronico || '—' }}</dd></div>
+            <div class="sit-campo"><dt>Activo</dt><dd>{{ usuarioSeleccionado.activo ? 'Sí' : 'No' }}</dd></div>
+          </dl>
+        </section>
+      </div>
+    </div>
+    <div *ngIf="!mostrarFormulario && !mostrarFormularioUsuario && tabLista === 'egresados' && !detalle && cargandoDetalle" class="sit-vacio">
+      <p>Cargando...</p>
+    </div>
+    <div *ngIf="!mostrarFormulario && !mostrarFormularioUsuario && tabLista === 'egresados' && !detalle && !cargandoDetalle" class="sit-vacio">
+      <div class="sit-vacio-content">
+        <img src="assets/images/logo-itvo.png" alt="ITVO" class="sit-vacio-logo" />
+        <p>Presione <strong>Nuevo</strong> para agregar un egresado o seleccione uno de la lista.</p>
+      </div>
+    </div>
+    <div *ngIf="esAdminUsuariosStaff && !mostrarFormulario && !mostrarFormularioUsuario && tabLista === 'usuarios' && !usuarioSeleccionado" class="sit-vacio">
+      <div class="sit-vacio-content">
+        <img src="assets/images/logo-itvo.png" alt="ITVO" class="sit-vacio-logo" />
+        <p>Selecciona un usuario de la lista para ver su información.</p>
+      </div>
+    </div>
+  </main>
+</div>
+

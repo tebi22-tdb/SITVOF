@@ -1,0 +1,1375 @@
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { Router } from '@angular/router';
+import flatpickr from 'flatpickr';
+import { Instance as FlatpickrInstance } from 'flatpickr/dist/types/instance';
+import { catchError, EMPTY, finalize, of, throwError, timeout } from 'rxjs';
+import { HeaderComponent } from '../../layout/header/header.component';
+import { mensajeErrorApiConBlob } from '../../core/http-blob-error';
+import { EgresadoService, EgresadoDetail, EgresadoItem } from '../../services/egresado.service';
+import { CatalogoService } from '../../services/catalogo.service';
+import { calcularVistaPlazosNoResidencia } from '../../core/plazos-titulacion-no-residencia';
+import {
+  calcularVistaPlazoDesarrolloRecepcionNoRes,
+  construirPlazoDesarrolloRecepcionUi,
+  type PlazoDesarrolloRecepcionUi,
+} from '../../core/plazo-desarrollo-proyecto-no-res';
+
+type EstadoFiltro = 'todos' | 'en_tiempo' | 'rezagado' | 'vencido' | 'concluido';
+type OrdenFiltro = 'prioridad' | 'nombre' | 'control';
+
+/** Días de margen antes del límite para pasar de "en tiempo" a "rezagado". */
+const MARGEN_REZAGO_DIAS = 30;
+
+function inicioDiaLocal(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function diffDiasCalendario(fechaFin: Date, fechaInicio: Date): number {
+  const ms = inicioDiaLocal(fechaFin).getTime() - inicioDiaLocal(fechaInicio).getTime();
+  return Math.round(ms / 86400000);
+}
+
+function sumarMesesCalendario(base: Date, meses: number): Date {
+  return new Date(base.getFullYear(), base.getMonth() + meses, base.getDate());
+}
+
+interface SeguimientoItem {
+  id: string;
+  alumno: string;
+  noControl: string;
+  producto: string;
+  carrera: string;
+  estado: Exclude<EstadoFiltro, 'todos'>;
+  documentoFaltante: string;
+  ultimoMovimiento: string;
+  fechaLimite: string;
+}
+
+type EstadoPaso = 'completado' | 'en_curso' | 'pendiente';
+
+interface PasoTitulacionDef {
+  key: string;
+  titulo: string;
+  descripcion: string;
+}
+
+interface PasoProcesoUi {
+  numero: number;
+  key: string;
+  titulo: string;
+  descripcion: string;
+  fecha?: string;
+  estado: EstadoPaso;
+  /** Semáforo y fechas del plazo de desarrollo (paso recepción en división, flujo 16 no residencia). */
+  plazoDesarrolloRecepcion?: PlazoDesarrolloRecepcionUi | null;
+}
+
+@Component({
+  selector: 'app-seguimiento-proceso',
+  standalone: true,
+  imports: [CommonModule, FormsModule, HeaderComponent],
+  templateUrl: './seguimiento-proceso.component.html',
+  styleUrl: './seguimiento-proceso.component.css',
+})
+export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
+  @ViewChild('fechaActo93Input') fechaActo93Input?: ElementRef<HTMLInputElement>;
+
+  cargando = true;
+  error = '';
+  items: SeguimientoItem[] = [];
+
+  buscarControl = '';
+  filtroCarrera = '';
+  filtroProducto = '';
+  filtroDocumento = 'todos';
+  filtroEstado: EstadoFiltro = 'todos';
+  ordenarPor: OrdenFiltro = 'prioridad';
+  mostrarMasFiltros = false;
+  detalleSeleccionado: EgresadoDetail | null = null;
+  cargandoDetalle = false;
+  procesandoPaso = false;
+  mensajeProceso = '';
+  observacionesReenvioDocEscaneada = '';
+  cargandoDocEscaneada = false;
+  /** Mensaje si falla la descarga del PDF (timeout, red, 401, etc.). */
+  errorCargaDocEscaneada = '';
+  vistaDocEscaneadaUrl: SafeResourceUrl | null = null;
+  fechaActo93 = '';
+  /** Pasos del proceso: propiedad estable (no getter) para no destruir el DOM en cada ciclo de detección de cambios. */
+  pasosProcesoTitulacionCache: PasoProcesoUi[] = [];
+  /** Días (clave yyyy-MM-dd locales) que ya tienen acto 9.3 agendado; solo para color en flatpickr. */
+  agendaActo93OcupadosKeys = new Set<string>();
+  agenda93Picker: FlatpickrInstance | null = null;
+  agenda93Cargada = false;
+  agenda93Cargando = false;
+  private detalleRequestSeq = 0;
+  private vistaDocEscaneadaObjectUrl: string | null = null;
+
+  get carrerasDisponibles(): string[] {
+    return [...new Set(this.items.map((i) => i.carrera))].sort((a, b) => a.localeCompare(b));
+  }
+
+  get productosDisponibles(): string[] {
+    return [...new Set(this.items.map((i) => i.producto))].sort((a, b) => a.localeCompare(b));
+  }
+
+  get totalExpedientes(): number {
+    return this.items.length;
+  }
+
+  get totalEnTiempo(): number {
+    return this.items.filter((i) => i.estado === 'en_tiempo').length;
+  }
+
+  get totalRezagado(): number {
+    return this.items.filter((i) => i.estado === 'rezagado').length;
+  }
+
+  get totalVencidos(): number {
+    return this.items.filter((i) => i.estado === 'vencido').length;
+  }
+
+  get totalConcluidos(): number {
+    return this.items.filter((i) => i.estado === 'concluido').length;
+  }
+
+  get itemsFiltrados(): SeguimientoItem[] {
+    const term = this.buscarControl.trim().toLowerCase();
+    let out = this.items.filter((i) => {
+      if (term && !i.noControl.toLowerCase().includes(term)) return false;
+      if (this.filtroCarrera && i.carrera !== this.filtroCarrera) return false;
+      if (this.filtroProducto && i.producto !== this.filtroProducto) return false;
+      if (this.filtroDocumento !== 'todos' && i.documentoFaltante !== this.filtroDocumento) return false;
+      if (this.filtroEstado !== 'todos' && i.estado !== this.filtroEstado) return false;
+      return true;
+    });
+
+    if (this.ordenarPor === 'nombre') {
+      out = out.sort((a, b) => a.alumno.localeCompare(b.alumno));
+    } else if (this.ordenarPor === 'control') {
+      out = out.sort((a, b) => a.noControl.localeCompare(b.noControl));
+    } else {
+      const prioridad = { vencido: 0, rezagado: 1, en_tiempo: 2, concluido: 3 };
+      out = out.sort((a, b) => prioridad[a.estado] - prioridad[b.estado]);
+    }
+    return out;
+  }
+
+  constructor(
+    private egresadoService: EgresadoService,
+    private router: Router,
+    private catalogoService: CatalogoService,
+    private sanitizer: DomSanitizer,
+  ) {}
+
+  ngOnInit(): void {
+    this.cargar();
+  }
+
+  ngOnDestroy(): void {
+    this.destruirAgendaActo93Picker();
+    this.limpiarVistaDocEscaneada();
+  }
+
+  seleccionarEstado(estado: EstadoFiltro): void {
+    this.filtroEstado = estado;
+  }
+
+  volverInicio(): void {
+    this.router.navigate(['/home']);
+  }
+
+  esEstadoActivo(estado: EstadoFiltro): boolean {
+    return this.filtroEstado === estado;
+  }
+
+  limpiarFiltros(): void {
+    this.buscarControl = '';
+    this.filtroCarrera = '';
+    this.filtroProducto = '';
+    this.filtroDocumento = 'todos';
+    this.filtroEstado = 'todos';
+    this.ordenarPor = 'prioridad';
+    this.mostrarMasFiltros = false;
+  }
+
+  badgeEstado(estado: SeguimientoItem['estado']): string {
+    if (estado === 'vencido') return 'Vencido';
+    if (estado === 'rezagado') return 'Rezagado';
+    if (estado === 'concluido') return 'Concluido';
+    return 'En tiempo';
+  }
+
+  /** Misma modalidad que en formulario / backend (Residencia Profesional usa Liberar; el resto revisión académica). */
+  get esResidenciaProfesionalSeguimiento(): boolean {
+    const m = (this.detalleSeleccionado?.datos_proyecto?.modalidad ?? '').trim();
+    return this.catalogoService.esResidencia(m);
+  }
+
+  seleccionarEgresado(item: SeguimientoItem): void {
+    if (this.procesandoPaso) {
+      this.mensajeProceso = 'Espera a que termine la acción en curso (por ejemplo agendar o crear anexo).';
+      return;
+    }
+    this.mensajeProceso = '';
+    this.cargandoDetalle = true;
+    this.detalleSeleccionado = null;
+    this.pasosProcesoTitulacionCache = [];
+    this.observacionesReenvioDocEscaneada = '';
+    this.limpiarVistaDocEscaneada();
+    this.fechaActo93 = '';
+    this.destruirAgendaActo93Picker();
+    const requestSeq = ++this.detalleRequestSeq;
+    const guard = window.setTimeout(() => {
+      if (requestSeq === this.detalleRequestSeq && this.cargandoDetalle) {
+        this.cargandoDetalle = false;
+        this.mensajeProceso = 'No se pudo cargar el detalle a tiempo. Intenta de nuevo.';
+      }
+    }, 22000);
+    this.egresadoService
+      .obtenerPorId(item.id, false)
+      .pipe(
+        timeout(20000),
+        // Solo usamos respaldo por numero_control si el backend responde 404 al id.
+        catchError((err) => {
+          if (err instanceof HttpErrorResponse && err.status === 404 && item.noControl?.trim()) {
+            return this.egresadoService.obtenerPorNumeroControl(item.noControl.trim()).pipe(timeout(20000));
+          }
+          return throwError(() => err);
+        }),
+        finalize(() => {
+          clearTimeout(guard);
+        }),
+      )
+      .subscribe({
+        next: (d) => {
+          if (requestSeq !== this.detalleRequestSeq) return;
+          this.detalleSeleccionado = d;
+          this.cargandoDetalle = false;
+          this.actualizarPasosProcesoTitulacion({ scrollPasoActivo: true });
+          this.cargarVistaDocumentacionEscaneada();
+          this.sincronizarFilaListaConDetalle(d);
+        },
+        error: (err) => {
+          if (requestSeq !== this.detalleRequestSeq) return;
+          this.cargandoDetalle = false;
+          this.mensajeProceso =
+            err?.name === 'TimeoutError'
+              ? 'El servidor tardó demasiado en responder al cargar el detalle.'
+              : err?.error?.error ?? 'No se pudo cargar el detalle del egresado. Intenta de nuevo.';
+        },
+      });
+  }
+
+  trackByPasoNumero(_index: number, paso: PasoProcesoUi): string {
+    return paso.key;
+  }
+
+  /** Expedientes con envío a CAT previo a la versión de 16 pasos (sin fecha de solicitud de anteproyecto). */
+  get noResidenciaFlujoLegacy(): boolean {
+    const d = this.detalleSeleccionado;
+    if (!d || this.esResidenciaProfesionalSeguimiento) return false;
+    return !!d.fecha_enviado_departamento_academico && !d.fecha_envio_solicitud_registro_anteproyecto_depto_academico;
+  }
+
+  /**
+   * Plazo de desarrollo del proyecto vencido (BD o cómputo hasta solicitud de liberación en flujo 16).
+   * Bloquea acciones del panel de proceso y se muestra en gris.
+   */
+  /** Último paso del seguimiento completado (o titulado en BD): sin reagendar/regenerar; solo descarga del PDF final. */
+  get procesoConcluido(): boolean {
+    const d = this.detalleSeleccionado;
+    if (!d) return false;
+    if (d.fecha_confirmacion_documentacion_escaneada_recibida) return true;
+    return (d.estado_general || '').trim().toLowerCase() === 'titulado';
+  }
+
+  get procesoBloqueadoPorVencimientoPlazo(): boolean {
+    const d = this.detalleSeleccionado;
+    if (!d) return false;
+    if (this.procesoConcluido) return false;
+    if (d.estado_general === 'titulado') return false;
+    if (d.estado_general === 'vencido') return true;
+    if (this.esResidenciaProfesionalSeguimiento || this.noResidenciaFlujoLegacy) return false;
+    const raw = calcularVistaPlazoDesarrolloRecepcionNoRes(d);
+    return raw?.estado === 'vencido';
+  }
+
+  /**
+   * Etiqueta EN TIEMPO / REZAGADO / VENCIDO junto al título del panel (mismo criterio que la tabla y el plazo de desarrollo).
+   */
+  get etiquetaPlazoTitulacionCabecera(): string {
+    const d = this.detalleSeleccionado;
+    if (!d) return '';
+    if (this.procesoConcluido) return 'CONCLUIDO';
+    if (d.estado_general === 'titulado') return '';
+    if (d.estado_general === 'vencido') return 'VENCIDO';
+    if (!this.esResidenciaProfesionalSeguimiento && !this.noResidenciaFlujoLegacy) {
+      const raw = calcularVistaPlazoDesarrolloRecepcionNoRes(d);
+      if (raw) {
+        if (raw.estado === 'vencido') return 'VENCIDO';
+        if (raw.estado === 'rezagado') return 'REZAGADO';
+        return 'EN TIEMPO';
+      }
+    }
+    const row = this.items.find((i) => i.id === d.id);
+    if (row) {
+      if (row.estado === 'vencido') return 'VENCIDO';
+      if (row.estado === 'rezagado') return 'REZAGADO';
+      return 'EN TIEMPO';
+    }
+    return 'EN TIEMPO';
+  }
+
+  get claseBadgeEtiquetaPlazoTitulacion(): string {
+    const e = this.etiquetaPlazoTitulacionCabecera;
+    if (e === 'VENCIDO') return 'badge-bad';
+    if (e === 'REZAGADO') return 'badge-mid';
+    if (e === 'EN TIEMPO') return 'badge-ok';
+    if (e === 'CONCLUIDO') return 'badge-concluido';
+    return '';
+  }
+
+  /** Acciones del flujo (no aplica al botón de descarga final cuando está concluido). */
+  get accionesProcesoBloqueadas(): boolean {
+    return this.procesandoPaso || this.procesoBloqueadoPorVencimientoPlazo || this.procesoConcluido;
+  }
+
+  private actualizarPasosProcesoTitulacion(opciones?: { scrollPasoActivo?: boolean }): void {
+    const scroll = opciones?.scrollPasoActivo === true;
+    if (!this.detalleSeleccionado) {
+      this.pasosProcesoTitulacionCache = [];
+      return;
+    }
+    if (this.esResidenciaProfesionalSeguimiento) {
+      this.pasosProcesoTitulacionCache = this.construirPasosSeguimientoResidencia();
+      if (scroll) this.programarScrollAlPasoActual();
+      return;
+    }
+    if (this.noResidenciaFlujoLegacy) {
+      this.pasosProcesoTitulacionCache = this.construirPasosSeguimientoNoResidenciaLegacy();
+    } else {
+      this.pasosProcesoTitulacionCache = this.construirPasosSeguimientoNoResidencia16();
+    }
+    if (scroll) this.programarScrollAlPasoActual();
+  }
+
+  /** Tras pintar la lista, desplaza el panel al paso en curso (o al primer pendiente). */
+  private programarScrollAlPasoActual(): void {
+    if (!this.pasosProcesoTitulacionCache.length) return;
+    setTimeout(() => {
+      requestAnimationFrame(() => this.scrollAlPasoActualEnLista());
+    }, 0);
+  }
+
+  private scrollAlPasoActualEnLista(): void {
+    const pasos = this.pasosProcesoTitulacionCache;
+    let target = pasos.find((p) => p.estado === 'en_curso');
+    if (!target) target = pasos.find((p) => p.estado === 'pendiente');
+    if (!target) target = pasos[pasos.length - 1];
+    const el = document.getElementById(`seg-paso-${target.key}`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+  }
+
+  private pasosTitulacionCompartidosDef(): PasoTitulacionDef[] {
+    return [
+      {
+        key: 'fecha_creacion_anexo_9_1',
+        titulo: 'Generar anexo 9.1 (formato de solicitud del acto de recepción profesional)',
+        descripcion: 'Se genera el documento correspondiente en el sistema.',
+      },
+      {
+        key: 'fecha_confirmacion_entrega_anexo_9_1',
+        titulo: 'Entrega de anexo 9.1 al sustentante',
+        descripcion: 'Se confirma la entrega del anexo al sustentante.',
+      },
+      {
+        key: 'fecha_solicitud_anexo_9_2',
+        titulo:
+          'Solicitar anexo 9.2 al sustentante (constancia de no inconveniencia para su acto de recepción profesional)',
+        descripcion: 'La DEP solicita al sustentante la constancia 9.2.',
+      },
+      {
+        key: 'fecha_confirmacion_recibido_anexo_9_2',
+        titulo: 'Recibe la DEP el anexo 9.2',
+        descripcion: 'La DEP registra la recepción de la constancia 9.2.',
+      },
+      {
+        key: 'fecha_solicitud_sinodales',
+        titulo: 'Solicita sinodales la DEP al departamento académico',
+        descripcion: 'La DEP envía la solicitud de asignación de sinodales.',
+      },
+      {
+        key: 'fecha_confirmacion_sinodales_recibidos',
+        titulo: 'Entrega oficio de asignación de sinodales el departamento académico a DEP',
+        descripcion:
+          'El departamento académico registra la asignación; la DEP confirma con «Confirmar» la recepción del oficio.',
+      },
+      {
+        key: 'fecha_agenda_acto_9_3',
+        titulo: 'La DEP agenda fecha y horario para la realización del acto protocolario del sustentante',
+        descripcion: 'Se agenda día y hora del acto dentro de la ventana permitida (lunes a viernes, 10:00–14:00).',
+      },
+      {
+        key: 'fecha_creacion_anexo_9_3',
+        titulo:
+          'La DEP genera el anexo 9.3 (aviso de realización de acto protocolario de titulación integral)',
+        descripcion: 'Se genera el PDF del anexo 9.3 después del agendamiento.',
+      },
+    ];
+  }
+
+  private pasosDocumentacionEscaneadaDef(): PasoTitulacionDef[] {
+    return [
+      {
+        key: 'fecha_solicitud_documentacion_escaneada',
+        titulo: 'Entrega de documentación escaneada del proceso correspondiente a la titulación integral',
+        descripcion: 'La DEP solicita al sustentante que suba en el sistema los PDF de su proceso.',
+      },
+      {
+        key: 'fecha_confirmacion_documentacion_escaneada_recibida',
+        titulo: 'Se recibió documentación correspondiente a la titulación integral',
+        descripcion: 'La DEP confirma la recepción de los documentos escaneados enviados por el sustentante.',
+      },
+    ];
+  }
+
+  private mapearDefsAUiPasos(steps: PasoTitulacionDef[]): PasoProcesoUi[] {
+    const d = this.detalleSeleccionado!;
+    let todosPreviosCompletados = true;
+    return steps.map((s, i) => {
+      if (s.key === 'fecha_solicitud_documentacion_escaneada') {
+        const fecha = d.fecha_solicitud_documentacion_escaneada;
+        const completado = !!fecha;
+        const estado: EstadoPaso = completado ? 'completado' : todosPreviosCompletados ? 'en_curso' : 'pendiente';
+        if (!completado) todosPreviosCompletados = false;
+        return { numero: i + 1, key: s.key, titulo: s.titulo, descripcion: s.descripcion, fecha, estado };
+      }
+      if (s.key === 'fecha_confirmacion_documentacion_escaneada_recibida') {
+        const fechaConf = d.fecha_confirmacion_documentacion_escaneada_recibida;
+        const fechaEnv = d.fecha_envio_documentacion_escaneada_egresado;
+        const completado = !!fechaConf;
+        let estado: EstadoPaso;
+        if (completado) estado = 'completado';
+        else if (!todosPreviosCompletados) estado = 'pendiente';
+        else if (fechaEnv) estado = 'en_curso';
+        else estado = 'pendiente';
+        const fecha = fechaConf || fechaEnv;
+        if (!completado) todosPreviosCompletados = false;
+        return { numero: i + 1, key: s.key, titulo: s.titulo, descripcion: s.descripcion, fecha, estado };
+      }
+      const fecha = (d as unknown as Record<string, string | undefined>)[s.key];
+      const completado = !!fecha;
+      const estado: EstadoPaso = completado ? 'completado' : todosPreviosCompletados ? 'en_curso' : 'pendiente';
+      if (!completado) todosPreviosCompletados = false;
+      return { numero: i + 1, key: s.key, titulo: s.titulo, descripcion: s.descripcion, fecha, estado };
+    });
+  }
+
+  private construirPasosSeguimientoResidencia(): PasoProcesoUi[] {
+    const modalidad = (this.detalleSeleccionado?.datos_proyecto?.modalidad ?? '').trim() || '—';
+    const pasosInicio: PasoTitulacionDef[] = [
+      {
+        key: 'fecha_enviado_departamento_academico',
+        titulo: `Enviar solicitud para registro y liberación de proyecto de titulación integral al departamento académico, con la modalidad de ${modalidad}`,
+        descripcion: 'La DEP registra el envío de la solicitud al departamento académico.',
+      },
+      {
+        key: 'fecha_confirmacion_recibidos_anexo_xxxi_xxxii',
+        titulo:
+          'Recibimos anexos XXXII y XXXIII (registro y liberación) del proyecto de titulación integral por parte del departamento académico',
+        descripcion: 'La DEP confirma la recepción de los documentos del departamento académico.',
+      },
+    ];
+    const pasoEntrega93: PasoTitulacionDef[] = [
+      {
+        key: 'fecha_confirmacion_entrega_anexo_9_3',
+        titulo: 'Entrega de anexo 9.3 a sinodales y sustentante',
+        descripcion: 'La DEP confirma la entrega del aviso al jurado y al sustentante.',
+      },
+    ];
+    const steps = [...pasosInicio, ...this.pasosTitulacionCompartidosDef(), ...pasoEntrega93, ...this.pasosDocumentacionEscaneadaDef()];
+    return this.mapearDefsAUiPasos(steps);
+  }
+
+  private construirPasosSeguimientoNoResidenciaLegacy(): PasoProcesoUi[] {
+    const pasosInicio: PasoTitulacionDef[] = [
+      {
+        key: 'fecha_enviado_departamento_academico',
+        titulo:
+          'La DEP envía la solicitud de registro, revisión y aprobación del proyecto de titulación integral al Departamento de Apoyo a la Titulación.',
+        descripcion: 'La DEP registra el envío de la solicitud al departamento académico.',
+      },
+      {
+        key: 'fecha_confirmacion_recibidos_anexo_xxxi_xxxii',
+        titulo:
+          'La DEP recibe los anexos XXXII y XXXIII (registro y aprobación) del proyecto de titulación integral por parte del Departamento de Apoyo a la Titulación.',
+        descripcion: 'La DEP confirma la recepción de los documentos del departamento académico.',
+      },
+    ];
+    const steps = [...pasosInicio, ...this.pasosTitulacionCompartidosDef(), ...this.pasosDocumentacionEscaneadaDef()];
+    return this.mapearDefsAUiPasos(steps);
+  }
+
+  private construirPasosSeguimientoNoResidencia16(): PasoProcesoUi[] {
+    const defs: PasoTitulacionDef[] = [
+      {
+        key: 'fecha_envio_solicitud_registro_anteproyecto_depto_academico',
+        titulo: 'Envío de solicitud de registro y anteproyecto al departamento académico',
+        descripcion: 'La DEP envía al departamento académico la solicitud de registro y el anteproyecto.',
+      },
+      {
+        key: 'fecha_recepcion_trabajo_division_estudios_prof',
+        titulo: 'Recepción del trabajo en división de estudios PROFESIONALES',
+        descripcion: 'División de estudios profesionales confirma la recepción; inicia el periodo de desarrollo del proyecto.',
+      },
+      {
+        key: 'fecha_solicitud_registro_liberacion_depto_academico',
+        titulo: 'Solicitud de registro y liberación al departamento académico',
+        descripcion: 'La DEP solicita al departamento académico el registro y la liberación correspondientes.',
+      },
+      {
+        key: 'fecha_recepcion_registro_liberacion_depto_academico',
+        titulo: 'Recepción de registro y liberación del departamento académico',
+        descripcion: 'El departamento académico entrega registro y liberación; la DEP confirma su recepción.',
+      },
+      {
+        key: 'fecha_enviado_departamento_academico',
+        titulo: 'Envío a Departamento de Apoyo a la Titulación para revisión',
+        descripcion: 'La DEP envía el expediente al Departamento de Apoyo a la Titulación (revisión académica).',
+      },
+      {
+        key: 'fecha_liberacion_documento_coordinacion_cat',
+        titulo: 'El documento es liberado por Coordinación de apoyo a la titulación',
+        descripcion:
+          'Al aprobar la revisión en la interfaz de Coordinación de apoyo a la titulación se registra la liberación (y la confirmación de anexos cuando aplica).',
+      },
+      ...this.pasosTitulacionCompartidosDef(),
+      ...this.pasosDocumentacionEscaneadaDef(),
+    ];
+    const d = this.detalleSeleccionado!;
+    const modalidadTitulo = (d.datos_proyecto?.modalidad ?? '').trim() || 'titulación integral';
+    let todosPreviosCompletados = true;
+    return defs.map((s, i) => {
+      const esRecepcionDesarrollo = s.key === 'fecha_recepcion_trabajo_division_estudios_prof';
+      const numeroPaso = esRecepcionDesarrollo ? 3 : i > 1 ? i + 2 : i + 1;
+      const tituloPaso = esRecepcionDesarrollo
+        ? `El egresado está desarrollando su proyecto de ${modalidadTitulo}. Confirma la recepción cuando el egresado entregue su proyecto.`
+        : s.titulo;
+      const plazoDesarrolloRecepcion = esRecepcionDesarrollo
+        ? construirPlazoDesarrolloRecepcionUi(d) ?? undefined
+        : undefined;
+      if (s.key === 'fecha_solicitud_documentacion_escaneada') {
+        const fecha = d.fecha_solicitud_documentacion_escaneada;
+        const completado = !!fecha;
+        const estado: EstadoPaso = completado ? 'completado' : todosPreviosCompletados ? 'en_curso' : 'pendiente';
+        if (!completado) todosPreviosCompletados = false;
+        return {
+          numero: numeroPaso,
+          key: s.key,
+          titulo: tituloPaso,
+          descripcion: s.descripcion,
+          fecha,
+          estado,
+          plazoDesarrolloRecepcion,
+        };
+      }
+      if (s.key === 'fecha_confirmacion_documentacion_escaneada_recibida') {
+        const fechaConf = d.fecha_confirmacion_documentacion_escaneada_recibida;
+        const fechaEnv = d.fecha_envio_documentacion_escaneada_egresado;
+        const completado = !!fechaConf;
+        let estado: EstadoPaso;
+        if (completado) estado = 'completado';
+        else if (!todosPreviosCompletados) estado = 'pendiente';
+        else if (fechaEnv) estado = 'en_curso';
+        else estado = 'pendiente';
+        const fecha = fechaConf || fechaEnv;
+        if (!completado) todosPreviosCompletados = false;
+        return {
+          numero: numeroPaso,
+          key: s.key,
+          titulo: tituloPaso,
+          descripcion: s.descripcion,
+          fecha,
+          estado,
+          plazoDesarrolloRecepcion,
+        };
+      }
+      const fecha = (d as unknown as Record<string, string | undefined>)[s.key];
+      const completado = !!fecha;
+      const estado: EstadoPaso = completado ? 'completado' : todosPreviosCompletados ? 'en_curso' : 'pendiente';
+      if (!completado) todosPreviosCompletados = false;
+      return {
+        numero: numeroPaso,
+        key: s.key,
+        titulo: tituloPaso,
+        descripcion: s.descripcion,
+        fecha,
+        estado,
+        plazoDesarrolloRecepcion,
+      };
+    });
+  }
+
+  etiquetaEstadoPaso(estado: EstadoPaso): string {
+    if (estado === 'completado') return 'Completado';
+    if (estado === 'en_curso') return 'Paso actual';
+    return 'Pendiente';
+  }
+
+  etiquetaEstadoPasoPara(paso: PasoProcesoUi): string {
+    const d = this.detalleSeleccionado;
+    if (
+      paso.key === 'fecha_confirmacion_documentacion_escaneada_recibida' &&
+      paso.estado === 'pendiente' &&
+      d?.fecha_solicitud_documentacion_escaneada &&
+      !d?.fecha_envio_documentacion_escaneada_egresado
+    ) {
+      return 'En espera del egresado';
+    }
+    return this.etiquetaEstadoPaso(paso.estado);
+  }
+
+  formatearFechaHora(iso?: string): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    const dia = d.getDate().toString().padStart(2, '0');
+    const mes = (d.getMonth() + 1).toString().padStart(2, '0');
+    const anio = d.getFullYear();
+    const h = d.getHours().toString().padStart(2, '0');
+    const m = d.getMinutes().toString().padStart(2, '0');
+    return `${dia}/${mes}/${anio}, ${h}:${m}`;
+  }
+
+  private refrescarDetalle(): void {
+    if (!this.detalleSeleccionado) return;
+    const id = this.detalleSeleccionado.id;
+    this.egresadoService
+      .obtenerPorId(id, false, true)
+      .pipe(
+        timeout(25000),
+        catchError((err) => {
+          const extra =
+            err?.name === 'TimeoutError'
+              ? 'El servidor tardó al refrescar el detalle.'
+              : 'No se pudo refrescar el detalle.';
+          this.mensajeProceso = this.mensajeProceso ? `${this.mensajeProceso} ${extra}` : extra;
+          return EMPTY;
+        }),
+      )
+      .subscribe({
+        next: (d) => {
+          if (this.detalleSeleccionado?.id === id) {
+            this.detalleSeleccionado = d;
+            this.actualizarPasosProcesoTitulacion();
+            this.cargarVistaDocumentacionEscaneada();
+            this.sincronizarFilaListaConDetalle(d);
+          }
+        },
+      });
+  }
+
+  private limpiarVistaDocEscaneada(): void {
+    if (this.vistaDocEscaneadaObjectUrl) {
+      URL.revokeObjectURL(this.vistaDocEscaneadaObjectUrl);
+      this.vistaDocEscaneadaObjectUrl = null;
+    }
+    this.vistaDocEscaneadaUrl = null;
+    this.cargandoDocEscaneada = false;
+    this.errorCargaDocEscaneada = '';
+  }
+
+  private cargarVistaDocumentacionEscaneada(): void {
+    const d = this.detalleSeleccionado;
+    this.observacionesReenvioDocEscaneada = '';
+    this.limpiarVistaDocEscaneada();
+    if (!d?.fecha_envio_documentacion_escaneada_egresado) return;
+    this.cargandoDocEscaneada = true;
+    this.errorCargaDocEscaneada = '';
+    this.egresadoService
+      .getDocumentacionEscaneada(d.id)
+      .pipe(
+        timeout(120000),
+        catchError((err) => {
+          this.errorCargaDocEscaneada =
+            err?.name === 'TimeoutError'
+              ? 'El servidor tardó demasiado en enviar el PDF. Revisa la conexión o intenta de nuevo.'
+              : 'No se pudo obtener el PDF. Vuelve a iniciar sesión o verifica que el archivo exista en el servidor.';
+          return EMPTY;
+        }),
+        finalize(() => {
+          this.cargandoDocEscaneada = false;
+        }),
+      )
+      .subscribe({
+        next: ({ blob }) => {
+          if (!blob?.size) {
+            this.errorCargaDocEscaneada = 'El servidor respondió sin contenido del PDF.';
+            return;
+          }
+          this.vistaDocEscaneadaObjectUrl = URL.createObjectURL(blob);
+          this.vistaDocEscaneadaUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.vistaDocEscaneadaObjectUrl);
+        },
+      });
+  }
+
+  /** Lee la fecha/hora elegida (flatpickr puede no sincronizar a tiempo con ngModel al pulsar Reagendar). */
+  private leerFechaHoraActo93ParaEnviar(): string {
+    const fp = this.agenda93Picker;
+    if (fp?.selectedDates?.length) {
+      return fp.formatDate(fp.selectedDates[0], 'Y-m-d\\TH:i');
+    }
+    const el = this.fechaActo93Input?.nativeElement;
+    const desdeInput = el?.value?.trim();
+    if (desdeInput) return desdeInput;
+    return (this.fechaActo93 ?? '').trim();
+  }
+
+  /** Valor local `YYYY-MM-DDTHH:mm` (u opcional `:ss`) → ISO UTC coherente con el backend. */
+  private parseDatetimeLocalToIso(valor: string): string | null {
+    const raw = valor.trim().replace(/^(\d{4}-\d{2}-\d{2})\s+/, '$1T');
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(raw);
+    if (!m) return null;
+    const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] ?? 0), 0);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }
+
+  private sincronizarFilaListaConDetalle(d: EgresadoDetail): void {
+    const row = this.items.find((i) => i.id === d.id);
+    if (!row) return;
+    if (d.fecha_confirmacion_documentacion_escaneada_recibida) {
+      row.estado = 'concluido';
+      row.documentoFaltante = 'Proceso concluido';
+      row.fechaLimite = 'Finalizado';
+    }
+  }
+
+  private descargarBlob(blob: Blob, nombreArchivo: string): void {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nombreArchivo;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  enviarDepartamento(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso || this.detalleSeleccionado.fecha_enviado_departamento_academico) return;
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService.enviarDepartamentoAcademico(this.detalleSeleccionado.id).subscribe({
+      next: () => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = 'Solicitud enviada al Departamento de Apoyo a la Titulación.';
+        this.refrescarDetalle();
+      },
+      error: (err) => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = err?.error?.error ?? 'No se pudo enviar.';
+      },
+    });
+  }
+
+  solicitarRegistroAnteproyectoNoResidencia(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService.solicitarRegistroAnteproyectoNoResidencia(this.detalleSeleccionado.id).subscribe({
+      next: () => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = 'Solicitud de registro y anteproyecto registrada.';
+        this.refrescarDetalle();
+      },
+      error: (err) => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = err?.error?.error ?? 'No se pudo registrar el envío.';
+      },
+    });
+  }
+
+  confirmarRecepcionTrabajoNoResidencia(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService.confirmarRecepcionTrabajoNoResidencia(this.detalleSeleccionado.id).subscribe({
+      next: () => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = 'Recepción en división de estudios confirmada.';
+        this.refrescarDetalle();
+      },
+      error: (err) => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar.';
+      },
+    });
+  }
+
+  solicitarRegistroLiberacionNoResidencia(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService.solicitarRegistroLiberacionNoResidencia(this.detalleSeleccionado.id).subscribe({
+      next: () => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = 'Solicitud de registro y liberación registrada.';
+        this.refrescarDetalle();
+      },
+      error: (err) => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = err?.error?.error ?? 'No se pudo registrar la solicitud.';
+      },
+    });
+  }
+
+  confirmarRecepcionRegistroLiberacionNoResidencia(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService.confirmarRecepcionRegistroLiberacionNoResidencia(this.detalleSeleccionado.id).subscribe({
+      next: () => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = 'Recepción de registro y liberación confirmada.';
+        this.refrescarDetalle();
+      },
+      error: (err) => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar la recepción.';
+      },
+    });
+  }
+
+  confirmarRecibidosAnexos(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService.confirmarRecibidosAnexosXxxiXxxii(this.detalleSeleccionado.id).subscribe({
+      next: () => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = 'Recibidos XXXII/XXXIII confirmados.';
+        this.refrescarDetalle();
+      },
+      error: (err) => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar.';
+      },
+    });
+  }
+
+  crearDescargar91(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    const nc = this.detalleSeleccionado.numero_control;
+    this.egresadoService.descargarAnexo91(this.detalleSeleccionado.id).subscribe({
+      next: (blob) => {
+        this.procesandoPaso = false;
+        this.descargarBlob(blob, `Anexo-9.1-${nc}.pdf`);
+        this.mensajeProceso = 'Anexo 9.1 generado.';
+        this.refrescarDetalle();
+      },
+      error: (err) => {
+        this.procesandoPaso = false;
+        void mensajeErrorApiConBlob(err, 'No se pudo generar 9.1.').then((m) => {
+          this.mensajeProceso = m;
+        });
+      },
+    });
+  }
+
+  confirmarEntrega91(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService.confirmarEntregaAnexo91(this.detalleSeleccionado.id).subscribe({
+      next: () => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = 'Entrega 9.1 confirmada.';
+        this.refrescarDetalle();
+      },
+      error: (err) => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar entrega.';
+      },
+    });
+  }
+
+  solicitarConstancia92AlEgresado(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService.solicitarConstancia92Division(this.detalleSeleccionado.id).subscribe({
+      next: () => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = 'Solicitud de constancia 9.2 registrada.';
+        this.refrescarDetalle();
+      },
+      error: (err) => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = err?.error?.error ?? 'No se pudo registrar la solicitud 9.2.';
+      },
+    });
+  }
+
+  confirmarRecibido92(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService.confirmarRecibidoAnexo92(this.detalleSeleccionado.id).subscribe({
+      next: () => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = 'Constancia 9.2: recepción confirmada.';
+        this.refrescarDetalle();
+      },
+      error: (err) => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar la recepción del 9.2.';
+      },
+    });
+  }
+
+  solicitarSinodales(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService.solicitarSinodales(this.detalleSeleccionado.id).subscribe({
+      next: () => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = 'Solicitud de sinodales enviada.';
+        this.refrescarDetalle();
+      },
+      error: (err) => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = err?.error?.error ?? 'No se pudo solicitar sinodales.';
+      },
+    });
+  }
+
+  confirmarSinodalesRecibidos(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService
+      .confirmarSinodalesRecibidos(this.detalleSeleccionado.id)
+      .pipe(
+        timeout(25000),
+        catchError((err) => {
+          if (err?.name === 'TimeoutError') {
+            return throwError(() => ({ error: { error: 'El servidor no respondió al confirmar sinodales. Intenta de nuevo.' } }));
+          }
+          return throwError(() => err);
+        }),
+      )
+      .subscribe({
+        next: () => {
+          this.procesandoPaso = false;
+          this.mensajeProceso = 'Sinodales recibidos confirmados.';
+          if (this.detalleSeleccionado) {
+            this.detalleSeleccionado = {
+              ...this.detalleSeleccionado,
+              fecha_confirmacion_sinodales_recibidos: new Date().toISOString(),
+            };
+            this.actualizarPasosProcesoTitulacion();
+          }
+          this.refrescarDetalle();
+        },
+        error: (err) => {
+          this.procesandoPaso = false;
+          this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar sinodales.';
+        },
+      });
+  }
+
+  agendarActo93(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    const valor = this.leerFechaHoraActo93ParaEnviar();
+    if (!valor) {
+      this.mensajeProceso = 'Selecciona fecha y hora para el acto 9.3.';
+      return;
+    }
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService
+      .agendarActo93(this.detalleSeleccionado.id, valor)
+      .pipe(
+        timeout(25000),
+        catchError((err) => {
+          if (err?.name === 'TimeoutError') {
+            return throwError(() => ({ error: { error: 'El servidor no respondió al agendar. Revisa conexión o intenta de nuevo.' } }));
+          }
+          return throwError(() => err);
+        }),
+      )
+      .subscribe({
+        next: () => {
+          this.procesandoPaso = false;
+          this.mensajeProceso = 'Acto 9.3 agendado.';
+          this.fechaActo93 = '';
+          this.destruirAgendaActo93Picker();
+          const iso = this.parseDatetimeLocalToIso(valor);
+          if (iso && this.detalleSeleccionado) {
+            this.detalleSeleccionado = { ...this.detalleSeleccionado, fecha_agenda_acto_9_3: iso };
+            this.actualizarPasosProcesoTitulacion();
+          }
+          this.refrescarDetalle();
+        },
+        error: (err) => {
+          this.procesandoPaso = false;
+          this.mensajeProceso = err?.error?.error ?? 'No se pudo agendar 9.3.';
+        },
+      });
+  }
+
+  crearDescargar93(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    const nc = this.detalleSeleccionado.numero_control;
+    this.egresadoService.descargarAnexo93(this.detalleSeleccionado.id).subscribe({
+      next: (blob) => {
+        this.procesandoPaso = false;
+        this.descargarBlob(blob, `Anexo-9.3-${nc}.pdf`);
+        this.mensajeProceso = 'Anexo 9.3 generado.';
+        this.refrescarDetalle();
+      },
+      error: (err) => {
+        this.procesandoPaso = false;
+        void mensajeErrorApiConBlob(err, 'No se pudo generar 9.3.').then((m) => {
+          this.mensajeProceso = m;
+        });
+      },
+    });
+  }
+
+  confirmarEntrega93(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    if (!this.detalleSeleccionado.fecha_creacion_anexo_9_3) {
+      this.mensajeProceso = 'Primero debe generarse el anexo 9.3.';
+      return;
+    }
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService.confirmarEntregaAnexo93(this.detalleSeleccionado.id).subscribe({
+      next: () => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = 'Entrega del anexo 9.3 confirmada.';
+        this.refrescarDetalle();
+      },
+      error: (err: { error?: { error?: string } }) => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar la entrega del 9.3.';
+      },
+    });
+  }
+
+  solicitarDocumentacionEscaneada(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService.solicitarDocumentacionEscaneada(this.detalleSeleccionado.id).subscribe({
+      next: () => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = 'Solicitud de documentación escaneada registrada.';
+        this.refrescarDetalle();
+      },
+      error: (err) => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = err?.error?.error ?? 'No se pudo registrar la solicitud.';
+      },
+    });
+  }
+
+  confirmarDocumentacionEscaneadaRecibida(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService.confirmarDocumentacionEscaneadaRecibida(this.detalleSeleccionado.id).subscribe({
+      next: () => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = 'Recepción de documentación escaneada confirmada.';
+        this.refrescarDetalle();
+      },
+      error: (err) => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar la recepción.';
+      },
+    });
+  }
+
+  solicitarDocumentacionEscaneadaNuevamente(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    const obs = this.observacionesReenvioDocEscaneada.trim();
+    if (!obs) {
+      this.mensajeProceso = 'Escribe observaciones para solicitar corrección.';
+      return;
+    }
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService
+      .solicitarDocumentacionEscaneadaNuevamente(this.detalleSeleccionado.id, obs)
+      .subscribe({
+        next: () => {
+          this.procesandoPaso = false;
+          this.mensajeProceso = 'Se solicitó nuevamente la documentación escaneada al egresado.';
+          this.observacionesReenvioDocEscaneada = '';
+          this.refrescarDetalle();
+        },
+        error: (err) => {
+          this.procesandoPaso = false;
+          this.mensajeProceso = err?.error?.error ?? 'No se pudo solicitar nuevamente.';
+        },
+      });
+  }
+
+  private cargar(): void {
+    this.cargando = true;
+    this.error = '';
+    this.egresadoService.listar({ aplicar_scope_departamento: false }).subscribe({
+      next: (lista: EgresadoItem[]) => {
+        this.items = lista.map((e) => this.mapearItem(e));
+        this.cargando = false;
+      },
+      error: () => {
+        this.error = 'No se pudo cargar el seguimiento.';
+        this.cargando = false;
+      },
+    });
+  }
+
+  private mapearItem(e: EgresadoItem): SeguimientoItem {
+    const hoy = new Date();
+    const modalidad = e.modalidad?.trim() || '—';
+    const producto = modalidad !== '—' ? `Titulación — ${modalidad}` : 'Seguimiento de titulación';
+
+    const isoUltimo = e.fecha_actualizacion;
+    const ultimoMovimiento = isoUltimo ? this.formatoFecha(new Date(isoUltimo)) : '—';
+
+    const esRes = this.catalogoService.esResidencia(modalidad.trim());
+    if (e.fecha_confirmacion_documentacion_escaneada_recibida) {
+      return {
+        id: e.id,
+        alumno: e.nombre || '—',
+        noControl: e.numero_control || '—',
+        producto,
+        carrera: e.carrera || '—',
+        estado: 'concluido',
+        documentoFaltante: 'Proceso concluido',
+        ultimoMovimiento,
+        fechaLimite: 'Finalizado',
+      };
+    }
+
+    if (!esRes) {
+      const plazos = calcularVistaPlazosNoResidencia(
+        {
+          fecha_creacion: e.fecha_creacion,
+          fecha_enviado_departamento_academico: e.fecha_enviado_departamento_academico,
+          fecha_confirmacion_recibidos_anexo_xxxi_xxxii: e.fecha_confirmacion_recibidos_anexo_xxxi_xxxii,
+          fecha_confirmacion_documentacion_escaneada_recibida: e.fecha_confirmacion_documentacion_escaneada_recibida,
+        },
+        hoy,
+      );
+      const estado = plazos.estadoGlobal;
+      const fechaLimite = plazos.fechaLimiteMasCercana
+        ? this.formatoFecha(plazos.fechaLimiteMasCercana)
+        : '—';
+      const documentoFaltante =
+        estado === 'vencido' ? 'Plazo vencido' : estado === 'rezagado' ? 'En curso (cerca del límite)' : 'En curso';
+      return {
+        id: e.id,
+        alumno: e.nombre || '—',
+        noControl: e.numero_control || '—',
+        producto,
+        carrera: e.carrera || '—',
+        estado,
+        documentoFaltante,
+        ultimoMovimiento,
+        fechaLimite,
+      };
+    }
+
+    const isoInicio = e.fecha_enviado_departamento_academico || e.fecha_creacion;
+    const inicio = isoInicio ? new Date(isoInicio) : hoy;
+    if (isNaN(inicio.getTime())) {
+      return {
+        id: e.id,
+        alumno: e.nombre || '—',
+        noControl: e.numero_control || '—',
+        producto,
+        carrera: e.carrera || '—',
+        estado: 'en_tiempo',
+        documentoFaltante: 'En curso',
+        ultimoMovimiento,
+        fechaLimite: '—',
+      };
+    }
+
+    const meses = this.catalogoService.mesesVigencia(modalidad);
+
+    if (meses === null) {
+      return {
+        id: e.id,
+        alumno: e.nombre || '—',
+        noControl: e.numero_control || '—',
+        producto,
+        carrera: e.carrera || '—',
+        estado: 'en_tiempo',
+        documentoFaltante: 'En curso',
+        ultimoMovimiento,
+        fechaLimite: 'Sin plazo',
+      };
+    }
+
+    const fechaLimiteDate = sumarMesesCalendario(inicio, meses);
+    const diasRestantes = diffDiasCalendario(fechaLimiteDate, hoy);
+
+    let estado: SeguimientoItem['estado'];
+    if (diasRestantes < 0) estado = 'vencido';
+    else if (diasRestantes <= MARGEN_REZAGO_DIAS) estado = 'rezagado';
+    else estado = 'en_tiempo';
+
+    const documentoFaltante =
+      estado === 'vencido' ? 'Plazo vencido' : estado === 'rezagado' ? 'En curso (cerca del límite)' : 'En curso';
+
+    return {
+      id: e.id,
+      alumno: e.nombre || '—',
+      noControl: e.numero_control || '—',
+      producto,
+      carrera: e.carrera || '—',
+      estado,
+      documentoFaltante,
+      ultimoMovimiento,
+      fechaLimite: this.formatoFecha(fechaLimiteDate),
+    };
+  }
+
+  private formatoFecha(d: Date): string {
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  }
+
+  abrirCalendarioActo93SiPermitido(): void {
+    if (this.accionesProcesoBloqueadas) return;
+    this.abrirCalendarioActo93();
+  }
+
+  abrirCalendarioActo93(): void {
+    const abrirPicker = (): void => {
+      window.setTimeout(() => {
+        this.initAgendaActo93Picker();
+        this.agenda93Picker?.open();
+      }, 0);
+    };
+
+    if (!this.agenda93Cargada && !this.agenda93Cargando) {
+      this.agenda93Cargando = true;
+      this.egresadoService
+        .getAgendaActo93Ocupados()
+        .pipe(
+          timeout(12000),
+          catchError(() => of({ ocupados: [] as string[] })),
+          finalize(() => {
+            this.agenda93Cargando = false;
+            this.agenda93Cargada = true;
+          }),
+        )
+        .subscribe({
+          next: (res) => {
+            this.rellenarClavesOcupadasAgenda93(res);
+            abrirPicker();
+          },
+        });
+      return;
+    }
+
+    if (this.agenda93Picker) {
+      window.setTimeout(() => {
+        this.agenda93Picker?.open();
+        this.pintarDiasOcupadosEnFlatpickr(this.agenda93Picker!);
+      }, 0);
+      return;
+    }
+
+    abrirPicker();
+  }
+
+  private rellenarClavesOcupadasAgenda93(res: { ocupados?: string[] }): void {
+    const fechas = (res?.ocupados ?? [])
+      .map((s) => new Date(s))
+      .filter((d) => !isNaN(d.getTime()));
+    this.agendaActo93OcupadosKeys = new Set(fechas.map((d) => this.toLocalDateKey(d)));
+  }
+
+  /** Repinta amarillo: onDayCreate a veces corre antes de tener claves; redraw no siempre vuelve a crear celdas. */
+  private pintarDiasOcupadosEnFlatpickr(fp: FlatpickrInstance): void {
+    const root = fp.daysContainer;
+    if (!root) return;
+    root.querySelectorAll('.flatpickr-day').forEach((node) => {
+      const el = node as HTMLElement & { dateObj?: Date };
+      if (el.classList.contains('flatpickr-disabled')) return;
+      el.classList.remove('agenda-dia-ocupado');
+      const dateObj = el.dateObj;
+      if (!dateObj) return;
+      if (this.agendaActo93OcupadosKeys.has(this.toLocalDateKey(dateObj))) {
+        el.classList.add('agenda-dia-ocupado');
+        el.title = 'Ya hay acto protocolario agendado este día';
+      }
+    });
+  }
+
+  private initAgendaActo93Picker(): void {
+    const el = this.fechaActo93Input?.nativeElement;
+    if (!el) return;
+    this.agenda93Picker?.destroy();
+    this.agenda93Picker = flatpickr(el, {
+      enableTime: true,
+      time_24hr: true,
+      minuteIncrement: 15,
+      dateFormat: 'Y-m-d\\TH:i',
+      minTime: '10:00',
+      maxTime: '14:00',
+      disable: [(date) => date.getDay() === 0 || date.getDay() === 6],
+      onChange: (_dates, dateStr) => {
+        this.fechaActo93 = dateStr;
+      },
+      onDayCreate: (_dObj, _dStr, fp, dayElem) => {
+        const dateObj = (dayElem as unknown as { dateObj?: Date }).dateObj;
+        if (!dateObj) return;
+        const key = this.toLocalDateKey(dateObj);
+        if (this.agendaActo93OcupadosKeys.has(key)) {
+          dayElem.classList.add('agenda-dia-ocupado');
+          dayElem.title = 'Ya hay acto protocolario agendado este día';
+        }
+      },
+      onOpen: (_d, _s, fp) => {
+        window.requestAnimationFrame(() => this.pintarDiasOcupadosEnFlatpickr(fp));
+      },
+      onMonthChange: (_d, _s, fp) => {
+        window.requestAnimationFrame(() => this.pintarDiasOcupadosEnFlatpickr(fp));
+      },
+    });
+  }
+
+  private toLocalDateKey(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  private destruirAgendaActo93Picker(): void {
+    this.agenda93Picker?.destroy();
+    this.agenda93Picker = null;
+    this.agendaActo93OcupadosKeys.clear();
+    this.agenda93Cargada = false;
+    this.agenda93Cargando = false;
+  }
+}
+

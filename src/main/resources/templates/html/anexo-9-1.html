@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es" xml:lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>Anexo 9.1</title>
+<style type="text/css">
+/* A4 — márgenes institucionales (~2,5 cm) */
+@page { size: A4; margin: 24mm 20mm 18mm 20mm; }
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+/* Marco: altura mínima ≈ área útil A4 (297 − márgenes) para poder bajar el pie */
+.doc-shell {
+  display: flex;
+  flex-direction: column;
+  /* Altura mínima ≈ zona imprimible A4 para anclar el pie abajo */
+  min-height: 248mm;
+}
+body {
+  font-family: "Montserrat Medium", "Montserrat", Arial, Helvetica, sans-serif;
+  font-size: 10pt;
+  color: #000;
+  line-height: 1.45;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+/* —— Encabezado —— */
+table.hdr {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 14px;
+  font-size: 11pt;
+  table-layout: fixed;
+  font-family: Arial, Helvetica, sans-serif;
+}
+table.hdr td {
+  border: 1px solid #000;
+  padding: 7px 9px;
+  vertical-align: middle;
+}
+table.hdr .logo {
+  width: 19%;
+  text-align: center;
+  padding: 8px 6px;
+}
+table.hdr .logo img {
+  width: 82px;
+  height: auto;
+  max-height: 82px;
+  display: block;
+  margin: 0 auto;
+}
+table.hdr .meta {
+  font-weight: bold;
+  text-align: left;
+}
+table.hdr .meta-cod {
+  width: 26%;
+  font-weight: bold;
+  text-align: left;
+}
+table.hdr .meta-pag {
+  font-weight: normal;
+}
+/* —— Títulos (más aire respecto a la tabla, como plantilla) —— */
+.tit-anexo {
+  text-align: center;
+  font-size: 9pt;
+  font-weight: bold;
+  margin: 0 0 18px;
+  line-height: 1.4;
+  font-family: "Montserrat Medium", "Montserrat", Arial, Helvetica, sans-serif;
+}
+.tit-sol {
+  font-weight: bold;
+  text-align: center;
+  font-size: 10pt;
+  margin: 0 0 20px;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+}
+/* —— Fecha —— */
+.fecha-doc {
+  text-align: right;
+  font-size: 11pt;
+  margin: 0 0 24px;
+  line-height: 1.4;
+}
+/* —— Destinatario (líneas juntas entre sí; bloque separado del resto) —— */
+.dest-block {
+  margin: 0 0 22px;
+}
+.dest-block p {
+  margin: 0;
+  padding: 0 0 4px;
+  font-weight: bold;
+  font-size: 11pt;
+  line-height: 1.38;
+  text-transform: uppercase;
+}
+.dest-block p:last-child {
+  padding-bottom: 0;
+}
+/* —— Cuerpo —— */
+.just { text-align: justify; }
+.cuerpo-principal {
+  margin: 0 0 26px;
+  font-size: 11pt;
+  line-height: 1.58;
+  text-align: justify;
+}
+.u { text-decoration: underline; text-underline-offset: 2px; }
+.b { font-weight: bold; }
+.val-mayus {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+/* —— Campos: ~1,5 interlineado entre líneas; más aire antes del primer campo —— */
+.campo-line {
+  margin: 0 0 14px;
+  font-size: 11pt;
+  line-height: 1.48;
+  text-align: left;
+}
+.campo-line.primera {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+.campo-line.ultima {
+  margin-bottom: 0;
+}
+/* Firma: raya corta (como plantilla ITVO, ~ancho de la etiqueta “Nombre:”) */
+.firma-linea-wrap {
+  margin: 0 0 16px;
+  font-size: 11pt;
+  line-height: 1.48;
+  text-align: left;
+}
+.firma-linea-wrap .b {
+  font-weight: bold;
+}
+.firma-trazo-corta {
+  display: inline-block;
+  margin-left: 5px;
+  /* Raya corta como en la plantilla (no a todo el ancho de página) */
+  width: 8.8em;
+  min-width: 6.5em;
+  border-bottom: 1px solid #000;
+  height: 1.15em;
+  vertical-align: bottom;
+}
+/* Relleno flexible: empuja el pie hacia abajo de la hoja */
+.relleno-pie {
+  flex: 1 1 auto;
+  /* Si el motor no expande flex, conserva hueco visible antes del pie */
+  min-height: 56mm;
+  width: 100%;
+  font-size: 0;
+  line-height: 0;
+}
+/* —— Pie (casi al borde inferior del área útil) —— */
+.pie-wrap {
+  flex-shrink: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+.pie {
+  width: 100%;
+  font-size: 8pt;
+  border-collapse: collapse;
+  table-layout: fixed;
+  color: #000;
+  font-family: "Montserrat Medium", "Montserrat", Arial, Helvetica, sans-serif;
+}
+.pie td {
+  vertical-align: bottom;
+  padding: 0 4px 0;
+  line-height: 1.35;
+  font-weight: bold;
+}
+.pie .c {
+  text-align: center;
+  white-space: nowrap;
+}
+.pie .r {
+  text-align: right;
+  white-space: nowrap;
+}
+.pie .pie-codigo,
+.pie .pie-rev {
+  font-family: Calibri, Arial, Helvetica, sans-serif;
+  font-size: 8pt;
+}
+/* Una sola línea: si la celda es muy angosta, el código se parte en dos (p. ej. después de un guion). */
+.pie .pie-codigo {
+  white-space: nowrap;
+}
+/* QR de autenticidad (solo visual, no cambia flujo) */
+.qr-auth-wrap {
+  float: right;
+  margin: 0 0 6pt 10pt;
+  text-align: center;
+}
+.qr-img { width: 90pt; height: 90pt; display: block; }
+.qr-msg {
+  margin: 3pt 0 0;
+  font-size: 6.5pt;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #444;
+  text-align: center;
+  max-width: 90pt;
+  line-height: 1.25;
+}
+.clearfix { clear: both; height: 0; font-size: 0; line-height: 0; }
+</style>
+</head>
+<body>
+<div class="doc-shell">
+
+<table class="hdr">
+  <tr>
+    <td class="logo" rowspan="3"><img src="logo-itvo.png" alt="ITVO"/></td>
+    <td class="meta">Nombre del documento: Formato de Solicitud del Acto de Recepción Profesional</td>
+    <td class="meta meta-cod">Código: ITVO-AC-PR-05-02</td>
+  </tr>
+  <tr>
+    <td class="meta">Referencia a la Norma ISO 9001-2015: 8.1, 8.5</td>
+    <td class="meta">Revisión: 2</td>
+  </tr>
+  <tr>
+    <td class="meta">&#160;</td>
+    <td class="meta meta-pag">Página 1 de 1</td>
+  </tr>
+</table>
+
+<p class="tit-anexo">Anexo 9.1 Formato de Solicitud del Acto de Recepción Profesional</p>
+<p class="tit-sol">SOLICITUD DE ACTO DE RECEPCIÓN PROFESIONAL</p>
+
+<p class="fecha-doc">Fecha: {{FECHA_CARTA}}.</p>
+
+<div class="dest-block">
+  <p>{{DESTINATARIO_SERVICIOS_ESCOLARES}}</p>
+  <p>JEFE DEL DEPARTAMENTO DE SERVICIOS ESCOLARES</p>
+  <p>PRESENTE</p>
+</div>
+
+<p class="just cuerpo-principal">
+  Me permito solicitar se autorice la sustentación del Acto de Recepción Profesional por la Opción
+  <span class="b u">TITULACIÓN INTEGRAL ({{TEXTO_OPCION_TI}})</span>,
+  para obtener mi Título Profesional de <span class="val-mayus">{{CARRERA}}</span>
+  en virtud de haber cubierto los requisitos indispensables para tal efecto.
+</p>
+
+<div class="qr-auth-wrap">
+  <img class="qr-img" src="{{QR_CODE}}" alt=""/>
+  <p class="qr-msg">Documento certificado:<br/>Verifica la autenticidad.</p>
+</div>
+
+<p class="just campo-line primera"><span class="b">Nombre:</span> <span class="b u">{{NOMBRE}}</span></p>
+
+<p class="just firma-linea-wrap"><span class="b">Firma:</span><span class="firma-trazo-corta">&#160;</span></p>
+
+<p class="just campo-line"><span class="b">No. de control:</span> <span class="b u">{{NUMERO_CONTROL}}</span></p>
+<p class="just campo-line"><span class="b">Carrera:</span> <span class="val-mayus">{{CARRERA}}</span></p>
+<p class="just campo-line ultima"><span class="b">Nivel:</span> <span class="val-mayus">{{NIVEL}}</span></p>
+
+<div class="clearfix"></div>
+
+<div class="relleno-pie"></div>
+
+<div class="pie-wrap">
+<table class="pie" role="presentation">
+  <tr>
+    <td class="pie-codigo" style="width:26%">ITVO-AC-PR-05-02</td>
+    <td class="c">Toda copia en PAPEL es un &quot;Documento No Controlado&quot; a excepción del original.</td>
+    <td class="r pie-rev" style="width:10%">Rev. 2</td>
+  </tr>
+</table>
+</div>
+
+</div>
+</body>
+</html>

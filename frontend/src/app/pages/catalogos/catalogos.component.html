@@ -1,0 +1,171 @@
+<app-header [showNuevoButton]="false" [showVolverInicioButton]="true" (volverInicioClick)="volver()"></app-header>
+
+<div class="cat-contenido">
+  <h1 class="cat-titulo">Gestión de catálogos</h1>
+
+  <!-- Tabs -->
+  <div class="cat-tabs" role="tablist">
+    <button
+      *ngFor="let tab of tabs"
+      type="button"
+      role="tab"
+      class="cat-tab"
+      [class.cat-tab-activo]="tabActivo === tab.id"
+      (click)="cambiarTab(tab.id)"
+    >
+      {{ tab.label }}
+    </button>
+  </div>
+
+  <!-- Mensaje de estado -->
+  <p *ngIf="mensaje" class="cat-mensaje" [class.cat-mensaje-error]="mensajeError">{{ mensaje }}</p>
+
+  <!-- Botón agregar -->
+  <div class="cat-acciones-bar">
+    <button type="button" class="cat-btn-agregar" (click)="abrirFormularioCrear()" [disabled]="form.visible">
+      + Agregar
+    </button>
+  </div>
+
+  <!-- Formulario crear / editar -->
+  <div *ngIf="form.visible" class="cat-form-panel">
+    <h3 class="cat-form-titulo">{{ form.modo === 'crear' ? 'Nuevo elemento' : 'Editar elemento' }}</h3>
+
+    <div class="cat-form-grid">
+      <div class="cat-campo">
+        <label class="cat-label">Nombre *</label>
+        <input type="text" class="cat-input" [(ngModel)]="form.nombre" placeholder="Nombre" />
+      </div>
+
+      <!-- Departamento (solo carreras) -->
+      <div *ngIf="esTabCarrera" class="cat-campo">
+        <label class="cat-label">Departamento *</label>
+        <select class="cat-input" [(ngModel)]="form.departamentoId">
+          <option value="">— Selecciona departamento —</option>
+          <option *ngFor="let d of departamentosItems" [value]="d.id">{{ d.nombre }}</option>
+        </select>
+      </div>
+
+      <!-- Campos de modalidad -->
+      <ng-container *ngIf="esTabModalidad">
+        <div class="cat-campo cat-campo-sm">
+          <label class="cat-label">Duración (meses)</label>
+          <input type="number" class="cat-input" [(ngModel)]="form.mesesVigencia" min="1" placeholder="Sin plazo = vacío" />
+          <span class="cat-hint">Dejar vacío si no hay plazo (ej. CENEVAL).</span>
+        </div>
+        <div class="cat-campo">
+          <label class="cat-label">Campos de mentores / involucrados *</label>
+          <select class="cat-input" [(ngModel)]="form.tipoMentores">
+            <option value="estandar">Estándar — Director, Asesor 1 y Asesor 2</option>
+            <option value="residencia">Residencia — Asesor interno y Asesor externo</option>
+            <option value="ninguno">Ninguno — sin campos de mentores</option>
+          </select>
+          <span class="cat-hint">Define qué campos de mentores se muestran al dar de alta un egresado con esta modalidad.</span>
+        </div>
+        <div class="cat-campo cat-campo-check">
+          <label class="cat-label-check">
+            <input type="checkbox" [(ngModel)]="form.esResidencia" />
+            Es tipo Residencia Profesional
+          </label>
+          <span class="cat-hint">Actívalo si esta modalidad usa el flujo de "Registro y liberación" y aparece en la bandeja de pendientes del departamento académico.</span>
+        </div>
+      </ng-container>
+
+      <!-- Slug (solo departamentos) -->
+      <div *ngIf="esTabDepartamento" class="cat-campo">
+        <label class="cat-label">Clave interna (slug) *</label>
+        <input type="text" class="cat-input" [(ngModel)]="form.slug" placeholder="ej. ingenierias" />
+        <span class="cat-hint">Minúsculas y guiones bajos. Debe coincidir con el segmento_academico del usuario académico.</span>
+      </div>
+    </div>
+
+    <!-- Checkboxes de carreras (solo departamentos) -->
+    <div *ngIf="esTabDepartamento" class="cat-carreras-section">
+      <label class="cat-label">Carreras asignadas</label>
+      <div class="cat-carreras-grid">
+        <label *ngFor="let c of carrerasDisponibles" class="cat-carrera-check">
+          <input type="checkbox" [checked]="carreraSeleccionada(c)" (change)="toggleCarrera(c)" />
+          <span>{{ c }}</span>
+        </label>
+        <p *ngIf="!carrerasDisponibles.length" class="cat-hint">No hay carreras activas. Agrégalas primero en la pestaña Carreras.</p>
+      </div>
+    </div>
+
+    <div class="cat-form-botones">
+      <button type="button" class="cat-btn-guardar" (click)="guardar()" [disabled]="guardando">
+        {{ guardando ? 'Guardando…' : 'Guardar' }}
+      </button>
+      <button type="button" class="cat-btn-cancelar" (click)="cancelarFormulario()" [disabled]="guardando">
+        Cancelar
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabla -->
+  <div *ngIf="cargando" class="cat-cargando">Cargando...</div>
+
+  <table *ngIf="!cargando" class="cat-tabla">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th *ngIf="esTabCarrera">Departamento</th>
+        <th *ngIf="esTabModalidad">Duración</th>
+        <th *ngIf="esTabModalidad">Tipo</th>
+        <th *ngIf="esTabDepartamento">Slug</th>
+        <th *ngIf="esTabDepartamento">Carreras</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Activos -->
+      <tr *ngFor="let item of itemsActivos">
+        <td>{{ item.nombre }}</td>
+        <td *ngIf="esTabCarrera">{{ nombreDeptDeCarrera(item.nombre) }}</td>
+        <td *ngIf="esTabModalidad">{{ item.mesesVigencia != null ? (item.mesesVigencia + ' meses') : 'Sin plazo' }}</td>
+        <td *ngIf="esTabModalidad">
+          <span class="cat-badge" [class.cat-badge-residencia]="item.esResidencia">
+            {{ item.esResidencia ? 'Residencia' : 'Estándar' }}
+          </span>
+          <span class="cat-badge cat-badge-mentores" style="margin-left:4px">
+            {{ item.tipoMentores === 'residencia' ? 'Asesor int/ext' : item.tipoMentores === 'ninguno' ? 'Sin mentores' : 'Dir+Asesor1+2' }}
+          </span>
+        </td>
+        <td *ngIf="esTabDepartamento">{{ item.slug ?? '—' }}</td>
+        <td *ngIf="esTabDepartamento" class="cat-td-carreras">
+          <span *ngFor="let c of item.carreras" class="cat-chip">{{ c }}</span>
+          <span *ngIf="!item.carreras.length" class="cat-hint">Sin carreras</span>
+        </td>
+        <td><span class="cat-estado-activo">Activo</span></td>
+        <td class="cat-td-acciones">
+          <button type="button" class="cat-btn-accion" (click)="abrirFormularioEditar(item)">Editar</button>
+          <button type="button" class="cat-btn-accion cat-btn-desactivar" (click)="desactivar(item)">Desactivar</button>
+        </td>
+      </tr>
+
+      <!-- Inactivos -->
+      <tr *ngFor="let item of itemsInactivos" class="cat-fila-inactiva">
+        <td>{{ item.nombre }}</td>
+        <td *ngIf="esTabCarrera">—</td>
+        <td *ngIf="esTabModalidad">{{ item.mesesVigencia != null ? (item.mesesVigencia + ' meses') : 'Sin plazo' }}</td>
+        <td *ngIf="esTabModalidad">
+          <span class="cat-badge" [class.cat-badge-residencia]="item.esResidencia">
+            {{ item.esResidencia ? 'Residencia' : 'Estándar' }}
+          </span>
+        </td>
+        <td *ngIf="esTabDepartamento">{{ item.slug ?? '—' }}</td>
+        <td *ngIf="esTabDepartamento" class="cat-td-carreras">
+          <span *ngFor="let c of item.carreras" class="cat-chip">{{ c }}</span>
+        </td>
+        <td><span class="cat-estado-inactivo">Inactivo</span></td>
+        <td class="cat-td-acciones">
+          <button type="button" class="cat-btn-accion cat-btn-activar" (click)="activar(item)">Activar</button>
+        </td>
+      </tr>
+
+      <tr *ngIf="!cargando && items.length === 0">
+        <td colspan="8" class="cat-sin-datos">Sin elementos. Usa "+ Agregar" para crear el primero.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

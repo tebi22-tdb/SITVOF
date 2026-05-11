@@ -1,0 +1,71 @@
+<div class="login-page">
+  <div class="login-wrap">
+    <aside class="login-brand">
+      <div class="login-logos">
+        <img src="assets/images/logo-tecnm.png" alt="TecNM" class="login-logo" />
+        <img src="assets/images/logo-itvo.png" alt="ITVO" class="login-logo" />
+      </div>
+      <p class="login-kicker">Acceso institucional</p>
+      <h1 class="login-titulo">SITVO</h1>
+      <p class="login-subtitulo">Sistema Integral de Titulación del Valle de Oaxaca</p>
+    </aside>
+    <div class="login-card">
+
+      <!-- Formulario de inicio de sesión -->
+      <form *ngIf="!vistaRecuperar" (ngSubmit)="onSubmit()" class="login-form">
+        <h2 class="login-form-titulo">Iniciar sesión</h2>
+        <label for="username">Usuario</label>
+        <input
+          id="username"
+          type="text"
+          [(ngModel)]="username"
+          name="username"
+          placeholder="Número de control o usuario"
+          autocomplete="username"
+        />
+        <label for="password">Contraseña</label>
+        <input
+          id="password"
+          type="password"
+          [(ngModel)]="password"
+          name="password"
+          placeholder="Contraseña"
+          autocomplete="current-password"
+        />
+        <p *ngIf="error" class="error">{{ error }}</p>
+        <button type="submit" class="btn-login" [disabled]="loading">
+          {{ loading ? 'Entrando...' : 'Entrar' }}
+        </button>
+        <button type="button" class="login-ayuda-btn" (click)="mostrarRecuperar()">
+          ¿Olvidaste tu contraseña?
+        </button>
+      </form>
+
+      <!-- Formulario de recuperación de contraseña -->
+      <form *ngIf="vistaRecuperar" (ngSubmit)="onSubmitRecuperar()" class="login-form">
+        <h2 class="login-form-titulo">Recuperar contraseña</h2>
+        <p class="login-recuperar-info">
+          Ingresa tu número de control. Si está registrado y tiene correo asociado, recibirás una nueva contraseña. Tu número de control seguirá siendo el mismo usuario.
+        </p>
+        <label for="nc-recuperar">Número de control</label>
+        <input
+          id="nc-recuperar"
+          type="text"
+          [(ngModel)]="numeroControlRecuperar"
+          name="numeroControlRecuperar"
+          placeholder="Ej. 20201234"
+          autocomplete="username"
+        />
+        <p *ngIf="errorRecuperar" class="error">{{ errorRecuperar }}</p>
+        <p *ngIf="mensajeRecuperar" class="login-recuperar-ok">{{ mensajeRecuperar }}</p>
+        <button type="submit" class="btn-login" [disabled]="enviandoRecuperar || !!mensajeRecuperar">
+          {{ enviandoRecuperar ? 'Enviando...' : 'Enviar nueva contraseña' }}
+        </button>
+        <button type="button" class="login-ayuda-btn" (click)="volverLogin()">
+          ← Volver al inicio de sesión
+        </button>
+      </form>
+
+    </div>
+  </div>
+</div>

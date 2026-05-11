@@ -1,0 +1,64 @@
+<div class="repo-page">
+  <header class="repo-header">
+    <div class="repo-header-inner">
+      <div class="repo-logo-izq">
+        <img src="assets/images/logo-tecnm.png" alt="TecNM" class="repo-logo" />
+      </div>
+      <div class="repo-titulo-block">
+        <h1 class="repo-titulo">Repositorio de la División de Estudios Profesionales</h1>
+        <h2 class="repo-subtitulo">Proyectos de Titulación (Tesis, Tesina, Residencia Profesional , Proyecto de Investigación, Monografías)</h2>
+        <h3 class="repo-subtitulo">Sistema Integral de Titulación del Valle de Oaxaca</h3>
+      </div>
+      <div class="repo-logo-der">
+        <img src="assets/images/logo-itvo.png" alt="ITVO" class="repo-logo" />
+      </div>
+    </div>
+  </header>
+
+  <main class="repo-main">
+
+    <div *ngIf="!cargando && !error" class="repo-filtros">
+      <input
+        class="repo-buscar"
+        type="text"
+        [(ngModel)]="buscar"
+        placeholder="Buscar por título, autor o carrera…"
+      />
+      <select class="repo-select" [(ngModel)]="filtroCarrera">
+        <option value="">Todas las carreras</option>
+        <option *ngFor="let c of carrerasDisponibles" [value]="c">{{ c }}</option>
+      </select>
+      <select class="repo-select" [(ngModel)]="filtroModalidad">
+        <option value="">Todas las modalidades</option>
+        <option *ngFor="let m of modalidadesDisponibles" [value]="m">{{ m }}</option>
+      </select>
+      <span class="repo-conteo">{{ resultados.length }} trabajo(s)</span>
+    </div>
+
+    <div *ngIf="cargando" class="repo-estado">Cargando repositorio…</div>
+    <div *ngIf="error" class="repo-estado repo-estado--error">{{ error }}</div>
+
+    <div *ngIf="!cargando && !error && resultados.length === 0" class="repo-estado">
+      No se encontraron trabajos con los filtros aplicados.
+    </div>
+
+    <div *ngIf="!cargando && !error && resultados.length > 0" class="repo-grid">
+      <article *ngFor="let t of resultados" class="repo-card">
+        <div class="repo-card-top">
+          <span class="repo-badge repo-badge--modalidad">{{ t.modalidad }}</span>
+          <span class="repo-card-anio" *ngIf="t.anio">{{ t.anio }}</span>
+        </div>
+        <h2 class="repo-card-proyecto">{{ t.nombre_proyecto || '—' }}</h2>
+        <p class="repo-card-autor">{{ t.nombre }}</p>
+        <div class="repo-card-meta">
+          <span class="repo-badge repo-badge--carrera">{{ t.carrera }}</span>
+          <span class="repo-badge repo-badge--nivel" *ngIf="t.nivel">{{ t.nivel }}</span>
+        </div>
+        <p class="repo-card-asesores" *ngIf="asesores(t)">
+          <span class="repo-asesores-label">Asesor(es):</span> {{ asesores(t) }}
+        </p>
+      </article>
+    </div>
+
+  </main>
+</div>

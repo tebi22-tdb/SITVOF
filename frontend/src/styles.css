@@ -1,0 +1,19 @@
+@import "flatpickr/dist/flatpickr.min.css";
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #f5f5f5;
+  color: #222;
+}
+
+.flatpickr-day.agenda-dia-ocupado {
+  background: #fef08a !important;
+  border-color: #facc15 !important;
+  color: #1f2937 !important;
+  font-weight: 700;
+}

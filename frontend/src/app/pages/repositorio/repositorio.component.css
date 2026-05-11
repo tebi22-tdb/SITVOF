@@ -1,0 +1,211 @@
+.repo-page {
+  min-height: 100vh;
+  background: #f5f6fa;
+  font-family: inherit;
+}
+
+.repo-header {
+  background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.repo-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.repo-logo-izq,
+.repo-logo-der {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.repo-logo {
+  height: 60px;
+  width: auto;
+  object-fit: contain;
+}
+
+.repo-titulo-block {
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.repo-titulo {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.repo-subtitulo {
+  margin: 0.1rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 400;
+  opacity: 0.85;
+}
+
+.repo-main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.repo-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.repo-buscar {
+  flex: 1 1 260px;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: #fff;
+}
+
+.repo-buscar:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
+}
+
+.repo-select {
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: #fff;
+  cursor: pointer;
+}
+
+.repo-select:focus {
+  outline: none;
+  border-color: #4f46e5;
+}
+
+.repo-conteo {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-left: auto;
+}
+
+.repo-estado {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+.repo-estado--error {
+  color: #dc2626;
+}
+
+.repo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.25rem;
+}
+
+.repo-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.repo-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.repo-card-proyecto {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.4;
+}
+
+.repo-card-autor {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.repo-card-anio {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.repo-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.repo-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.repo-badge--modalidad {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.repo-badge--carrera {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.repo-badge--nivel {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.repo-card-asesores {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.repo-asesores-label {
+  font-weight: 600;
+  color: #4b5563;
+}
+
+@media (max-width: 600px) {
+  .repo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .repo-filtros {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .repo-conteo {
+    margin-left: 0;
+  }
+}

@@ -1,0 +1,32 @@
+<header class="sit-header">
+  <div class="sit-titulo-row">
+    <div class="sit-logo-izq">
+      <img src="assets/images/logo-tecnm.png" alt="TecNM" class="sit-logo" />
+    </div>
+    <div class="sit-titulo-block">
+      <h1 class="sit-titulo">SITVO</h1>
+      <p class="sit-subtitulo">Sistema Integral de Titulacion del Tecnologico del Valle de  Oaxaca</p>
+    </div>
+    <div class="sit-logo-der">
+      <img src="assets/images/logo-itvo.png" alt="ITVO" class="sit-logo" />
+    </div>
+  </div>
+  <nav class="sit-menu">
+    <div class="sit-menu-izq">
+      <button *ngIf="showNuevoButton" type="button" class="btn btn-nuevo" (click)="nuevoClick.emit()">Agregar egresado</button>
+      <button *ngIf="showAgregarUsuarioButton" type="button" class="btn btn-agregar-usuario" (click)="agregarUsuarioClick.emit()">Agregar usuario</button>
+      <button *ngIf="showVolverInicioButton" type="button" class="btn btn-volver" (click)="volverInicioClick.emit()">Volver</button>
+    </div>
+    <div class="sit-menu-der">
+      <span class="bienvenido">Bienvenido <strong>{{ nombreUsuario }}</strong></span>
+      <button type="button" class="btn btn-logout" title="Salir" aria-label="Salir" (click)="logout()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        Salir
+      </button>
+    </div>
+  </nav>
+</header>

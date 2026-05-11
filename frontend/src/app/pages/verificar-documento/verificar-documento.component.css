@@ -1,0 +1,156 @@
+.verificar-page {
+  min-height: 100vh;
+  background: #f5f7fa;
+}
+
+.verificar-header {
+  background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.verificar-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.verificar-logo-izq,
+.verificar-logo-der {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.verificar-logo {
+  height: 60px;
+  width: auto;
+  object-fit: contain;
+}
+
+.verificar-titulo-block {
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.verificar-titulo {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.verificar-subtitulo {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 400;
+  opacity: 0.9;
+}
+
+.verificar-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+}
+
+.verificar-card {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  max-width: 580px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.verificar-estado {
+  padding: 28px;
+  color: #555;
+  text-align: center;
+}
+
+.verificar-resultado {
+  padding: 28px;
+}
+
+.verificar-resultado h3 {
+  margin: 8px 0 18px;
+  font-size: 1.15rem;
+}
+
+.verificar-icono {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.verificar-valido {
+  border-top: 4px solid #2a9461;
+}
+
+.verificar-valido .verificar-icono,
+.verificar-valido h3 {
+  color: #2a9461;
+}
+
+.verificar-invalido {
+  border-top: 4px solid #c0392b;
+}
+
+.verificar-invalido .verificar-icono,
+.verificar-invalido h3 {
+  color: #c0392b;
+}
+
+.verificar-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.verificar-tabla th,
+.verificar-tabla td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+  font-size: 0.95rem;
+}
+
+.verificar-tabla th {
+  color: #555;
+  font-weight: 600;
+  width: 42%;
+}
+
+.verificar-id {
+  font-size: 0.82rem;
+  color: #888;
+  margin-top: 12px;
+}
+
+.verificar-estatus {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.estatus-finalizado {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.estatus-vencido {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.estatus-en-proceso {
+  background: #dbeafe;
+  color: #1e40af;
+}
