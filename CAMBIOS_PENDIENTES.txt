@@ -1,0 +1,124 @@
+================================================================================
+  CAMBIOS PENDIENTES — SITVOF
+  Leer antes de trabajar en cualquier área relacionada
+================================================================================
+
+ESTADO: En diseño / pendiente de implementar
+FECHA:  Mayo 2026
+
+AVISO IMPORTANTE
+----------------
+Las áreas descritas en este archivo están a punto de recibir cambios
+estructurales. Si vas a trabajar en alguna de ellas, coordina primero
+con el equipo para evitar conflictos de código.
+
+
+================================================================================
+CAMBIO 1 — SEPARACIÓN DE CUENTA Y PROCESO DE TITULACIÓN
+================================================================================
+
+PROBLEMA QUE RESUELVE:
+Un egresado cuyo proceso de titulación vence necesita iniciar uno nuevo con
+otra modalidad. Hoy el sistema bloquea el alta porque el número de control
+y el correo ya existen. Tampoco hay forma de ver el historial de ambos
+intentos desde la misma cuenta.
+
+DISEÑO PROPUESTO:
+Separar la cuenta del egresado de su proceso de titulación. El documento
+Egresado en MongoDB pasará a tener un array de procesos:
+
+  Egresado (cuenta única — no se vuelve a crear)
+    ├── datos personales (nombre, número de control, carrera, correo...)
+    ├── credenciales (contraseña, etc.)
+    └── procesos[]
+          ├── proceso 1: modalidad anterior → vencido (historial completo)
+          └── proceso 2: nueva modalidad → en curso (historial nuevo)
+
+FLUJO NUEVO:
+  · El egresado que se venció NO se da de alta de nuevo.
+  · El coordinador abre el expediente existente y activa un
+    "Nuevo proceso de titulación" con la nueva modalidad.
+  · El proceso anterior queda archivado con todo su historial.
+  · El egresado entra con la misma cuenta y ve todos sus procesos
+    en su pantalla de seguimiento.
+
+ÁREAS DE CÓDIGO QUE SE VAN A MODIFICAR:
+  Backend:
+    · src/main/kotlin/.../domain/Egresado.kt
+        → el modelo principal cambia de estructura
+    · src/main/kotlin/.../service/EgresadoService.kt
+        → toda la lógica de estados, flujo y filtrado
+    · src/main/kotlin/.../web/api/EgresadoController.kt
+        → endpoints de alta, seguimiento y departamento
+    · src/main/kotlin/.../web/api/dto/EgresadoDtos.kt
+        → DTOs de respuesta al frontend
+  Frontend:
+    · frontend/src/app/services/egresado.service.ts
+    · frontend/src/app/pages/seguimiento/seguimiento.component.*
+    · frontend/src/app/pages/home/home.component.*
+    · frontend/src/app/pages/departamento-academico/departamento-academico.component.*
+
+NO TOQUES ESTAS ÁREAS HASTA QUE SE DEFINA LA IMPLEMENTACIÓN.
+
+
+================================================================================
+CAMBIO 2 — MÓDULO DE GESTIÓN DE CUENTAS (coordinador/admin)
+================================================================================
+
+PROBLEMA QUE RESUELVE:
+Hoy no existe interfaz para que el coordinador resuelva problemas de acceso
+de los egresados. Si un egresado pierde su correo o se bloquea su cuenta,
+la única salida es tocar MongoDB directamente.
+
+DISEÑO PROPUESTO:
+Crear una sección "Gestión de cuentas" dentro del área del coordinador
+(accesible desde /home) con las siguientes operaciones:
+
+  · Cambiar correo de un egresado
+      Buscar por número de control → ingresar nuevo correo → guardar.
+      Útil cuando el egresado pierde acceso a su correo institucional.
+
+  · Resetear contraseña de un egresado
+      Genera una contraseña temporal que el coordinador entrega en persona.
+      El egresado debe cambiarla al iniciar sesión.
+
+  · Activar nuevo proceso de titulación (ligado al Cambio 1)
+      Buscar el expediente existente → seleccionar nueva modalidad →
+      el proceso anterior se archiva y se crea uno nuevo en la misma cuenta.
+
+  · (Futuro) Desbloquear cuenta por intentos fallidos
+      Si se implementa bloqueo por intentos, el admin puede desbloquearlo.
+
+SOBRE LA RECUPERACIÓN DE CONTRASEÑA EN EL LOGIN:
+Se mantiene tal como está (número de control + correo → envío de email).
+Resuelve el 80% de los casos de forma autónoma.
+El módulo admin resuelve los casos que el egresado no puede resolver solo
+(correo perdido, cuenta bloqueada, nueva modalidad).
+
+ÁREAS DE CÓDIGO NUEVAS:
+  Backend:
+    · src/main/kotlin/.../web/api/UsuarioController.kt
+        → nuevos endpoints: cambiar correo, resetear contraseña
+    · src/main/kotlin/.../service/UsuarioService.kt
+        → lógica de las operaciones anteriores
+  Frontend:
+    · frontend/src/app/pages/gestion-cuentas/ (componente nuevo)
+    · frontend/src/app/app.routes.ts → nueva ruta /home/gestion-cuentas
+    · frontend/src/app/pages/coordinador-inicio/ → nueva card en el menú
+
+ÁREAS QUE NO CAMBIAN:
+  · frontend/src/app/pages/login/ → la recuperación de contraseña queda igual
+  · La lógica de envío de correo (EmailService.kt) se reutiliza
+
+
+================================================================================
+ORDEN DE IMPLEMENTACIÓN PLANEADO
+================================================================================
+
+  1. Módulo de gestión de cuentas (Cambio 2) — menos invasivo, no toca el
+     modelo de datos principal.
+
+  2. Separación cuenta/proceso (Cambio 1) — más profundo, requiere migración
+     de datos en MongoDB y cambios en casi todos los componentes.
+
+================================================================================
