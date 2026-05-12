@@ -190,6 +190,28 @@
   line-height: 1.4;
 }
 
+.repo-card-acciones {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.repo-btn-ver {
+  display: inline-block;
+  padding: 0.38rem 0.9rem;
+  background: #1f4c8f;
+  color: #fff;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.13s;
+}
+
+.repo-btn-ver:hover {
+  background: #163a6e;
+}
+
 .repo-asesores-label {
   font-weight: 600;
   color: #4b5563;

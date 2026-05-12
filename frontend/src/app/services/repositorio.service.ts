@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 export interface TituladoPublico {
+  egresado_id: string;
   nombre: string;
   carrera: string;
   nivel: string;
@@ -15,6 +16,7 @@ export interface TituladoPublico {
   asesor_1?: string;
   asesor_2?: string;
   anio?: number;
+  tiene_documento?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -25,5 +27,9 @@ export class RepositorioService {
 
   listar(): Observable<TituladoPublico[]> {
     return this.http.get<TituladoPublico[]>(this.api);
+  }
+
+  urlDocumento(egresadoId: string): string {
+    return `${this.api}/${egresadoId}/documento`;
   }
 }

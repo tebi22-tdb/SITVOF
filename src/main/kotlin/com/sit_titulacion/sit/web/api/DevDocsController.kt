@@ -30,8 +30,8 @@ class DevDocsController(
                 e.datos_personales.apellido_materno,
             ).joinToString(" ").ifBlank { "(sin nombre)" }
             val control = e.numero_control
-            val tieneDoc = e.documento_adjunto.gridfs_id != null
-            val certificado = e.fechaCertificacion != null
+            val tieneDoc = e.procesoActivoOrNull()?.documento_adjunto?.gridfs_id != null
+            val certificado = e.procesoActivoOrNull()?.fechaCertificacion != null
             val docCell = if (tieneDoc)
                 """<a href="/dev/docs/$id/download" target="_blank">Descargar</a>"""
             else

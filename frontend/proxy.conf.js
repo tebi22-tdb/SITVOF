@@ -7,6 +7,8 @@ const PROXY_CONFIG = {
     target: 'http://localhost:8081',
     secure: false,
     changeOrigin: true,
+    proxyTimeout: 120000,
+    timeout: 120000,
     onProxyRes(proxyRes) {
       const setCookie = proxyRes.headers['set-cookie'];
       if (setCookie) {

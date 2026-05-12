@@ -78,6 +78,12 @@ export const routes: Routes = [
     canActivate: [academicoGuard],
   },
   {
+    path: 'home/gestion-cuentas',
+    loadComponent: () =>
+      import('./pages/gestion-cuentas/gestion-cuentas.component').then((m) => m.GestionCuentasComponent),
+    canActivate: [coordinadorGuard],
+  },
+  {
     path: 'repositorio',
     loadComponent: () =>
       import('./pages/repositorio/repositorio.component').then((m) => m.RepositorioComponent),

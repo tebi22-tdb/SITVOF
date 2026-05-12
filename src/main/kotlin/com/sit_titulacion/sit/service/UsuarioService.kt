@@ -1,17 +1,20 @@
 package com.sit_titulacion.sit.service
 
 import com.sit_titulacion.sit.domain.Usuario
+import com.sit_titulacion.sit.repository.EgresadoRepository
 import com.sit_titulacion.sit.repository.UsuarioRepository
 import org.bson.types.ObjectId
 import org.slf4j.LoggerFactory
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import java.security.SecureRandom
+import java.time.Instant
 
 @Service
 class UsuarioService(
     private val usuarioRepository: UsuarioRepository,
     private val passwordEncoder: PasswordEncoder,
+    private val egresadoRepository: EgresadoRepository,
 ) {
     private val log = LoggerFactory.getLogger(UsuarioService::class.java)
 
@@ -116,6 +119,88 @@ class UsuarioService(
         usuarioRepository.save(usuario)
         log.info("Usuario staff creado: username={}, rol={}", usernameUnico, rol)
         return Pair(usernameUnico, passwordPlana)
+    }
+
+    /**
+     * Cambia el correo de cualquier usuario.
+     * - Egresado: actualiza correoElectronico en Usuario y en Egresado.datos_personales.
+     * - Staff: actualiza correoElectronico Y username (son lo mismo, es su login).
+     * @return mensaje de error o null si fue exitoso.
+     */
+    fun cambiarCorreo(username: String, nuevoCorreo: String): String? {
+        val correoTrim = nuevoCorreo.trim()
+        if (correoTrim.isBlank()) return "El correo no puede estar vacío."
+        val usuario = usuarioRepository.findByUsername(username.trim())
+            ?: return "No se encontró ningún usuario con ese nombre de usuario."
+        val esEgresado = usuario.rol.trim().equals("egresado", ignoreCase = true)
+        if (esEgresado) {
+            usuarioRepository.save(usuario.copy(correoElectronico = correoTrim, fechaActualizacion = Instant.now()))
+            usuario.egresadoId?.let { eid ->
+                egresadoRepository.findById(eid).orElse(null)?.let { eg ->
+                    egresadoRepository.save(
+                        eg.copy(
+                            datos_personales = eg.datos_personales.copy(correo_electronico = correoTrim),
+                            fecha_actualizacion = Instant.now(),
+                        )
+                    )
+                }
+            }
+        } else {
+            // Staff: username = correo, ambos deben cambiar juntos
+            if (!correoTrim.equals(usuario.username, ignoreCase = true) &&
+                usuarioRepository.existsByUsername(correoTrim)) {
+                return "Ya existe otro usuario con ese correo."
+            }
+            usuarioRepository.save(
+                usuario.copy(username = correoTrim, correoElectronico = correoTrim, fechaActualizacion = Instant.now())
+            )
+        }
+        log.info("Correo de usuario {} actualizado a {}", username.trim(), correoTrim)
+        return null
+    }
+
+    /**
+     * Genera y guarda una contraseña temporal para cualquier usuario.
+     * @return la contraseña en texto plano para entregársela en persona, o null si no se encontró.
+     */
+    fun resetearContrasena(username: String): String? {
+        val usuario = usuarioRepository.findByUsername(username.trim()) ?: return null
+        val passwordPlana = generarPasswordSegura()
+        usuarioRepository.save(
+            usuario.copy(passwordHash = passwordEncoder.encode(passwordPlana) ?: "", fechaActualizacion = Instant.now())
+        )
+        log.info("Contraseña reseteada para usuario {}", username.trim())
+        return passwordPlana
+    }
+
+    data class UsuarioCuentaInfo(
+        val username: String,
+        val correo: String,
+        val nombre: String,
+        val rol: String,
+        val esEgresado: Boolean,
+    )
+
+    fun buscarPorUsername(username: String): UsuarioCuentaInfo? {
+        val u = usuarioRepository.findByUsername(username.trim()) ?: return null
+        val esEgresado = u.rol.trim().equals("egresado", ignoreCase = true)
+        val nombre = if (esEgresado) {
+            u.egresadoId?.let { eid ->
+                egresadoRepository.findById(eid).orElse(null)?.let { eg ->
+                    listOf(eg.datos_personales.nombre, eg.datos_personales.apellido_paterno, eg.datos_personales.apellido_materno)
+                        .filter { !it.isNullOrBlank() }.joinToString(" ")
+                }
+            } ?: u.username
+        } else {
+            u.nombre ?: u.username
+        }
+        return UsuarioCuentaInfo(
+            username = u.username,
+            correo = u.correoElectronico ?: "",
+            nombre = nombre,
+            rol = u.rol,
+            esEgresado = esEgresado,
+        )
     }
 
     fun listarUsuariosStaff(): List<Usuario> =

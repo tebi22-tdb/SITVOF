@@ -40,7 +40,7 @@ export class RepositorioComponent implements OnInit {
     });
   }
 
-  constructor(private repositorioService: RepositorioService) {}
+  constructor(readonly repositorioService: RepositorioService) {}
 
   ngOnInit(): void {
     this.repositorioService.listar().subscribe({

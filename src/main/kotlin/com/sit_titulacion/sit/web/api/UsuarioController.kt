@@ -8,10 +8,14 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+
+data class CambiarCorreoRequest(val nuevo_correo: String = "")
 
 data class CrearUsuarioRequest(
     val nombre: String = "",
@@ -42,10 +46,14 @@ class UsuarioController(
 ) {
     private val log = LoggerFactory.getLogger(UsuarioController::class.java)
 
-    /** Coordinador o división administrativa (apoyo a titulación no lista ni crea usuarios staff). */
     private fun puedeAdministrarUsuariosStaff(rol: String): Boolean {
         val r = rol.trim().lowercase()
         return r == "coordinador" || r == "division_estudios_prof_admin"
+    }
+
+    private fun puedeGestionarCuentas(rol: String): Boolean {
+        val r = rol.trim().lowercase()
+        return r == "coordinador" || r == "division_estudios_prof_admin" || r == "administrador"
     }
 
     @GetMapping
@@ -156,6 +164,52 @@ class UsuarioController(
             }
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(mapOf("error" to (e.message ?: "Datos inválidos.")))
+        }
+    }
+
+    /** Busca un usuario por username (número de control para egresados, correo para staff). */
+    @GetMapping("/buscar/{username}")
+    fun buscar(
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+        @PathVariable username: String,
+    ): ResponseEntity<Any> {
+        if (principal == null || !puedeGestionarCuentas(principal.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Sin permiso."))
+        }
+        val u = usuarioService.buscarPorUsername(username.trim())
+            ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(u)
+    }
+
+    /** Cambia el correo de cualquier usuario. Solo coordinador/admin. */
+    @PutMapping("/{username}/correo")
+    fun cambiarCorreo(
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+        @PathVariable username: String,
+        @RequestBody body: CambiarCorreoRequest,
+    ): ResponseEntity<Any> {
+        if (principal == null || !puedeGestionarCuentas(principal.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Sin permiso."))
+        }
+        val error = usuarioService.cambiarCorreo(username, body.nuevo_correo)
+        return if (error == null) ResponseEntity.ok(mapOf("ok" to true))
+        else ResponseEntity.badRequest().body(mapOf("error" to error))
+    }
+
+    /** Genera una contraseña temporal para cualquier usuario. Solo coordinador/admin. */
+    @PostMapping("/{username}/resetear-contrasena")
+    fun resetearContrasena(
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+        @PathVariable username: String,
+    ): ResponseEntity<Any> {
+        if (principal == null || !puedeGestionarCuentas(principal.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Sin permiso."))
+        }
+        val password = usuarioService.resetearContrasena(username)
+        return if (password != null) {
+            ResponseEntity.ok(mapOf("ok" to true, "password_temporal" to password))
+        } else {
+            ResponseEntity.badRequest().body(mapOf("error" to "No se encontró ningún usuario con ese nombre de usuario."))
         }
     }
 }

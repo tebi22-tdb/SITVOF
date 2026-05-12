@@ -2,6 +2,7 @@ package com.sit_titulacion.sit.service
 
 import com.sit_titulacion.sit.domain.Revision
 import com.sit_titulacion.sit.domain.RevisionDocumentoAdjunto
+import com.sit_titulacion.sit.repository.CatalogoRepository
 import com.sit_titulacion.sit.repository.EgresadoRepository
 import com.sit_titulacion.sit.repository.RevisionRepository
 import com.sit_titulacion.sit.web.api.dto.CreateRevisionRequestDto
@@ -17,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile
 class RevisionService(
     private val revisionRepository: RevisionRepository,
     private val egresadoRepository: EgresadoRepository,
+    private val catalogoRepository: CatalogoRepository,
     private val certService: CertificacionPdfService,
 ) {
     private val log = LoggerFactory.getLogger(RevisionService::class.java)
@@ -143,8 +145,12 @@ class RevisionService(
         )
     }
 
-    private fun catalogoEsResidencia(eg: com.sit_titulacion.sit.domain.Egresado, modalidad: String): Boolean =
-        modalidad.trim().equals("Residencia Profesional", ignoreCase = true)
+    private fun catalogoEsResidencia(eg: com.sit_titulacion.sit.domain.Egresado, modalidad: String): Boolean {
+        val nombre = modalidad.trim()
+        val cat = catalogoRepository.findByTipoAndActivoTrue("modalidad")
+            .find { it.nombre.trim().equals(nombre, ignoreCase = true) }
+        return cat?.esResidencia ?: nombre.equals("Residencia Profesional", ignoreCase = true)
+    }
 
     private fun toAdjunto(archivo: MultipartFile): RevisionDocumentoAdjunto? {
         val nombreOriginal = (archivo.originalFilename ?: "revision-adjunta.pdf").trim().ifBlank { "revision-adjunta.pdf" }

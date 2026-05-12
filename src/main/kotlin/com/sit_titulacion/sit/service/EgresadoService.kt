@@ -162,9 +162,8 @@ class EgresadoService(
         val procesoActual = existente.procesoActivoOrNull()
         if (procesoActual != null) {
             val estado = procesoActual.estado_general.trim().lowercase()
-            if (estado != "vencido" && estado != "titulado") {
-                return "El proceso actual aún no está cerrado (estado: $estado)."
-            }
+            if (estado == "titulado") return "El egresado ya concluyó su proceso de titulación."
+            if (estado != "vencido") return "El proceso actual aún no está cerrado (estado: $estado)."
         }
         val modalidadNueva = datos.modalidad.trim().lowercase()
         val repetida = existente.procesos.any { p ->
@@ -323,21 +322,21 @@ class EgresadoService(
         val allBase = filtrarEgresadosPorCarreraSiAcademico(egresadoRepository.findAll(), academicoUsername)
         val excluirResidencia = bandejaDepartamentoExcluyeResidencia(academicoUsername) && segmentoSlug.isNullOrBlank()
         val afterModalidad = if (excluirResidencia) allBase.filter { !esResidenciaProfesional(it) } else allBase
-        val all = filtrarBandejaSegmentoCoordinacion(
-            aplicarFiltroSegmentoCoordinacion(afterModalidad, segmentoSlug, academicoUsername),
-            segmentoSlug, academicoUsername,
-        )
-        val pendientes = all.count {
+        val porCarrera = aplicarFiltroSegmentoCoordinacion(afterModalidad, segmentoSlug, academicoUsername)
+        // Solo residencia para pendientes/aprobados (flujo Liberar).
+        // Sinodales y Todos incluyen todos los egresados del departamento.
+        val allLiberar = filtrarBandejaSegmentoCoordinacion(porCarrera, segmentoSlug, academicoUsername)
+        val pendientes = allLiberar.count {
             it.procesoActivoOrNull()?.fechaEnviadoDepartamentoAcademico != null &&
                 !liberacionRevisionCompletada(it) && !enCorreccionAcademico(it)
         }
-        val enCorreccion = all.count {
+        val enCorreccion = allLiberar.count {
             it.procesoActivoOrNull()?.fechaEnviadoDepartamentoAcademico != null &&
                 !liberacionRevisionCompletada(it) && enCorreccionAcademico(it)
         }
-        val aprobados = all.count { liberacionRevisionCompletada(it) }
-        val todos = all.count { it.procesoActivoOrNull()?.fechaEnviadoDepartamentoAcademico != null }
-        val sinodales = all.count {
+        val aprobados = allLiberar.count { liberacionRevisionCompletada(it) }
+        val todos = porCarrera.count { it.procesoActivoOrNull()?.fechaEnviadoDepartamentoAcademico != null }
+        val sinodales = porCarrera.count {
             val pr = it.procesoActivoOrNull()
             pr?.fechaSolicitudSinodales != null && pr.fechaConfirmacionSinodalesRecibidos == null
         }
@@ -354,11 +353,14 @@ class EgresadoService(
         val allBase = filtrarEgresadosPorCarreraSiAcademico(egresadoRepository.findAll(), academicoUsername)
         val excluirResidencia = bandejaDepartamentoExcluyeResidencia(academicoUsername) && segmentoSlug.isNullOrBlank()
         val afterModalidad = if (excluirResidencia) allBase.filter { !esResidenciaProfesional(it) } else allBase
-        val all = filtrarBandejaSegmentoCoordinacion(
-            aplicarFiltroSegmentoCoordinacion(afterModalidad, segmentoSlug, academicoUsername),
-            segmentoSlug, academicoUsername,
-        )
+        val porCarrera = aplicarFiltroSegmentoCoordinacion(afterModalidad, segmentoSlug, academicoUsername)
+        // Solo residencia para el flujo Liberar (pendientes/en_correccion/aprobados).
+        // Sinodales y Todos muestran todos los egresados del departamento sin filtrar por modalidad.
         val norm = estado.trim().lowercase()
+        val all = when (norm) {
+            "sinodales", "todos" -> porCarrera
+            else -> filtrarBandejaSegmentoCoordinacion(porCarrera, segmentoSlug, academicoUsername)
+        }
         val lista = when (norm) {
             "aprobados" -> all.filter { liberacionRevisionCompletada(it) }
             "sinodales" -> all
@@ -1092,6 +1094,39 @@ class EgresadoService(
             fecha_actualizacion = formatter.format(e.fecha_actualizacion),
             proceso_id = pr?.id?.toHexString(),
             total_procesos = e.procesos.size,
+            procesos_anteriores = if (e.procesos.size > 1) {
+                e.procesos.dropLast(1).map { p ->
+                    val fechaCierre = (p.fechaTitulacion
+                        ?: p.historial_estados.lastOrNull { it.estado == "vencido" || it.estado == "titulado" }?.fecha)
+                        ?.let { formatter.format(it) }
+                    com.sit_titulacion.sit.web.api.dto.ProcesoAnteriorDto(
+                        procesoId = p.id.toHexString(),
+                        modalidad = p.datos_proyecto.modalidad,
+                        nombreProyecto = p.datos_proyecto.nombre_proyecto,
+                        estado = p.estado_general,
+                        fechaCreacion = formatter.format(p.fechaCreacion),
+                        fechaCierre = fechaCierre,
+                        fechaEnviadoDepartamentoAcademico = p.fechaEnviadoDepartamentoAcademico?.let { formatter.format(it) },
+                        fechaRecibidoRegistroLiberacion = p.fechaRecibidoRegistroLiberacion?.let { formatter.format(it) },
+                        fechaConfirmacionRecibidosAnexoXxxiXxxii = p.fechaConfirmacionRecibidosAnexoXxxiXxxii?.let { formatter.format(it) },
+                        fechaLiberacionDocumentoCoordinacionCat = p.fechaLiberacionDocumentoCoordinacionCat?.let { formatter.format(it) },
+                        fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico = p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico?.let { formatter.format(it) },
+                        fechaCreacionAnexo91 = p.fechaCreacionAnexo91?.let { formatter.format(it) },
+                        fechaConfirmacionEntregaAnexo91 = p.fechaConfirmacionEntregaAnexo91?.let { formatter.format(it) },
+                        fechaSolicitudAnexo92 = p.fechaSolicitudAnexo92?.let { formatter.format(it) },
+                        fechaConfirmacionRecibidoAnexo92 = p.fechaConfirmacionRecibidoAnexo92?.let { formatter.format(it) },
+                        fechaSolicitudSinodales = p.fechaSolicitudSinodales?.let { formatter.format(it) },
+                        fechaConfirmacionSinodalesRecibidos = p.fechaConfirmacionSinodalesRecibidos?.let { formatter.format(it) },
+                        fechaAgendaActo93 = p.fechaAgendaActo93?.let { formatter.format(it) },
+                        fechaCreacionAnexo93 = p.fechaCreacionAnexo93?.let { formatter.format(it) },
+                        fechaConfirmacionEntregaAnexo93 = p.fechaConfirmacionEntregaAnexo93?.let { formatter.format(it) },
+                        fechaSolicitudDocumentacionEscaneada = p.fechaSolicitudDocumentacionEscaneada?.let { formatter.format(it) },
+                        fechaEnvioDocumentacionEscaneadaEgresado = p.fechaEnvioDocumentacionEscaneadaEgresado?.let { formatter.format(it) },
+                        fechaConfirmacionDocumentacionEscaneadaRecibida = p.fechaConfirmacionDocumentacionEscaneadaRecibida?.let { formatter.format(it) },
+                        fechaTitulacion = p.fechaTitulacion?.let { formatter.format(it) },
+                    )
+                }
+            } else emptyList(),
             fecha_envio_solicitud_registro_anteproyecto_depto_academico = pr?.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico?.let { formatter.format(it) },
             fecha_recepcion_trabajo_division_estudios_prof = pr?.fechaRecepcionTrabajoDivisionEstudiosProf?.let { formatter.format(it) },
             fecha_solicitud_registro_liberacion_depto_academico = pr?.fechaSolicitudRegistroLiberacionDeptoAcademico?.let { formatter.format(it) },

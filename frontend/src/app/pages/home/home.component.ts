@@ -65,7 +65,7 @@ export class HomeComponent implements OnInit {
     private egresadoService: EgresadoService,
     private authService: AuthService,
     private router: Router,
-    private catalogoService: CatalogoService,
+    readonly catalogoService: CatalogoService,
   ) {}
 
   ngOnInit(): void {
@@ -185,6 +185,83 @@ export class HomeComponent implements OnInit {
 
   esResidencia(modalidad: string): boolean {
     return this.catalogoService.esResidencia(modalidad);
+  }
+
+  // ── Nuevo proceso para egresado vencido ──────────────────────────────────
+  mostrarFormNuevoProceso = false;
+  nuevaModalidad = '';
+  nuevoNombreProyecto = '';
+  nuevoAsesorInterno = '';
+  nuevoAsesorExterno = '';
+  nuevoDirector = '';
+  nuevoAsesor1 = '';
+  nuevoAsesor2 = '';
+  archivoNuevoProceso: File | null = null;
+  guardandoNuevoProceso = false;
+  errorNuevoProceso = '';
+
+  abrirFormNuevoProceso(): void {
+    this.mostrarFormNuevoProceso = true;
+    this.nuevaModalidad = '';
+    this.nuevoNombreProyecto = '';
+    this.nuevoAsesorInterno = '';
+    this.nuevoAsesorExterno = '';
+    this.nuevoDirector = '';
+    this.nuevoAsesor1 = '';
+    this.nuevoAsesor2 = '';
+    this.archivoNuevoProceso = null;
+    this.errorNuevoProceso = '';
+  }
+
+  cancelarFormNuevoProceso(): void {
+    this.mostrarFormNuevoProceso = false;
+    this.errorNuevoProceso = '';
+  }
+
+  onArchivoNuevoProceso(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.archivoNuevoProceso = input.files?.[0] ?? null;
+  }
+
+  confirmarNuevoProceso(): void {
+    if (!this.detalle || !this.nuevaModalidad.trim() || !this.nuevoNombreProyecto.trim()) return;
+    const p = this.detalle.datos_personales;
+    const datos: EgresadoForm = {
+      numero_control: this.detalle.numero_control,
+      nombre: p.nombre,
+      apellido_paterno: p.apellido_paterno,
+      apellido_materno: p.apellido_materno,
+      carrera: p.carrera,
+      nivel: p.nivel,
+      direccion: p.direccion || '',
+      telefono: p.telefono || '',
+      correo_electronico: p.correo_electronico || '',
+      nombre_proyecto: this.nuevoNombreProyecto,
+      modalidad: this.nuevaModalidad,
+      curso_titulacion: 'no',
+      asesor_interno: this.esResidencia(this.nuevaModalidad) ? this.nuevoAsesorInterno : '',
+      asesor_externo: this.esResidencia(this.nuevaModalidad) ? this.nuevoAsesorExterno : '',
+      director: !this.esResidencia(this.nuevaModalidad) ? this.nuevoDirector : '',
+      asesor_1: !this.esResidencia(this.nuevaModalidad) ? this.nuevoAsesor1 : '',
+      asesor_2: !this.esResidencia(this.nuevaModalidad) ? this.nuevoAsesor2 : '',
+      fecha_registro_anexo: '',
+      fecha_expedicion_constancia: '',
+      observaciones: '',
+    };
+    this.guardandoNuevoProceso = true;
+    this.errorNuevoProceso = '';
+    this.egresadoService.activarNuevoProceso(this.detalle.id, datos, this.archivoNuevoProceso).subscribe({
+      next: () => {
+        this.guardandoNuevoProceso = false;
+        this.mostrarFormNuevoProceso = false;
+        this.cargarLista();
+        this.egresadoService.obtenerPorId(this.detalle!.id).subscribe(d => this.detalle = d);
+      },
+      error: (err) => {
+        this.guardandoNuevoProceso = false;
+        this.errorNuevoProceso = err?.error?.error || 'No se pudo activar el nuevo proceso.';
+      },
+    });
   }
 
   volverInicio(): void {

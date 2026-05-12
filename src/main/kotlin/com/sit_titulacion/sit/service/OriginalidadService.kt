@@ -37,7 +37,7 @@ class OriginalidadService(private val egresadoRepository: EgresadoRepository) {
 
         for (e in egresadoRepository.findAll()) {
             if (excluirId != null && e.id?.toString() == excluirId) continue
-            val tituloExistente = e.datos_proyecto.nombre_proyecto
+            val tituloExistente = e.procesoActivoOrNull()?.datos_proyecto?.nombre_proyecto ?: continue
             if (tituloExistente.isBlank()) continue
             val palabrasExistente = normalizarPalabras(tituloExistente)
             if (palabrasExistente.isEmpty()) continue
@@ -55,7 +55,7 @@ class OriginalidadService(private val egresadoRepository: EgresadoRepository) {
         return OriginalidadResultado("LIBRE")
     }
 
-    private fun expedienteEstadoUi(e: Egresado): String = when (e.estado_general) {
+    private fun expedienteEstadoUi(e: Egresado): String = when (e.procesoActivoOrNull()?.estado_general) {
         "vencido" -> "vencido"
         "titulado" -> "titulado"
         else -> "en_proceso"

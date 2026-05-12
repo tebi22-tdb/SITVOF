@@ -223,7 +223,115 @@
           </dl>
         </section>
       </div>
+      <!-- Historial de procesos anteriores (solo si hay más de uno) -->
+      <div *ngIf="detalle.procesos_anteriores && detalle.procesos_anteriores.length > 0" class="sit-historial-procesos">
+        <h4 class="sit-historial-titulo">Intentos anteriores ({{ detalle.procesos_anteriores.length }})</h4>
+        <div *ngFor="let p of detalle.procesos_anteriores; let i = index" class="sit-historial-item">
+          <span class="sit-historial-num">Intento {{ i + 1 }}</span>
+          <span class="sit-historial-modalidad">{{ p.modalidad }}</span>
+          <span class="sit-historial-badge" [class.sit-historial-badge--vencido]="p.estado === 'vencido'" [class.sit-historial-badge--titulado]="p.estado === 'titulado'">
+            {{ p.estado }}
+          </span>
+          <span class="sit-historial-fechas">
+            {{ p.fecha_creacion | date:'dd/MM/yyyy' }}
+            <ng-container *ngIf="p.fecha_cierre"> — {{ p.fecha_cierre | date:'dd/MM/yyyy' }}</ng-container>
+          </span>
+        </div>
+      </div>
+
       <div class="sit-detalle-estado"><span class="sit-estado-badge">{{ detalle.estado_general }}</span></div>
+
+      <!-- Nuevo proceso para egresado vencido -->
+      <div *ngIf="detalle.estado_general === 'vencido'" class="sit-np-wrap">
+        <div class="sit-np-aviso">
+          <strong>Expediente vencido.</strong> Puedes iniciar un nuevo proceso de titulación con una modalidad diferente.
+        </div>
+        <button *ngIf="!mostrarFormNuevoProceso" type="button" class="sit-np-btn-abrir" (click)="abrirFormNuevoProceso()">
+          + Iniciar nuevo proceso de titulación
+        </button>
+        <div *ngIf="mostrarFormNuevoProceso" class="sit-np-form">
+          <h4 class="sit-np-titulo">Nuevo proceso de titulación</h4>
+
+          <!-- Datos personales pre-rellenos (solo lectura) -->
+          <div class="sit-np-seccion-label">Datos del egresado (se mantienen de la cuenta existente)</div>
+          <div class="sit-np-readonly-grid">
+            <div class="sit-np-readonly-item">
+              <span class="sit-np-readonly-label">Nombre</span>
+              <span class="sit-np-readonly-valor">{{ detalle!.datos_personales.nombre }} {{ detalle!.datos_personales.apellido_paterno }} {{ detalle!.datos_personales.apellido_materno }}</span>
+            </div>
+            <div class="sit-np-readonly-item">
+              <span class="sit-np-readonly-label">No. control</span>
+              <span class="sit-np-readonly-valor">{{ detalle!.numero_control }}</span>
+            </div>
+            <div class="sit-np-readonly-item">
+              <span class="sit-np-readonly-label">Carrera</span>
+              <span class="sit-np-readonly-valor">{{ detalle!.datos_personales.carrera }}</span>
+            </div>
+            <div class="sit-np-readonly-item">
+              <span class="sit-np-readonly-label">Nivel</span>
+              <span class="sit-np-readonly-valor">{{ detalle!.datos_personales.nivel }}</span>
+            </div>
+            <div class="sit-np-readonly-item">
+              <span class="sit-np-readonly-label">Proceso anterior</span>
+              <span class="sit-np-readonly-valor sit-np-vencido">{{ detalle!.datos_proyecto.modalidad }} — vencido</span>
+            </div>
+          </div>
+
+          <!-- Datos del nuevo proyecto (editables) -->
+          <div class="sit-np-seccion-label sit-np-seccion-nueva">Datos del nuevo proceso</div>
+          <div class="sit-np-campo">
+            <label>Modalidad *</label>
+            <select [(ngModel)]="nuevaModalidad" class="sit-np-input">
+              <option value="">— Selecciona —</option>
+              <option *ngFor="let m of (catalogoService.modalidades$ | async) ?? []"
+                      [value]="m.nombre"
+                      [disabled]="m.nombre === detalle!.datos_proyecto.modalidad">
+                {{ m.nombre }}{{ m.nombre === detalle!.datos_proyecto.modalidad ? ' (ya usada)' : '' }}
+              </option>
+            </select>
+          </div>
+          <div class="sit-np-campo">
+            <label>Nombre del proyecto *</label>
+            <input type="text" [(ngModel)]="nuevoNombreProyecto" class="sit-np-input" placeholder="Título del nuevo proyecto" />
+          </div>
+          <ng-container *ngIf="nuevaModalidad && esResidencia(nuevaModalidad)">
+            <div class="sit-np-campo">
+              <label>Asesor interno</label>
+              <input type="text" [(ngModel)]="nuevoAsesorInterno" class="sit-np-input" />
+            </div>
+            <div class="sit-np-campo">
+              <label>Asesor externo</label>
+              <input type="text" [(ngModel)]="nuevoAsesorExterno" class="sit-np-input" />
+            </div>
+          </ng-container>
+          <ng-container *ngIf="nuevaModalidad && !esResidencia(nuevaModalidad)">
+            <div class="sit-np-campo">
+              <label>Director</label>
+              <input type="text" [(ngModel)]="nuevoDirector" class="sit-np-input" />
+            </div>
+            <div class="sit-np-campo">
+              <label>Asesor 1</label>
+              <input type="text" [(ngModel)]="nuevoAsesor1" class="sit-np-input" />
+            </div>
+            <div class="sit-np-campo">
+              <label>Asesor 2</label>
+              <input type="text" [(ngModel)]="nuevoAsesor2" class="sit-np-input" />
+            </div>
+          </ng-container>
+          <div class="sit-np-campo">
+            <label>Documento adjunto (opcional)</label>
+            <input type="file" accept=".pdf,.docx" (change)="onArchivoNuevoProceso($event)" class="sit-np-input" />
+          </div>
+          <p *ngIf="errorNuevoProceso" class="sit-np-error">{{ errorNuevoProceso }}</p>
+          <div class="sit-np-acciones">
+            <button type="button" class="sit-np-btn-cancelar" (click)="cancelarFormNuevoProceso()">Cancelar</button>
+            <button type="button" class="sit-np-btn-guardar" (click)="confirmarNuevoProceso()"
+                    [disabled]="guardandoNuevoProceso || !nuevaModalidad || !nuevoNombreProyecto || nuevaModalidad === detalle!.datos_proyecto.modalidad">
+              {{ guardandoNuevoProceso ? 'Guardando…' : 'Confirmar nuevo proceso' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
     <div *ngIf="esAdminUsuariosStaff && !mostrarFormulario && !mostrarFormularioUsuario && tabLista === 'usuarios' && usuarioSeleccionado" class="sit-detalle">
       <div class="sit-detalle-header">

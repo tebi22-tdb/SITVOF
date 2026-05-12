@@ -52,6 +52,8 @@ export interface EgresadoDetail {
   proceso_id?: string;
   /** Cantidad de procesos de titulación (1 = primera vez, 2+ = reintentos). */
   total_procesos?: number;
+  /** Resumen de procesos anteriores (vencidos o titulados). */
+  procesos_anteriores?: ProcesoAnterior[];
   /** Fecha en que se marcó "Enviado al departamento académico" (paso 1.1). */
   fecha_envio_solicitud_registro_anteproyecto_depto_academico?: string;
   fecha_recepcion_trabajo_division_estudios_prof?: string;
@@ -112,6 +114,33 @@ export interface DatosProyectoDetail {
 export interface DocumentosDetail {
   anexo_xxxi?: { fecha_registro?: string; estado?: string };
   constancia_no_inconveniencia?: { fecha_expedicion?: string; estado?: string };
+}
+
+export interface ProcesoAnterior {
+  proceso_id: string;
+  modalidad: string;
+  nombre_proyecto: string;
+  estado: string;
+  fecha_creacion: string;
+  fecha_cierre?: string;
+  fecha_enviado_departamento_academico?: string;
+  fecha_recibido_registro_liberacion?: string;
+  fecha_confirmacion_recibidos_anexo_xxxi_xxxii?: string;
+  fecha_liberacion_documento_coordinacion_cat?: string;
+  fecha_envio_solicitud_registro_anteproyecto_depto_academico?: string;
+  fecha_creacion_anexo_9_1?: string;
+  fecha_confirmacion_entrega_anexo_9_1?: string;
+  fecha_solicitud_anexo_9_2?: string;
+  fecha_confirmacion_recibido_anexo_9_2?: string;
+  fecha_solicitud_sinodales?: string;
+  fecha_confirmacion_sinodales_recibidos?: string;
+  fecha_agenda_acto_9_3?: string;
+  fecha_creacion_anexo_9_3?: string;
+  fecha_confirmacion_entrega_anexo_9_3?: string;
+  fecha_solicitud_documentacion_escaneada?: string;
+  fecha_envio_documentacion_escaneada_egresado?: string;
+  fecha_confirmacion_documentacion_escaneada_recibida?: string;
+  fecha_titulacion?: string;
 }
 
 /** Item de la lista para departamento académico (Pendientes, En corrección, Aprobados, Todos). */
@@ -241,9 +270,7 @@ export class EgresadoService {
 
   activarNuevoProceso(id: string, datos: EgresadoForm, archivo: File | null): Observable<unknown> {
     const form = new FormData();
-    Object.entries(datos).forEach(([key, value]) => {
-      if (value !== null && value !== undefined) form.append(key, String(value));
-    });
+    form.append('datos', new Blob([JSON.stringify(datos)], { type: 'application/json' }));
     if (archivo) form.append('archivo', archivo, archivo.name);
     return this.http.post(`${API}/${id}/nuevo-proceso`, form);
   }

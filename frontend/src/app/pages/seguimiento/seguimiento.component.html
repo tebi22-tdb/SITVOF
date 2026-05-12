@@ -8,10 +8,30 @@
     <div *ngIf="cargando" class="seguimiento-cargando">Cargando seguimiento…</div>
     <div *ngIf="error" class="seguimiento-error">{{ error }}</div>
 
+    <!-- Pestañas de procesos -->
+    <div *ngIf="!cargando && !error && datos && (datos.total_procesos ?? 1) > 1" class="seg-tabs-wrap">
+      <button type="button"
+              class="seg-tab"
+              [class.seg-tab--activa]="tabActiva === 'actual'"
+              (click)="tabActiva = 'actual'">
+        Proceso actual
+      </button>
+      <button type="button"
+              *ngFor="let p of datos.procesos_anteriores; let i = index"
+              class="seg-tab seg-tab--anterior"
+              [class.seg-tab--activa]="tabActiva === i"
+              (click)="tabActiva = i">
+        Intento {{ i + 1 }} · {{ p.modalidad }}
+        <span class="seg-tab-badge" [class.seg-tab-badge--vencido]="p.estado === 'vencido'" [class.seg-tab-badge--titulado]="p.estado === 'titulado'">
+          {{ p.estado }}
+        </span>
+      </button>
+    </div>
+
     <div *ngIf="!cargando && !error && datos" class="seguimiento-layout" [class.seguimiento-layout--vencido]="procesoBloqueadoPorVencimientoPlazoAlumno">
       <div class="seguimiento-timeline-card">
         <div class="proceso-titulo-wrap">
-          <h3 class="proceso-titulo">Tu proceso</h3>
+          <h3 class="proceso-titulo">{{ estaViendoProcesoAnterior ? 'Historial del proceso' : 'Tu proceso' }}</h3>
           <div class="proceso-titulo-line" aria-hidden="true"></div>
         </div>
 
@@ -113,7 +133,7 @@
         </div>
       </div>
 
-      <aside class="seguimiento-aside">
+      <aside class="seguimiento-aside" *ngIf="!estaViendoProcesoAnterior">
         <div class="seguimiento-card seguimiento-card-perfil">
           <div class="perfil-top">
             <span class="perfil-avatar">{{ inicialesEgresado }}</span>
@@ -202,5 +222,25 @@
         </div>
       </aside>
     </div>
+
+    <!-- Historial de procesos anteriores -->
+    <div *ngIf="datos && datos.procesos_anteriores && datos.procesos_anteriores.length > 0" class="seg-historial-wrap">
+      <button type="button" class="seg-historial-toggle" (click)="mostrarHistorial = !mostrarHistorial">
+        {{ mostrarHistorial ? '▲' : '▼' }} Historial de intentos anteriores ({{ datos.procesos_anteriores.length }})
+      </button>
+      <div *ngIf="mostrarHistorial" class="seg-historial-lista">
+        <div *ngFor="let p of datos.procesos_anteriores; let i = index" class="seg-historial-item">
+          <span class="seg-historial-num">Intento {{ i + 1 }}</span>
+          <span class="seg-historial-modalidad">{{ p.modalidad }}</span>
+          <span class="seg-historial-badge" [class.seg-badge-vencido]="p.estado === 'vencido'" [class.seg-badge-titulado]="p.estado === 'titulado'">
+            {{ p.estado }}
+          </span>
+          <span class="seg-historial-fecha">{{ p.fecha_creacion | date:'dd/MM/yyyy' }}
+            <ng-container *ngIf="p.fecha_cierre"> — {{ p.fecha_cierre | date:'dd/MM/yyyy' }}</ng-container>
+          </span>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>

@@ -57,6 +57,11 @@
         <p class="repo-card-asesores" *ngIf="asesores(t)">
           <span class="repo-asesores-label">Asesor(es):</span> {{ asesores(t) }}
         </p>
+        <div class="repo-card-acciones" *ngIf="t.tiene_documento">
+          <a [href]="repositorioService.urlDocumento(t.egresado_id)" target="_blank" rel="noopener" class="repo-btn-ver">
+            Ver documento
+          </a>
+        </div>
       </article>
     </div>
 

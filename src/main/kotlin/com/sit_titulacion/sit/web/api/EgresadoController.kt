@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.ModelAttribute
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.RestController
@@ -284,7 +285,7 @@ class EgresadoController(
         )
     }
 
-    @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+@PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun crear(
         @Valid @RequestPart("datos") datos: EgresadoRequestDto,
         @RequestPart(value = "archivo", required = false) archivo: MultipartFile? = null,
@@ -419,8 +420,8 @@ class EgresadoController(
     @PostMapping("/{id}/nuevo-proceso", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun activarNuevoProceso(
         @PathVariable id: String,
-        @ModelAttribute datos: EgresadoRequestDto,
-        @RequestPart(required = false) archivo: MultipartFile?,
+        @Valid @RequestPart("datos") datos: EgresadoRequestDto,
+        @RequestPart(value = "archivo", required = false) archivo: MultipartFile? = null,
     ): ResponseEntity<*> {
         val error = egresadoService.activarNuevoProceso(id, datos, archivo)
         return if (error == null) {

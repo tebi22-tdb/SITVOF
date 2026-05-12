@@ -38,6 +38,96 @@
   opacity: 0.92;
 }
 
+/* Pestañas de procesos */
+.seg-tabs-wrap {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  max-width: 860px;
+  margin: 0.75rem auto 0;
+  padding: 0 1rem;
+}
+
+.seg-tab {
+  padding: 0.45rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px 8px 0 0;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 0.13s;
+}
+
+.seg-tab:hover { background: #e5e7eb; }
+
+.seg-tab--activa {
+  background: #fff;
+  color: #1f2937;
+  border-bottom-color: #fff;
+  border-top: 2px solid #1f4c8f;
+}
+
+.seg-tab--anterior { border-top: 2px solid #9ca3af; }
+.seg-tab--anterior.seg-tab--activa { border-top: 2px solid #6b7280; }
+
+.seg-tab-badge {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-weight: 600;
+  background: #e5e7eb;
+  color: #374151;
+}
+.seg-tab-badge--vencido { background: #fee2e2; color: #991b1b; }
+.seg-tab-badge--titulado { background: #d1fae5; color: #065f46; }
+
+.seg-historial-wrap {
+  max-width: 860px;
+  margin: 1.25rem auto 2rem;
+  padding: 0 1rem;
+}
+.seg-historial-toggle {
+  background: none;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 0.88rem;
+  color: #374151;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font-weight: 600;
+}
+.seg-historial-toggle:hover { background: #f9fafb; }
+.seg-historial-lista {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.seg-historial-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.88rem;
+  flex-wrap: wrap;
+}
+.seg-historial-num { font-weight: 700; color: #6b7280; min-width: 4.5rem; }
+.seg-historial-modalidad { color: #1f2937; flex: 1; }
+.seg-historial-badge { padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
+.seg-badge-vencido { background: #fee2e2; color: #991b1b; }
+.seg-badge-titulado { background: #d1fae5; color: #065f46; }
+.seg-historial-fecha { color: #9ca3af; font-size: 0.8rem; margin-left: auto; }
+
 .seguimiento-vencido-aviso {
   margin: 0.65rem 0 1rem;
   padding: 0.65rem 0.85rem;

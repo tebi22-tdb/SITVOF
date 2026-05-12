@@ -90,7 +90,7 @@ class CertificacionPdfService(
     }
 
     fun certificarDocumento(egresado: Egresado): CertificacionResult? {
-        val adj = egresado.documento_adjunto
+        val adj = egresado.procesoActivoOrNull()?.documento_adjunto ?: return null
         val gridId = adj.gridfs_id ?: run {
             log.warn("certificarDocumento: egresado {} no tiene documento adjunto", egresado.numero_control)
             return null
@@ -170,7 +170,7 @@ class CertificacionPdfService(
 
                 val nombre = safe(nombreCompleto(egresado))
                 val control = safe(egresado.numero_control)
-                val modalidad = safe(egresado.datos_proyecto.modalidad)
+                val modalidad = safe(egresado.procesoActivoOrNull()?.datos_proyecto?.modalidad ?: "")
                 val carrera = safe(egresado.datos_personales.carrera)
                 val fecha = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
                     .withZone(ZoneId.systemDefault())

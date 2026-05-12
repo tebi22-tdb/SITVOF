@@ -536,6 +536,46 @@
   line-height: 1.4;
 }
 
+/* Historial de procesos anteriores en el panel del coordinador */
+.sit-historial-procesos {
+  margin-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 0.85rem;
+}
+.sit-historial-titulo {
+  margin: 0 0 0.6rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.sit-historial-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.4rem 0.6rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+}
+.sit-historial-num { font-weight: 700; color: #9ca3af; min-width: 4.5rem; }
+.sit-historial-modalidad { color: #1f2937; flex: 1; }
+.sit-historial-badge {
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #e5e7eb;
+  color: #374151;
+}
+.sit-historial-badge--vencido { background: #fee2e2; color: #991b1b; }
+.sit-historial-badge--titulado { background: #d1fae5; color: #065f46; }
+.sit-historial-fechas { color: #9ca3af; font-size: 0.78rem; margin-left: auto; }
+
 .sit-detalle-estado {
   margin-top: 1.25rem;
   padding-top: 1rem;
@@ -551,6 +591,59 @@
   font-weight: 600;
   border-radius: 20px;
 }
+
+/* Nuevo proceso para egresado vencido */
+.sit-np-wrap {
+  margin-top: 1.25rem;
+  border-top: 2px solid #fca5a5;
+  padding-top: 1rem;
+}
+.sit-np-aviso {
+  background: #fef2f2;
+  color: #7f1d1d;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  padding: 0.65rem 0.9rem;
+  font-size: 0.88rem;
+  margin-bottom: 0.75rem;
+}
+.sit-np-btn-abrir {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 1.1rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sit-np-btn-abrir:hover { background: #b91c1c; }
+.sit-np-form {
+  background: #fff;
+  border: 1px solid #fca5a5;
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.sit-np-titulo { margin: 0 0 0.25rem; font-size: 0.98rem; font-weight: 650; color: #1f2937; }
+.sit-np-campo { display: flex; flex-direction: column; gap: 0.25rem; }
+.sit-np-campo label { font-size: 0.8rem; font-weight: 600; color: #6b7280; }
+.sit-np-input { padding: 0.45rem 0.65rem; border: 1px solid #d1d5db; border-radius: 7px; font-size: 0.9rem; }
+.sit-np-error { color: #dc2626; font-size: 0.85rem; margin: 0; }
+.sit-np-acciones { display: flex; gap: 0.6rem; justify-content: flex-end; margin-top: 0.25rem; }
+.sit-np-btn-cancelar { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 7px; padding: 0.45rem 0.9rem; font-size: 0.88rem; cursor: pointer; }
+.sit-np-btn-guardar { background: #2563eb; color: #fff; border: none; border-radius: 7px; padding: 0.45rem 1rem; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
+.sit-np-btn-guardar:disabled { opacity: 0.6; cursor: default; }
+.sit-np-btn-guardar:hover:not(:disabled) { background: #1d4ed8; }
+.sit-np-seccion-label { font-size: 0.78rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.25rem; }
+.sit-np-seccion-nueva { color: #1d4ed8; margin-top: 0.5rem; }
+.sit-np-readonly-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem 1rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.7rem 0.9rem; margin-bottom: 0.25rem; }
+.sit-np-readonly-item { display: flex; flex-direction: column; gap: 0.1rem; }
+.sit-np-readonly-label { font-size: 0.75rem; color: #9ca3af; font-weight: 600; }
+.sit-np-readonly-valor { font-size: 0.88rem; color: #1f2937; }
+.sit-np-vencido { color: #dc2626; font-weight: 600; }
 
 /* Modal Agregar usuario */
 .sit-modal-overlay {

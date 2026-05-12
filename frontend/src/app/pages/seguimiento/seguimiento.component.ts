@@ -61,6 +61,51 @@ export class SeguimientoComponent implements OnInit {
   cargandoRevisionesEnviadas = false;
   revisionesEnviadas: RevisionApi[] = [];
   mostrarPanelRevisiones = false;
+  mostrarHistorial = false;
+  /** 'actual' = proceso activo, number = índice en procesos_anteriores */
+  tabActiva: 'actual' | number = 'actual';
+
+  /** Datos del proceso que se está visualizando (activo o anterior). */
+  get datosVista(): EgresadoDetail | null {
+    if (this.tabActiva === 'actual' || !this.datos) return this.datos;
+    const p = this.datos.procesos_anteriores?.[this.tabActiva as number];
+    if (!p) return this.datos;
+    return {
+      ...this.datos,
+      estado_general: p.estado,
+      fecha_creacion: p.fecha_creacion,
+      fecha_actualizacion: p.fecha_cierre ?? p.fecha_creacion,
+      datos_proyecto: {
+        nombre_proyecto: p.nombre_proyecto,
+        modalidad: p.modalidad,
+        curso_titulacion: 'no',
+      },
+      fecha_enviado_departamento_academico: p.fecha_enviado_departamento_academico,
+      fecha_recibido_registro_liberacion: p.fecha_recibido_registro_liberacion,
+      fecha_confirmacion_recibidos_anexo_xxxi_xxxii: p.fecha_confirmacion_recibidos_anexo_xxxi_xxxii,
+      fecha_liberacion_documento_coordinacion_cat: p.fecha_liberacion_documento_coordinacion_cat,
+      fecha_envio_solicitud_registro_anteproyecto_depto_academico: p.fecha_envio_solicitud_registro_anteproyecto_depto_academico,
+      fecha_creacion_anexo_9_1: p.fecha_creacion_anexo_9_1,
+      fecha_confirmacion_entrega_anexo_9_1: p.fecha_confirmacion_entrega_anexo_9_1,
+      fecha_solicitud_anexo_9_2: p.fecha_solicitud_anexo_9_2,
+      fecha_confirmacion_recibido_anexo_9_2: p.fecha_confirmacion_recibido_anexo_9_2,
+      fecha_solicitud_sinodales: p.fecha_solicitud_sinodales,
+      fecha_confirmacion_sinodales_recibidos: p.fecha_confirmacion_sinodales_recibidos,
+      fecha_agenda_acto_9_3: p.fecha_agenda_acto_9_3,
+      fecha_reagenda_acto_9_3: undefined,
+      fecha_creacion_anexo_9_3: p.fecha_creacion_anexo_9_3,
+      fecha_confirmacion_entrega_anexo_9_3: p.fecha_confirmacion_entrega_anexo_9_3,
+      fecha_solicitud_documentacion_escaneada: p.fecha_solicitud_documentacion_escaneada,
+      fecha_envio_documentacion_escaneada_egresado: p.fecha_envio_documentacion_escaneada_egresado,
+      fecha_confirmacion_documentacion_escaneada_recibida: p.fecha_confirmacion_documentacion_escaneada_recibida,
+      fecha_titulacion: p.fecha_titulacion,
+      procesos_anteriores: [],
+    } as EgresadoDetail;
+  }
+
+  get estaViendoProcesoAnterior(): boolean {
+    return this.tabActiva !== 'actual';
+  }
   errorDescargaRevision = '';
   private revisionesExpandidas = new Set<string>();
   archivosPdfEscaneados: File[] = [];
@@ -93,20 +138,19 @@ export class SeguimientoComponent implements OnInit {
   }
 
   get esResidenciaProfesional(): boolean {
-    const m = this.datos?.datos_proyecto?.modalidad?.trim() ?? '';
+    const m = this.datosVista?.datos_proyecto?.modalidad?.trim() ?? '';
     return this.catalogoService.esResidencia(m);
   }
 
-  /** Misma regla que en seguimiento del coordinador: expediente previo al flujo de 16 pasos. */
   get noResidenciaFlujoLegacy(): boolean {
-    const d = this.datos;
+    const d = this.datosVista;
     if (!d || this.esResidenciaProfesional) return false;
     return !!d.fecha_enviado_departamento_academico && !d.fecha_envio_solicitud_registro_anteproyecto_depto_academico;
   }
 
-  /** Plazo de desarrollo vencido: no se permiten más avances (misma lógica que en coordinación, flujo 16). */
   get procesoBloqueadoPorVencimientoPlazoAlumno(): boolean {
-    const d = this.datos;
+    if (this.estaViendoProcesoAnterior) return false;
+    const d = this.datosVista;
     if (!d) return false;
     if (d.estado_general === 'titulado') return false;
     if (d.estado_general === 'vencido') return true;
@@ -142,7 +186,7 @@ export class SeguimientoComponent implements OnInit {
    * Pasos del flujo alineados con coordinación: residencia, no residencia legacy (14 pasos) o no residencia 16+1 pasos.
    */
   get pasosAlumno(): PasoAlumnoVista[] {
-    const d = this.datos;
+    const d = this.datosVista;
     if (!d) return [];
     if (this.esResidenciaProfesional) return this.construirPasosAlumnoResidencia();
     if (this.noResidenciaFlujoLegacy) return this.construirPasosAlumnoLegacyNoRes();
@@ -169,7 +213,7 @@ export class SeguimientoComponent implements OnInit {
   }
 
   private construirPasosAlumnoResidencia(): PasoAlumnoVista[] {
-    const d = this.datos!;
+    const d = this.datosVista!;
     const fh = (iso?: string | null): string => (iso ? this.formatearFechaHora(iso) : '—');
     const modalidad = (d.datos_proyecto?.modalidad ?? '').trim() || 'titulación integral';
     const c1 = !!d.fecha_creacion;
@@ -317,7 +361,7 @@ export class SeguimientoComponent implements OnInit {
   }
 
   private construirPasosAlumnoLegacyNoRes(): PasoAlumnoVista[] {
-    const d = this.datos!;
+    const d = this.datosVista!;
     const fh = (iso?: string | null): string => (iso ? this.formatearFechaHora(iso) : '—');
     const modalidad = (d.datos_proyecto?.modalidad ?? '').trim() || 'titulación integral';
     const c1 = !!d.fecha_creacion;
@@ -466,7 +510,7 @@ export class SeguimientoComponent implements OnInit {
   }
 
   private construirPasosAlumnoNoRes16(): PasoAlumnoVista[] {
-    const d = this.datos!;
+    const d = this.datosVista!;
     const fh = (iso?: string | null): string => (iso ? this.formatearFechaHora(iso) : '—');
     const modalidad = (d.datos_proyecto?.modalidad ?? '').trim() || 'titulación integral';
     const c1 = !!d.fecha_creacion;
@@ -653,7 +697,7 @@ export class SeguimientoComponent implements OnInit {
   }
 
   get estadoActualAlumno(): string {
-    const d = this.datos;
+    const d = this.datosVista;
     if (!d) return '';
     const pasos = this.pasosAlumno;
     const p = pasos.find((x) => x.activo);
@@ -663,7 +707,7 @@ export class SeguimientoComponent implements OnInit {
   }
 
   get avisoPlazosNoResAlumno(): ReturnType<typeof calcularVistaPlazosNoResidencia> | null {
-    const d = this.datos;
+    const d = this.datosVista;
     if (!d || this.esResidenciaProfesional) return null;
     return calcularVistaPlazosNoResidencia({
       fecha_creacion: d.fecha_creacion,
@@ -674,7 +718,7 @@ export class SeguimientoComponent implements OnInit {
   }
 
   get estadoAvance(): EstadoAvance {
-    const d = this.datos;
+    const d = this.datosVista;
     if (!d?.fecha_creacion) return 'en_tiempo';
     if (!this.esResidenciaProfesional) {
       return this.avisoPlazosNoResAlumno?.estadoGlobal ?? 'en_tiempo';
@@ -699,7 +743,7 @@ export class SeguimientoComponent implements OnInit {
   }
 
   get fechaLimiteTexto(): string {
-    const d = this.datos;
+    const d = this.datosVista;
     if (!d?.fecha_creacion) return '—';
     if (!this.esResidenciaProfesional) {
       const lim = this.avisoPlazosNoResAlumno?.fechaLimiteMasCercana;
@@ -722,7 +766,7 @@ export class SeguimientoComponent implements OnInit {
   }
 
   get detalleEstadoAvance(): string {
-    const d = this.datos;
+    const d = this.datosVista;
     if (!d?.fecha_creacion) return 'Aún sin fecha de inicio registrada.';
     if (!this.esResidenciaProfesional) {
       const p = this.avisoPlazosNoResAlumno;

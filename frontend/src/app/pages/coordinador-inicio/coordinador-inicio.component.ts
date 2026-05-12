@@ -91,6 +91,19 @@ import { AuthService } from '../../services/auth.service';
               </svg>
             </div>
           </button>
+          <button type="button" class="card" (click)="irGestionCuentas()">
+            <div class="card-texto">
+              <h2>Gestión de cuentas</h2>
+              <p>Cambia correo o resetea contraseña de egresados con acceso bloqueado.</p>
+            </div>
+            <div class="card-icono" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="card-icono-svg">
+                <circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M16 11l1.5 1.5L20 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </button>
           <button type="button" class="card" (click)="irCatalogos()">
             <div class="card-texto">
               <h2>Configuración de catálogos</h2>
@@ -217,6 +230,10 @@ export class CoordinadorInicioComponent {
 
   irRevisiones(): void {
     this.router.navigate(['/home/revisiones']);
+  }
+
+  irGestionCuentas(): void {
+    this.router.navigate(['/home/gestion-cuentas']);
   }
 
   irCatalogos(): void {

@@ -54,4 +54,9 @@ interface EgresadoRepository : MongoRepository<Egresado, ObjectId> {
     @Meta(maxExecutionTimeMs = 5000)
     @Query("{ 'procesos.estado_general' : ?0 }")
     fun findByEstadoGeneral(estado: String): List<Egresado>
+
+    /** Egresados con proceso certificado (aprobados por CAT o residencia liberada). */
+    @Meta(maxExecutionTimeMs = 5000)
+    @Query("{ 'procesos.cert_uuid' : { \$exists: true, \$ne: null } }")
+    fun findConCertificacion(): List<Egresado>
 }
