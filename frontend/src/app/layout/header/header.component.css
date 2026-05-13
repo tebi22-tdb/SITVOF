@@ -1,0 +1,155 @@
+.sit-header {
+  background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+  color: #fff;
+  padding: 0.75rem 1.5rem 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.sit-titulo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0 0.25rem;
+  gap: 1rem;
+}
+
+.sit-titulo-row .sit-logo-izq {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.sit-titulo-row .sit-logo-der {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.sit-logo {
+  height: 60px;
+  width: auto;
+  object-fit: contain;
+}
+
+.sit-titulo-block {
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.sit-titulo {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.sit-subtitulo {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
+.sit-menu {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0;
+  margin-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sit-menu-izq {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-volver {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  color: #fff;
+  font-weight: 500;
+}
+
+.btn-volver:hover {
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.sit-menu-der {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.bienvenido {
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.bienvenido strong {
+  font-weight: 600;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 33px;
+  padding: 0.35rem 0.72rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.12s ease, background 0.18s ease, border-color 0.18s ease;
+}
+
+.btn-nuevo {
+  background: #2f7bcb;
+  border-color: #2f7bcb;
+  color: #fff;
+}
+
+.btn-nuevo:hover {
+  background: #2669af;
+  border-color: #2669af;
+  transform: translateY(-1px);
+}
+
+.btn-agregar-usuario {
+  background: #ffffff;
+  border-color: rgba(255, 255, 255, 0.92);
+  color: #1f4c8f;
+}
+
+.btn-agregar-usuario:hover {
+  background: #f3f8ff;
+  border-color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.btn-logout {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.26);
+  color: #fff;
+}
+
+.btn-logout:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.42);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.38);
+}

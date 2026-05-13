@@ -1,0 +1,322 @@
+<div class="departamento-page">
+  <app-header
+    [showNuevoButton]="false"
+    [showVolverInicioButton]="false"
+    (volverInicioClick)="volverInicio()"
+  ></app-header>
+  <main
+    class="departamento-main"
+    [class.departamento-main--ancho]="tabActivo === 'sinodales' || mostrarTabsRevisionCoordinacion"
+    [class.departamento-main--split]="usarSplitConDocumento"
+  >
+    <header class="departamento-header">
+      <h1 class="departamento-titulo">{{ tituloDepartamento }}</h1>
+    </header>
+
+    <nav class="departamento-tabs" aria-label="Filtrar por estado">
+      <button
+        type="button"
+        class="departamento-tab departamento-tab--pendientes"
+        [class.activo]="tabActivo === 'pendientes'"
+        (click)="cambiarTab('pendientes')"
+      >
+        Pendientes
+        <span class="departamento-tab-badge">{{ counts.pendientes }}</span>
+      </button>
+      <button
+        *ngIf="mostrarTabsRevisionCoordinacion"
+        type="button"
+        class="departamento-tab departamento-tab--observaciones"
+        [class.activo]="tabActivo === 'en_correccion'"
+        (click)="cambiarTab('en_correccion')"
+      >
+        En corrección
+        <span class="departamento-tab-badge">{{ counts.en_correccion }}</span>
+      </button>
+      <button
+        *ngIf="mostrarTabsRevisionCoordinacion"
+        type="button"
+        class="departamento-tab departamento-tab--aprobados"
+        [class.activo]="tabActivo === 'aprobados'"
+        (click)="cambiarTab('aprobados')"
+      >
+        Aprobados
+        <span class="departamento-tab-badge">{{ counts.aprobados }}</span>
+      </button>
+      <button
+        *ngIf="!mostrarTabsRevisionCoordinacion"
+        type="button"
+        class="departamento-tab departamento-tab--sinodales"
+        [class.activo]="tabActivo === 'sinodales'"
+        (click)="cambiarTab('sinodales')"
+      >
+        Sinodales
+        <span class="departamento-tab-badge">{{ counts.sinodales_por_asignar ?? 0 }}</span>
+      </button>
+      <button
+        type="button"
+        class="departamento-tab departamento-tab--todos"
+        [class.activo]="tabActivo === 'todos'"
+        (click)="cambiarTab('todos')"
+      >
+        Todos
+      </button>
+    </nav>
+
+    <div *ngIf="error" class="departamento-error">{{ error }}</div>
+    <div *ngIf="cargando" class="departamento-skeleton" aria-busy="true" aria-label="Cargando lista">
+      <div class="departamento-skeleton-head"></div>
+      <div class="departamento-skeleton-rows">
+        <div *ngFor="let _ of skeletonPlaceholders" class="departamento-skeleton-row"></div>
+      </div>
+    </div>
+
+    <div *ngIf="(tabActivo === 'todos' || tabActivo === 'sinodales') && !cargando && !error" class="departamento-buscar-wrap">
+      <div class="departamento-buscar">
+        <input
+          type="text"
+          class="departamento-buscar-input"
+          [(ngModel)]="searchNumeroControl"
+          placeholder="Ingrese número de control"
+          (keyup.enter)="aplicarBusqueda()"
+          id="buscar-numero"
+        />
+        <button type="button" class="departamento-buscar-btn" (click)="aplicarBusqueda()">Buscar</button>
+      </div>
+    </div>
+
+    <section *ngIf="!cargando && !error" class="departamento-contenido">
+      <ng-container *ngIf="listaVisible.length > 0 && tabActivo === 'sinodales'">
+        <div class="departamento-tabla-wrap">
+          <ng-container *ngTemplateOutlet="tplSinodales"></ng-container>
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="listaVisible.length > 0 && usarSplitConDocumento">
+        <div class="departamento-split">
+          <div class="departamento-split-izq">
+            <div class="departamento-tabla-wrap departamento-tabla-wrap--en-split">
+              <ng-container *ngTemplateOutlet="tplRevisiones"></ng-container>
+            </div>
+          </div>
+          <aside class="departamento-split-der" aria-label="Vista previa del documento">
+            <div *ngIf="!seleccionado" class="departamento-doc-placeholder">
+              <p class="departamento-doc-placeholder-titulo">Documento adjunto</p>
+              <p class="departamento-doc-placeholder-texto">Selecciona una fila en la tabla para ver el documento en este panel.</p>
+            </div>
+            <div *ngIf="seleccionado" class="departamento-doc-card">
+              <div class="departamento-doc-card-head">
+                <h3 class="departamento-doc-card-titulo">Documento</h3>
+                <p class="departamento-doc-card-nombre">{{ nombreDisplay(seleccionado) }}</p>
+                <p class="departamento-doc-card-meta">
+                  <span>{{ seleccionado.numero_control }}</span>
+                  <span class="departamento-doc-card-sep">·</span>
+                  <span>{{ seleccionado.modalidad }}</span>
+                </p>
+                <div class="departamento-doc-card-acciones">
+                  <button
+                    *ngIf="esResidencia(seleccionado.modalidad) && seleccionado.estado_revision !== 'aprobado'"
+                    type="button"
+                    class="departamento-btn-liberar departamento-btn-liberar--panel"
+                    (click)="liberar(seleccionado.id)"
+                    [disabled]="liberandoId === seleccionado.id"
+                  >
+                    {{ liberandoId === seleccionado.id ? 'Liberando…' : 'Liberar' }}
+                  </button>
+                  <button
+                    *ngIf="!esResidencia(seleccionado.modalidad) && seleccionado.estado_revision !== 'aprobado'"
+                    type="button"
+                    class="departamento-btn-revision-panel"
+                    (click)="irARevision(seleccionado)"
+                  >
+                    Revisar expediente
+                  </button>
+                </div>
+              </div>
+              <div *ngIf="cargandoDocumento" class="departamento-doc-cargando">Cargando documento…</div>
+              <div *ngIf="!cargandoDocumento && errorDocumento" class="departamento-doc-error">{{ errorDocumento }}</div>
+              <ng-container *ngIf="!cargandoDocumento && !errorDocumento && documentoUrlSeguro">
+                <iframe *ngIf="esDocumentoPdf" [src]="documentoUrlSeguro" class="departamento-doc-iframe" title="Documento del egresado"></iframe>
+                <div *ngIf="!esDocumentoPdf" class="departamento-doc-no-pdf">
+                  <p>Vista previa no disponible para este tipo de archivo ({{ documentoContentType }}).</p>
+                  <a
+                    *ngIf="documentoHrefSeguro"
+                    class="departamento-doc-descarga"
+                    [href]="documentoHrefSeguro"
+                    [attr.download]="documentoFileName"
+                  >
+                    Descargar documento
+                  </a>
+                </div>
+              </ng-container>
+            </div>
+          </aside>
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="listaVisible.length > 0 && tabActivo !== 'sinodales' && !usarSplitConDocumento">
+        <div class="departamento-tabla-wrap">
+          <ng-container *ngTemplateOutlet="tplRevisiones"></ng-container>
+        </div>
+      </ng-container>
+
+      <div *ngIf="listaVisible.length === 0" class="departamento-vacio">
+        <div class="departamento-vacio-icon" aria-hidden="true"></div>
+        <p class="departamento-vacio-titulo">{{ mensajeListaVacia }}</p>
+      </div>
+    </section>
+  </main>
+
+  <ng-template #tplSinodales>
+    <table class="departamento-tabla departamento-tabla--sinodales" aria-label="Solicitudes de sinodales">
+      <thead>
+        <tr>
+          <th class="departamento-th departamento-th--dot" scope="col"></th>
+          <th class="departamento-th departamento-th--nombre" scope="col">Nombre</th>
+          <th class="departamento-th departamento-th--control" scope="col">No control</th>
+          <th class="departamento-th departamento-th--fecha" scope="col">Solicitud</th>
+          <th class="departamento-th departamento-th--estado" scope="col">Sinodales</th>
+          <th class="departamento-th departamento-th--accion" scope="col">Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of listaVisible; let i = index" class="departamento-fila" [class.departamento-fila--stripe]="i % 2 === 1">
+          <td class="departamento-td departamento-td--dot"><span class="departamento-item-dot" aria-hidden="true"></span></td>
+          <td class="departamento-td departamento-td--nombre">{{ nombreDisplay(item) }}</td>
+          <td class="departamento-td departamento-td--control">{{ item.numero_control }}</td>
+          <td class="departamento-td departamento-td--fecha">{{ fechaSolicitudSinodales(item) }}</td>
+          <td class="departamento-td departamento-td--estado">
+            <span
+              class="departamento-badge"
+              [class.departamento-badge--pendiente]="!item.sinodales_asignados"
+              [class.departamento-badge--aprobado]="item.sinodales_asignados"
+            >
+              {{ item.sinodales_asignados ? 'Asignados' : 'Por asignar' }}
+            </span>
+          </td>
+          <td class="departamento-td departamento-td--accion">
+            <button type="button" class="departamento-btn-sinodales" (click)="abrirModalSinodales(item, $event)">
+              {{ item.sinodales_asignados ? 'Editar' : 'Asignar' }}
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </ng-template>
+
+  <ng-template #tplRevisiones>
+    <table class="departamento-tabla" aria-label="Solicitudes de titulación">
+      <thead>
+        <tr>
+          <th class="departamento-th departamento-th--dot" scope="col"></th>
+          <th class="departamento-th departamento-th--nombre" scope="col">Nombre</th>
+          <th class="departamento-th departamento-th--modalidad" scope="col">Modalidad</th>
+          <th class="departamento-th departamento-th--estado" scope="col">Estado</th>
+          <th class="departamento-th departamento-th--control" scope="col">No control</th>
+          <th class="departamento-th departamento-th--fecha" scope="col">Fecha recepción</th>
+          <th class="departamento-th departamento-th--fecha" scope="col">Última modificación</th>
+          <th class="departamento-th departamento-th--accion" scope="col">Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          *ngFor="let item of listaVisible; let i = index"
+          class="departamento-fila"
+          [class.departamento-fila--clic]="usarSplitConDocumento"
+          [class.departamento-fila--stripe]="i % 2 === 1"
+          [class.departamento-fila--activa]="usarSplitConDocumento && seleccionado?.id === item.id"
+          (click)="usarSplitConDocumento && seleccionarFila(item)"
+        >
+          <td class="departamento-td departamento-td--dot"><span class="departamento-item-dot" aria-hidden="true"></span></td>
+          <td class="departamento-td departamento-td--nombre">{{ nombreDisplay(item) }}</td>
+          <td class="departamento-td departamento-td--modalidad">{{ item.modalidad }}</td>
+          <td class="departamento-td departamento-td--estado">
+            <span
+              class="departamento-badge"
+              [class.departamento-badge--pendiente]="item.estado_revision === 'pendiente'"
+              [class.departamento-badge--observaciones]="item.estado_revision === 'con_observaciones'"
+              [class.departamento-badge--aprobado]="item.estado_revision === 'aprobado'"
+            >
+              {{ item.estado_revision === 'con_observaciones' ? 'Con observaciones' : (item.estado_revision === 'aprobado' ? 'Aprobado' : 'Pendiente') }}
+            </span>
+          </td>
+          <td class="departamento-td departamento-td--control">{{ item.numero_control }}</td>
+          <td class="departamento-td departamento-td--fecha">{{ fechaRecepcion(item) }}</td>
+          <td class="departamento-td departamento-td--fecha">{{ ultimoCambio(item) }}</td>
+          <td class="departamento-td departamento-td--accion">
+            <button
+              *ngIf="esResidencia(item.modalidad) && item.estado_revision !== 'aprobado'"
+              type="button"
+              class="departamento-btn-liberar"
+              (click)="liberar(item.id); $event.stopPropagation()"
+              [disabled]="liberandoId === item.id"
+            >
+              {{ liberandoId === item.id ? '…' : 'Liberar' }}
+            </button>
+            <button
+              *ngIf="!esResidencia(item.modalidad) && item.estado_revision !== 'aprobado'"
+              type="button"
+              class="departamento-btn-liberar"
+              (click)="irARevision(item); $event.stopPropagation()"
+            >
+              Revisar
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </ng-template>
+
+  <div
+    *ngIf="sinodalesModalItem"
+    class="departamento-modal-scrim"
+    (click)="cerrarModalSinodales()"
+    role="presentation"
+  ></div>
+  <div
+    *ngIf="sinodalesModalItem"
+    class="departamento-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="sinodales-modal-titulo"
+    (click)="$event.stopPropagation()"
+  >
+    <h2 id="sinodales-modal-titulo" class="departamento-modal-titulo">Asignar sinodales</h2>
+    <p class="departamento-modal-sub">
+      {{ nombreDisplay(sinodalesModalItem) }} — {{ sinodalesModalItem.numero_control }}
+    </p>
+    <div *ngIf="sinodalesCargando" class="departamento-modal-cargando">Cargando…</div>
+    <div *ngIf="sinodalesError" class="departamento-modal-error">{{ sinodalesError }}</div>
+    <div *ngIf="!sinodalesCargando" class="departamento-modal-form">
+      <label class="departamento-modal-label">
+        Presidente
+        <input type="text" class="departamento-modal-input" [(ngModel)]="sinodalesPresidente" autocomplete="name" />
+      </label>
+      <label class="departamento-modal-label">
+        Secretario
+        <input type="text" class="departamento-modal-input" [(ngModel)]="sinodalesSecretario" autocomplete="off" />
+      </label>
+      <label class="departamento-modal-label">
+        Vocal
+        <input type="text" class="departamento-modal-input" [(ngModel)]="sinodalesVocal" autocomplete="off" />
+      </label>
+      <label class="departamento-modal-label">
+        Vocal suplente
+        <input type="text" class="departamento-modal-input" [(ngModel)]="sinodalesVocalSuplente" autocomplete="off" />
+      </label>
+    </div>
+    <div class="departamento-modal-acciones">
+      <button type="button" class="departamento-modal-btn departamento-modal-btn--sec" (click)="cerrarModalSinodales()" [disabled]="sinodalesGuardando">
+        Cancelar
+      </button>
+      <button
+        type="button"
+        class="departamento-modal-btn departamento-modal-btn--pri"
+        (click)="guardarSinodales()"
+        [disabled]="sinodalesCargando || sinodalesGuardando"
+      >
+        {{ sinodalesGuardando ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </div>
+  </div>
+</div>

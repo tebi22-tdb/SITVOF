@@ -1,0 +1,246 @@
+<div class="seguimiento-page">
+  <app-header [showNuevoButton]="false"></app-header>
+  <main class="seguimiento-main">
+    <header class="seguimiento-header">
+      <h2 class="seguimiento-titulo">Seguimiento de tu proceso de titulación</h2>
+    </header>
+
+    <div *ngIf="cargando" class="seguimiento-cargando">Cargando seguimiento…</div>
+    <div *ngIf="error" class="seguimiento-error">{{ error }}</div>
+
+    <!-- Pestañas de procesos -->
+    <div *ngIf="!cargando && !error && datos && (datos.total_procesos ?? 1) > 1" class="seg-tabs-wrap">
+      <button type="button"
+              class="seg-tab"
+              [class.seg-tab--activa]="tabActiva === 'actual'"
+              (click)="cambiarTabProceso('actual')">
+        Proceso actual
+      </button>
+      <button type="button"
+              *ngFor="let p of datos.procesos_anteriores; let i = index"
+              class="seg-tab seg-tab--anterior"
+              [class.seg-tab--activa]="tabActiva === i"
+              (click)="cambiarTabProceso(i)">
+        Intento {{ i + 1 }} · {{ p.modalidad }}
+        <span class="seg-tab-badge" [class.seg-tab-badge--vencido]="p.estado === 'vencido'" [class.seg-tab-badge--titulado]="p.estado === 'titulado'">
+          {{ p.estado }}
+        </span>
+      </button>
+    </div>
+
+    <div *ngIf="!cargando && !error && datos" class="seguimiento-layout" [class.seguimiento-layout--vencido]="procesoBloqueadoPorVencimientoPlazoAlumno">
+      <div class="seguimiento-timeline-card">
+        <div class="proceso-titulo-wrap">
+          <h3 class="proceso-titulo">{{ estaViendoProcesoAnterior ? 'Historial del proceso' : 'Tu proceso' }}</h3>
+          <div class="proceso-titulo-line" aria-hidden="true"></div>
+        </div>
+
+        <p class="seguimiento-modalidad-line" *ngIf="datos.datos_proyecto.modalidad">
+          <span class="seguimiento-modalidad-etiqueta">Por opción de:</span>
+          <strong class="seguimiento-modalidad-valor">{{ datos.datos_proyecto.modalidad }}</strong>
+        </p>
+        <p class="seguimiento-estado-actual">{{ estadoActualAlumno }}</p>
+        <p *ngIf="procesoBloqueadoPorVencimientoPlazoAlumno" class="seguimiento-vencido-aviso" role="alert">
+          El plazo de desarrollo de tu proyecto venció. Tu proceso queda detenido en el sistema y no podrás enviar más avances hasta regularizar tu situación con división de estudios profesionales.
+        </p>
+
+        <div class="timeline">
+          <div
+            class="timeline-item"
+            *ngFor="let paso of pasosAlumno"
+            [class.completado]="paso.completado"
+            [class.activo]="paso.activo && !paso.completado"
+          >
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+              <div class="timeline-fecha">{{ paso.fecha }}</div>
+              <div class="timeline-texto">
+                <span class="timeline-titulo-paso">
+                  <strong>{{ paso.numero }}. {{ paso.titulo }}</strong>
+                </span>
+                <p class="timeline-detalle-alumno" *ngIf="paso.detalle || paso.fechaDetalleResaltada">
+                  {{ paso.detalle }}
+                  <strong *ngIf="paso.fechaDetalleResaltada" class="timeline-fecha-destacada">{{
+                    paso.fechaDetalleResaltada
+                  }}</strong>
+                </p>
+                <div *ngIf="paso.plazoRecepcion as plazo" class="plazo-desarrollo-rec" [ngClass]="plazo.claseSemafono">
+                  <div class="plazo-desarrollo-rec__cab">
+                    <span class="plazo-desarrollo-rec__semaforo" aria-hidden="true"></span>
+                    <strong class="plazo-desarrollo-rec__estado">{{ plazo.etiquetaEstado }}</strong>
+                    <span class="plazo-desarrollo-rec__vigencia">Vigencia del proyecto: {{ plazo.mesesTotales }} mes(es) calendario</span>
+                  </div>
+                  <div class="plazo-desarrollo-rec__fechas-row" role="group" [attr.aria-label]="'Fechas del plazo de desarrollo: ' + plazo.etiquetaEstado">
+                    <div class="plazo-desarrollo-rec__fecha-cuadro" [ngClass]="plazo.claseSemafono">
+                      <span class="plazo-desarrollo-rec__fecha-cuadro-etiq">{{ plazo.etiquetaLineaInicio }}</span>
+                      <strong class="plazo-desarrollo-rec__fecha-cuadro-valor">{{ plazo.fechaInicioTexto }}</strong>
+                    </div>
+                    <div class="plazo-desarrollo-rec__fecha-cuadro" [ngClass]="plazo.claseSemafono">
+                      <span class="plazo-desarrollo-rec__fecha-cuadro-etiq">Fecha límite del periodo</span>
+                      <strong class="plazo-desarrollo-rec__fecha-cuadro-valor">{{ plazo.fechaLimiteTexto }}</strong>
+                    </div>
+                  </div>
+                  <div class="plazo-desarrollo-rec__tiempo-falta">{{ plazo.textoTiempoRestanteCorto }}</div>
+                </div>
+                <div *ngIf="paso.clave === 'revisiones_apoyo'" class="timeline-revisiones-resumen">
+                  <span
+                    class="timeline-revisiones-badge"
+                    [class.timeline-revisiones-badge--ok]="etapaRevisionesCompletada || !tieneRevisionesPendientes"
+                    [class.timeline-revisiones-badge--warn]="!etapaRevisionesCompletada && tieneRevisionesPendientes"
+                  >
+                    {{ resumenRevisionesPaso }}
+                  </span>
+                  <button type="button" class="timeline-revisiones-link" (click)="togglePanelRevisiones()">
+                    {{ mostrarPanelRevisiones ? 'Ocultar revisiones' : 'Ver revisiones' }}
+                  </button>
+                </div>
+
+                <div *ngIf="(paso.clave === 'doc_escaneada_subir' || paso.clave === 'doc_escaneada_unificada') && mostrarFormularioSubidaDocEscaneada" class="timeline-doc-escaneada">
+                  <h4 class="timeline-doc-escaneada-titulo">Subir documentación</h4>
+                  <p class="timeline-doc-escaneada-texto">
+                    Sube al SITVO un solo archivo .PDF con toda la documentación escaneada (no fotos).
+                  </p>
+                  <p
+                    *ngIf="datos.observaciones_reenvio_documentacion_escaneada && !datos.fecha_envio_documentacion_escaneada_egresado"
+                    class="timeline-doc-escaneada-msg"
+                  >
+                    Observaciones de la DEP: {{ datos.observaciones_reenvio_documentacion_escaneada }}
+                  </p>
+                  <input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    class="timeline-doc-escaneada-input"
+                    [disabled]="procesoBloqueadoPorVencimientoPlazoAlumno"
+                    (change)="onArchivosDocEscaneadaSeleccionados($event)"
+                  />
+                  <p *ngIf="archivosPdfEscaneados.length" class="timeline-doc-escaneada-lista">
+                    Archivo PDF seleccionado.
+                  </p>
+                  <p *ngIf="mensajeDocEscaneada" class="timeline-doc-escaneada-msg">{{ mensajeDocEscaneada }}</p>
+                  <button
+                    type="button"
+                    class="timeline-doc-escaneada-btn"
+                    [disabled]="enviandoDocEscaneada || !archivosPdfEscaneados.length || procesoBloqueadoPorVencimientoPlazoAlumno"
+                    (click)="enviarDocumentacionEscaneadaAlumno()"
+                  >
+                    {{ enviandoDocEscaneada ? 'Enviando…' : 'Enviar' }}
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="seguimiento-aside" *ngIf="!estaViendoProcesoAnterior">
+        <div class="seguimiento-card seguimiento-card-perfil">
+          <div class="perfil-top">
+            <span class="perfil-avatar">{{ inicialesEgresado }}</span>
+            <div>
+              <h3 class="seguimiento-card-titulo">Perfil del egresado</h3>
+              <p class="perfil-nombre">{{ nombreCompletoEgresado }}</p>
+            </div>
+          </div>
+          <dl class="perfil-datos">
+            <div class="perfil-row">
+              <dt>No. control</dt>
+              <dd>{{ datos.numero_control || '—' }}</dd>
+            </div>
+            <div class="perfil-row">
+              <dt>Carrera</dt>
+              <dd>{{ datos.datos_personales.carrera || '—' }}</dd>
+            </div>
+            <div class="perfil-row">
+              <dt>Nivel</dt>
+              <dd>{{ datos.datos_personales.nivel || '—' }}</dd>
+            </div>
+            <div class="perfil-row">
+              <dt>Modalidad</dt>
+              <dd>{{ datos.datos_proyecto.modalidad || '—' }}</dd>
+            </div>
+            <div class="perfil-row">
+              <dt>Proyecto</dt>
+              <dd>{{ datos.datos_proyecto.nombre_proyecto || '—' }}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="seguimiento-card">
+          <h3 class="seguimiento-card-titulo">Avance actual</h3>
+          <p class="seguimiento-avance-line">{{ estadoActualAlumno }}</p>
+          <p class="seguimiento-badge-row">
+            <span
+              class="seguimiento-badge"
+              [class.seguimiento-badge--ok]="estadoAvance === 'en_tiempo'"
+              [class.seguimiento-badge--mid]="estadoAvance === 'rezagado'"
+              [class.seguimiento-badge--bad]="estadoAvance === 'vencido'"
+            >
+              {{ estadoAvanceLabel }}
+            </span>
+          </p>
+        </div>
+
+        <div
+          id="revisiones-apoyo"
+          *ngIf="mostrarPanelRevisiones"
+          class="seguimiento-card seguimiento-card-notificaciones"
+        >
+          <h3 class="seguimiento-card-titulo">Revisiones</h3>
+          <p *ngIf="errorDescargaRevision" class="seguimiento-error-descarga">{{ errorDescargaRevision }}</p>
+          <p *ngIf="cargandoRevisionesEnviadas" class="seguimiento-avance-line">Cargando revisiones…</p>
+          <ul *ngIf="!cargandoRevisionesEnviadas && revisionesParaCorregir.length > 0" class="seguimiento-revision-lista">
+            <li *ngFor="let r of revisionesParaCorregir" class="seguimiento-revision-item">
+              <p class="seguimiento-revision-titulo">Revisión recibida; favor de corregir a la brevedad.</p>
+              <p *ngIf="r.observaciones" class="seguimiento-revision-obs" [class.expandida]="esRevisionExpandida(r.id)">
+                {{ r.observaciones }}
+              </p>
+              <button
+                *ngIf="observacionEsLarga(r.observaciones)"
+                type="button"
+                class="seguimiento-revision-toggle"
+                (click)="toggleRevision(r.id)"
+              >
+                {{ esRevisionExpandida(r.id) ? 'Ver menos' : 'Ver más' }}
+              </button>
+              <button
+                *ngIf="r.tiene_documento_adjunto"
+                type="button"
+                class="seguimiento-revision-toggle"
+                (click)="descargarAdjuntoRevision(r)"
+              >
+                Descargar PDF adjunto
+              </button>
+              <p class="seguimiento-revision-fecha">
+                {{ formatearFechaHora(r.fecha_envio_egresado || r.fecha) }}
+              </p>
+            </li>
+          </ul>
+          <p *ngIf="!cargandoRevisionesEnviadas && revisionesParaCorregir.length === 0" class="seguimiento-avance-line">
+            No tienes revisiones pendientes por corregir.
+          </p>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Historial de procesos anteriores -->
+    <div *ngIf="datos && datos.procesos_anteriores && datos.procesos_anteriores.length > 0" class="seg-historial-wrap">
+      <button type="button" class="seg-historial-toggle" (click)="mostrarHistorial = !mostrarHistorial">
+        {{ mostrarHistorial ? '▲' : '▼' }} Historial de intentos anteriores ({{ datos.procesos_anteriores.length }})
+      </button>
+      <div *ngIf="mostrarHistorial" class="seg-historial-lista">
+        <div *ngFor="let p of datos.procesos_anteriores; let i = index" class="seg-historial-item">
+          <span class="seg-historial-num">Intento {{ i + 1 }}</span>
+          <span class="seg-historial-modalidad">{{ p.modalidad }}</span>
+          <span class="seg-historial-badge" [class.seg-badge-vencido]="p.estado === 'vencido'" [class.seg-badge-titulado]="p.estado === 'titulado'">
+            {{ p.estado }}
+          </span>
+          <span class="seg-historial-fecha">{{ p.fecha_creacion | date:'dd/MM/yyyy' }}
+            <ng-container *ngIf="p.fecha_cierre"> — {{ p.fecha_cierre | date:'dd/MM/yyyy' }}</ng-container>
+          </span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>

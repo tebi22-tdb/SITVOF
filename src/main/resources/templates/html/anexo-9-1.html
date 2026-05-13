@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es" xml:lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>Anexo 9.1</title>
+<style type="text/css">
+@page { size: A4; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: "Montserrat Medium", "Montserrat", Arial, Helvetica, sans-serif;
+  font-size: 10pt;
+  color: #000;
+  line-height: 1.45;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.hdr-fixed {
+  position: fixed;
+  top: 1.25cm;
+  left: 1.66cm;
+  width: 17.68cm;
+}
+table.hdr {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9.5pt;
+  table-layout: fixed;
+  font-family: Arial, Helvetica, sans-serif;
+}
+table.hdr td {
+  border: 1px solid #000;
+  padding: 6px 8px;
+  vertical-align: middle;
+}
+table.hdr .logo {
+  width: 18%;
+  text-align: center;
+  padding: 7px 5px;
+}
+table.hdr .logo img {
+  width: 78px;
+  height: auto;
+  max-height: 78px;
+  display: block;
+  margin: 0 auto;
+}
+table.hdr .meta     { font-weight: bold; text-align: left; }
+table.hdr .meta-cod { width: 27%; font-weight: bold; text-align: left; }
+table.hdr .meta-pag { font-weight: normal; }
+.ftr-fixed {
+  position: fixed;
+  bottom: 0;
+  left: 1.66cm;
+  width: 17.68cm;
+  height: 2cm;
+  padding-top: 0.6cm;
+}
+table.ftr { width: 100%; border-collapse: collapse; }
+.ftr td { vertical-align: top; padding: 0; font-size: 8pt; line-height: 1.3; }
+.ftr-l {
+  font-family: Calibri, "Calibri (Cuerpo)", Arial, sans-serif;
+  font-weight: bold;
+  white-space: nowrap;
+  padding-right: 1.5em;
+  text-align: left;
+}
+.ftr-c {
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: bold;
+  text-align: center;
+  padding: 0 1.5em;
+}
+.ftr-r {
+  font-family: Calibri, "Calibri (Cuerpo)", Arial, sans-serif;
+  font-weight: bold;
+  white-space: nowrap;
+  padding-left: 1.5em;
+  text-align: right;
+}
+.doc-body { padding: 5.5cm 3cm 2.5cm 3cm; }
+.tit-anexo {
+  text-align: center;
+  font-size: 9pt;
+  font-weight: bold;
+  margin: 0 0 8px;
+  line-height: 1.5;
+  font-family: "Montserrat Medium", "Montserrat", Arial, Helvetica, sans-serif;
+}
+.tit-sol {
+  font-weight: bold;
+  text-align: center;
+  font-size: 10pt;
+  margin: 0 0 18px;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+}
+.fecha-doc { text-align: right; font-size: 10pt; margin: 0 0 20px; line-height: 1.5; }
+.dest-block { margin: 0 0 20px; }
+.dest-block p {
+  margin: 0;
+  padding: 0 0 3px;
+  font-weight: bold;
+  font-size: 10pt;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+.dest-block p:last-child { padding-bottom: 0; }
+.just { text-align: justify; }
+.cuerpo-principal { margin: 0 0 22px; font-size: 10pt; line-height: 1.5; text-align: justify; }
+.u  { text-decoration: underline; text-underline-offset: 2px; }
+.b  { font-weight: bold; }
+.val-mayus { text-decoration: underline; text-underline-offset: 2px; font-weight: bold; text-transform: uppercase; }
+.campo-line { margin: 0 0 13px; font-size: 10pt; line-height: 1.5; text-align: left; }
+.campo-line.primera { margin-top: 0; margin-bottom: 14px; }
+.campo-line.ultima  { margin-bottom: 0; }
+.firma-linea-wrap { margin: 0 0 13px; font-size: 10pt; line-height: 1.5; }
+.firma-trazo-corta {
+  display: inline-block;
+  margin-left: 5px;
+  width: 8.8em;
+  min-width: 6.5em;
+  border-bottom: 1px solid #000;
+  height: 1.15em;
+  vertical-align: bottom;
+}
+.qr-auth-wrap { float: right; margin: 0 0 6pt 10pt; text-align: center; }
+.qr-img { width: 90pt; height: 90pt; display: block; }
+.qr-msg {
+  margin: 3pt 0 0;
+  font-size: 6.5pt;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #444;
+  text-align: center;
+  max-width: 90pt;
+  line-height: 1.25;
+}
+.clearfix { clear: both; height: 0; font-size: 0; line-height: 0; }
+</style>
+</head>
+<body>
+
+<!-- ENCABEZADO FIJO -->
+<div class="hdr-fixed">
+<table class="hdr">
+  <tr>
+    <td class="logo" rowspan="3"><img src="logo-itvo.png" alt="ITVO"/></td>
+    <td class="meta">Nombre del documento: Formato de Solicitud del Acto de Recepci&#243;n Profesional</td>
+    <td class="meta meta-cod">C&#243;digo: ITVO-AC-PR-05-02</td>
+  </tr>
+  <tr>
+    <td class="meta">Referencia a la Norma ISO 9001-2015: 8.1, 8.5</td>
+    <td class="meta">Revisi&#243;n: 2</td>
+  </tr>
+  <tr>
+    <td class="meta">&#160;</td>
+    <td class="meta meta-pag">P&#225;gina 1 de 1</td>
+  </tr>
+</table>
+</div>
+
+<!-- PIE FIJO -->
+<div class="ftr-fixed">
+<table class="ftr" role="presentation">
+  <tr>
+    <td class="ftr-l">ITVO-AC-PR-05-02</td>
+    <td class="ftr-c">Toda copia en PAPEL es un &quot;Documento No Controlado&quot; a excepci&#243;n del original.</td>
+    <td class="ftr-r">Rev. 2</td>
+  </tr>
+</table>
+</div>
+
+<!-- CUERPO -->
+<div class="doc-body">
+
+<p class="tit-anexo">Anexo 9.1 Formato de Solicitud del Acto de Recepci&#243;n Profesional</p>
+<p class="tit-sol">SOLICITUD DE ACTO DE RECEPCI&#211;N PROFESIONAL</p>
+
+<p class="fecha-doc">Fecha: {{FECHA_CARTA}}.</p>
+
+<div class="dest-block">
+  <p>{{DESTINATARIO_SERVICIOS_ESCOLARES}}</p>
+  <p>JEFE DEL DEPARTAMENTO DE SERVICIOS ESCOLARES</p>
+  <p>PRESENTE</p>
+</div>
+
+<p class="just cuerpo-principal">
+  Me permito solicitar se autorice la sustentaci&#243;n del Acto de Recepci&#243;n Profesional por la Opci&#243;n
+  <span class="b u">TITULACI&#211;N INTEGRAL ({{TEXTO_OPCION_TI}})</span>,
+  para obtener mi T&#237;tulo Profesional de <span class="val-mayus">{{CARRERA}}</span>
+  en virtud de haber cubierto los requisitos indispensables para tal efecto.
+</p>
+
+<div class="qr-auth-wrap">
+  <img class="qr-img" src="{{QR_CODE}}" alt=""/>
+  <p class="qr-msg">Documento certificado:<br/>Verifica la autenticidad.</p>
+</div>
+
+<p class="just campo-line primera"><span class="b">Nombre:</span> <span class="b u">{{NOMBRE}}</span></p>
+<p class="just firma-linea-wrap"><span class="b">Firma:</span><span class="firma-trazo-corta">&#160;</span></p>
+<p class="just campo-line"><span class="b">No. de control:</span> <span class="b u">{{NUMERO_CONTROL}}</span></p>
+<p class="just campo-line"><span class="b">Carrera:</span> <span class="val-mayus">{{CARRERA}}</span></p>
+<p class="just campo-line ultima"><span class="b">Nivel:</span> <span class="val-mayus">{{NIVEL}}</span></p>
+
+<div class="clearfix"></div>
+
+</div>
+</body>
+</html>

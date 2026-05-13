@@ -1,0 +1,312 @@
+================================================================================
+  ESTADO ACTUAL DEL SISTEMA — SITVOF
+  Para colaboradores: lee esto antes de tocar cualquier cosa
+  Última actualización: Mayo 2026
+================================================================================
+
+Este archivo documenta todos los cambios implementados desde la última versión
+que conocías. El sistema fue refactorizado significativamente. Si trabajas sin
+leer esto, es probable que rompas cosas o implementes algo que ya existe.
+
+
+================================================================================
+CAMBIO MÁS IMPORTANTE — NUEVO MODELO DE DATOS (Egresado)
+================================================================================
+
+EL MODELO DE EGRESADO YA NO ES EL MISMO.
+
+Antes, todos los campos del proceso de titulación (estado, fechas, documentos,
+historial) vivían directamente en el documento Egresado de MongoDB.
+
+AHORA esa información vive dentro de un ARRAY llamado "procesos":
+
+  Egresado (colección "registro")
+  ├── _id
+  ├── numero_control
+  ├── datos_personales  { nombre, apellido_paterno, apellido_materno,
+  │                       carrera, nivel, direccion, telefono,
+  │                       correo_electronico }
+  ├── fecha_creacion    ← cuándo se creó la CUENTA (no el proceso)
+  ├── fecha_actualizacion
+  └── procesos[]        ← ARRAY de intentos de titulación
+        ├── proceso 0: { id, datos_proyecto, documentos, documento_adjunto,
+        │               estado_general, historial_estados, todas las fechas... }
+        └── proceso 1: { id, datos_proyecto, ... }  ← si reintentó
+
+El proceso activo es SIEMPRE el ÚLTIMO elemento del array (procesos.last()).
+
+────────────────────────────────────────────────────────────────────────────────
+CÓMO ACCEDER AL PROCESO ACTIVO EN KOTLIN
+────────────────────────────────────────────────────────────────────────────────
+
+La clase Egresado tiene tres helpers ya definidos. ÚSALOS, no accedas al array
+directamente:
+
+  e.procesoActivo()         → ProcesoTitulacion  (lanza excepción si está vacío)
+  e.procesoActivoOrNull()   → ProcesoTitulacion? (retorna null si está vacío)
+  e.actualizarProcesoActivo(p) → Egresado        (reemplaza el último proceso)
+
+PATRÓN CORRECTO para leer datos del proceso:
+  val p = e.procesoActivoOrNull() ?: return null
+  val modalidad = p.datos_proyecto.modalidad
+  val estado = p.estado_general
+
+PATRÓN CORRECTO para guardar cambios en el proceso:
+  val p = e.procesoActivoOrNull() ?: return false
+  val pActualizado = p.copy(fechaXxx = ahora, fecha_actualizacion = ahora)
+  egresadoRepository.save(e.actualizarProcesoActivo(pActualizado))
+
+NUNCA hagas:
+  egresadoRepository.save(e.copy(estado_general = "algo"))  ← YA NO EXISTE
+  e.estado_general                                           ← YA NO EXISTE
+  e.datos_proyecto                                           ← YA NO EXISTE
+  e.fechaEnviadoDepartamentoAcademico                       ← YA NO EXISTE
+
+Todos esos campos están ahora dentro de ProcesoTitulacion.
+
+────────────────────────────────────────────────────────────────────────────────
+CÓMO ACCEDER EN ANGULAR (frontend)
+────────────────────────────────────────────────────────────────────────────────
+
+El DTO EgresadoDetail ya expone los campos del proceso activo aplanados,
+igual que antes. NO cambia la forma en que el frontend los lee.
+
+Campos NUEVOS en EgresadoDetail:
+  proceso_id         → ID del proceso activo (string hex)
+  total_procesos     → cuántos procesos tiene (1 = primera vez, 2+ = reintentó)
+  procesos_anteriores[] → array con resumen + todas las fechas de procesos previos
+
+La interfaz ProcesoAnterior en egresado.service.ts contiene todos los campos
+de fecha para poder renderizar el timeline de un proceso anterior.
+
+────────────────────────────────────────────────────────────────────────────────
+REVISIONES Y DOCUMENTACIÓN ESCANEADA
+────────────────────────────────────────────────────────────────────────────────
+
+Revision y DocumentacionEscaneada ahora tienen el campo "procesoId" además
+de "egresadoId". Las queries en RevisionRepository ya filtran por AMBOS:
+
+  findByEgresadoIdAndProcesoIdOrderByNumeroRevisionDesc(egresadoId, procesoId)
+  findEnviadasAlEgresadoPorProceso(egresadoId, procesoId)
+  countByEgresadoIdAndProcesoId(egresadoId, procesoId)
+
+Si creas una revisión, debes pasar el procesoId del proceso activo.
+RevisionService.crear() ya lo hace automáticamente.
+
+────────────────────────────────────────────────────────────────────────────────
+QUERIES EN MONGODB (EgresadoRepository)
+────────────────────────────────────────────────────────────────────────────────
+
+Las queries que antes buscaban campos en la raíz ahora buscan dentro del array:
+
+  ANTES: { 'estado_general': 'titulado' }
+  AHORA: { 'procesos.estado_general': 'titulado' }
+
+  ANTES: { 'cert_uuid': ?0 }
+  AHORA: { 'procesos.cert_uuid': ?0 }
+
+  ANTES: { 'fecha_agenda_acto_9_3': { $gt: ?0, $lt: ?1 } }
+  AHORA: { 'procesos.fecha_agenda_acto_9_3': { $gt: ?0, $lt: ?1 } }
+
+Si agregas un nuevo query al EgresadoRepository que filtra por campos que
+estaban en la raíz, recuerda anteponer "procesos." al campo.
+
+
+================================================================================
+DETECCIÓN DE MODALIDAD RESIDENCIA — REGLA CRÍTICA
+================================================================================
+
+NUNCA hagas:
+  modalidad == "Residencia Profesional"        ← PROHIBIDO en código nuevo
+  item.modalidad === 'Residencia Profesional'  ← PROHIBIDO en templates Angular
+
+USA SIEMPRE:
+  Backend:  esResidenciaProfesional(egresado)  ← consulta el catálogo MongoDB
+  Frontend: catalogoService.esResidencia(modalidad)  ← consulta el catálogo
+
+Esto garantiza que cualquier modalidad nueva creada en el catálogo con
+esResidencia=true funcione correctamente sin cambiar código.
+
+Detalles de qué controla el campo esResidencia del catálogo:
+  · El expediente va a la card del departamento académico (flujo Liberar)
+    vs. la bandeja general de coordinación (flujo revisión CAT)
+  · Se muestra botón "Liberar" vs. "Revisar expediente"
+  · Se muestran campos "Asesor interno / externo" vs. "Director / Asesor 1 / 2"
+  · Afecta la generación de PDFs, certificación PKI y flujo completo
+
+
+================================================================================
+BANDEJA DEL DEPARTAMENTO ACADÉMICO — FILTROS POR PESTAÑA
+================================================================================
+
+Las pestañas de la vista /home/revisiones?segmento=xxx tienen comportamiento
+diferente según el tab:
+
+  Pendientes / En corrección / Aprobados:
+    → Solo muestra egresados de modalidad RESIDENCIA (flujo Liberar)
+    → No-residencia NO aparece aquí (van a la bandeja general de coordinación)
+
+  Sinodales:
+    → Muestra TODOS los egresados del departamento (residencia + no-residencia)
+    → Ambas modalidades necesitan asignación de tribunal
+
+  Todos:
+    → Muestra TODOS los egresados del departamento que hayan sido enviados
+
+Esta lógica está en EgresadoService.listarParaDepartamento() y
+contarParaDepartamento(). No cambies el filtrado sin entender esto.
+
+
+================================================================================
+NUEVOS ENDPOINTS DEL BACKEND
+================================================================================
+
+POST /api/egresados/{id}/nuevo-proceso
+  → Activa un nuevo proceso de titulación para un egresado cuyo proceso
+    anterior está en estado "vencido". Acepta multipart/form-data igual que
+    el endpoint de alta (parte "datos" como JSON blob + "archivo" opcional).
+  → BLOQUEA si el proceso actual es "titulado" (egresado ya concluyó).
+  → BLOQUEA si la nueva modalidad es igual a la del proceso vencido.
+
+GET /api/repositorio/{egresadoId}/documento
+  → Endpoint PÚBLICO (no requiere autenticación).
+  → Descarga el documento certificado del egresado para el repositorio.
+  → Busca el proceso con cert_uuid, prefiere gridfsIdDocFinal si existe.
+
+GET /api/usuarios/buscar/{username}
+  → Solo coordinador/admin.
+  → Busca cualquier usuario por username (número de control para egresados,
+    correo para staff). Devuelve: username, correo, nombre, rol, esEgresado.
+
+PUT /api/usuarios/{username}/correo
+  → Solo coordinador/admin. Body JSON: { "nuevo_correo": "..." }
+  → Para egresados: actualiza correoElectronico en Usuario y en
+    Egresado.datos_personales.correo_electronico.
+  → Para staff: actualiza correoElectronico Y username (son lo mismo).
+
+POST /api/usuarios/{username}/resetear-contrasena
+  → Solo coordinador/admin.
+  → Genera contraseña temporal de 12 caracteres y la devuelve en respuesta.
+  → El coordinador la entrega en persona al usuario.
+
+
+================================================================================
+NUEVAS RUTAS Y COMPONENTES FRONTEND
+================================================================================
+
+/home/gestion-cuentas
+  → GestionCuentasComponent
+  → Busca usuarios por número de control (egresados) o correo (staff)
+  → Permite cambiar correo y resetear contraseña
+  → Accesible desde el menú del coordinador
+
+Método nuevo en EgresadoService (frontend):
+  activarNuevoProceso(id, datos, archivo) → Observable
+  → Llama a POST /api/egresados/{id}/nuevo-proceso
+  → Envía datos como JSON blob (parte "datos") igual que crear()
+
+En el home del coordinador (/home/alta):
+  · Cuando un expediente tiene estado_general === 'vencido', aparece una
+    sección roja al final del detalle con el formulario "Nuevo proceso".
+  · El formulario muestra datos personales en solo lectura y solo pide
+    los datos del proyecto (modalidad, nombre, asesores).
+  · La modalidad anterior queda deshabilitada en el select.
+  · Cuando hay procesos anteriores, aparece la sección "Intentos anteriores"
+    con modalidad, estado y fechas de cada proceso previo.
+
+En el seguimiento del egresado (/seguimiento):
+  · Si el egresado tiene más de un proceso, aparecen pestañas arriba:
+    "Proceso actual" + una pestaña por cada intento anterior.
+  · Al cambiar de pestaña se muestra el timeline de ese proceso (solo lectura).
+  · La sidebar de acciones (subir documentos, etc.) solo aparece en el
+    tab "Proceso actual".
+  · La propiedad datosVista en el componente controla qué proceso se muestra.
+    Los getters del timeline usan datosVista, NO datos directamente.
+
+
+================================================================================
+REPOSITORIO PÚBLICO
+================================================================================
+
+El repositorio (/repositorio) ahora incluye egresados cuyo proceso tiene
+cert_uuid (fue certificado por aprobación de CAT o liberación de residencia).
+Ya NO se limita a estado_general === "titulado".
+
+Cada card del repositorio muestra un botón "Ver documento" si tiene_documento
+es true. El documento se abre en nueva pestaña vía el endpoint público.
+
+El método urlDocumento(egresadoId) en RepositorioService genera la URL.
+
+
+================================================================================
+DOCUMENTOS EN MONGODB — FORMATO REQUERIDO
+================================================================================
+
+Si insertas egresados directamente en MongoDB para pruebas, el documento
+DEBE tener el array "procesos". El formato viejo (campos en la raíz) no
+funciona — procesoActivoOrNull() retornará null y el sistema no puede
+leer el expediente.
+
+Formato mínimo requerido:
+{
+  "_id": { "$oid": "..." },
+  "numero_control": "...",
+  "datos_personales": { "nombre": "...", "apellido_paterno": "...",
+                        "apellido_materno": "...", "carrera": "...",
+                        "nivel": "Licenciatura" },
+  "fecha_creacion": { "$date": "2024-01-01T00:00:00.000Z" },
+  "fecha_actualizacion": { "$date": "2024-01-01T00:00:00.000Z" },
+  "procesos": [
+    {
+      "id": { "$oid": "..." },
+      "datos_proyecto": { "nombre_proyecto": "...", "modalidad": "Tesis",
+                          "curso_titulacion": "no" },
+      "documentos": {
+        "anexo_xxxi": { "estado": "pendiente" },
+        "constancia_no_inconveniencia": { "estado": "pendiente" }
+      },
+      "documento_adjunto": { "nombre_original": "", "content_type": "",
+                             "tamanio_bytes": 0 },
+      "estado_general": "registrado",
+      "historial_estados": [
+        { "estado": "registrado", "fecha": { "$date": "2024-01-01T00:00:00.000Z" },
+          "observacion": "Registro inicial del alumno" }
+      ],
+      "fecha_creacion": { "$date": "2024-01-01T00:00:00.000Z" },
+      "fecha_actualizacion": { "$date": "2024-01-01T00:00:00.000Z" }
+    }
+  ],
+  "_class": "com.sit_titulacion.sit.domain.Egresado"
+}
+
+
+================================================================================
+REGLAS GENERALES PARA CÓDIGO NUEVO
+================================================================================
+
+1. NUNCA comparar modalidad por nombre literal.
+   Usar esResidenciaProfesional(e) en backend y catalogoService.esResidencia()
+   en frontend.
+
+2. NUNCA acceder a campos del proceso directo en Egresado (e.estado_general,
+   e.datos_proyecto, e.fechaXxx, etc.). Usar e.procesoActivo() o
+   e.procesoActivoOrNull().
+
+3. NUNCA crear revisiones sin pasar procesoId.
+   RevisionService.crear() ya lo hace; si creas revisiones manualmente,
+   asegúrate de incluir procesoId = e.procesoActivo().id.
+
+4. NUNCA usar los repositorios de MongoDB con queries que buscan campos en la
+   raíz del documento Egresado (excepto _id, numero_control, datos_personales
+   y fechaCreacion que SÍ siguen en la raíz).
+
+5. Al agregar métodos al EgresadoService que necesiten guardar datos del proceso,
+   usa siempre el patrón:
+     val p = e.procesoActivoOrNull() ?: return false
+     egresadoRepository.save(e.actualizarProcesoActivo(p.copy(...)))
+
+6. El catálogo de modalidades controla todo el comportamiento del flujo.
+   Si se agrega una nueva modalidad con esResidencia=true, el sistema
+   la maneja correctamente SIN cambios de código.
+
+================================================================================

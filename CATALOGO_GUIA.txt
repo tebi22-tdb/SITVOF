@@ -1,0 +1,288 @@
+================================================================================
+  GUÍA DE CATÁLOGOS — SITVOF
+  Para colaboradores: cómo agregar datos sin hardcodear nada
+================================================================================
+
+REGLA DE ORO
+------------
+Nunca escribas arrays de strings con nombres de carreras, modalidades,
+departamentos o niveles directamente en un componente o servicio.
+Todos esos datos viven en MongoDB (colección "catalogos") y se consumen
+a través de CatalogoService en el frontend.
+
+
+================================================================================
+1. QUÉ ES UN CATÁLOGO
+================================================================================
+
+Un documento en la colección "catalogos" de MongoDB tiene esta forma:
+
+  {
+    tipo: "carrera" | "nivel" | "modalidad" | "departamento",
+    nombre: "INGENIERIA EN AGRONOMÍA",
+    activo: true,
+    orden: 0,
+
+    -- Solo para tipo "modalidad" --
+    mesesVigencia: 12,          (null = sin plazo, ej. CENEVAL)
+    esResidencia: false,        (true solo para Residencia Profesional)
+    esCursoTitulacion: false,   (true solo para modalidades exclusivas
+                                 del flujo "Curso de titulación", ej. Monografía)
+    tipoMentores: "estandar",   ("estandar" | "residencia" | "ninguno")
+
+    -- Solo para tipo "departamento" --
+    slug: "ingenierias",        (clave interna, única, sin espacios ni acentos)
+    carreras: [                 (nombres exactos, igual que en tipo "carrera")
+      "INGENIERIA EN AGRONOMÍA",
+      "INGENIERIA FORESTAL",
+      "INGENIERIA AMBIENTAL"
+    ]
+  }
+
+El coordinador gestiona estos registros desde la pantalla de Catálogos
+(ruta /home/catalogos). No hace falta tocar código para agregar o desactivar
+una carrera, nivel, modalidad o departamento.
+
+
+================================================================================
+2. CÓMO SE CONSUMEN EN EL FRONTEND
+================================================================================
+
+El servicio CatalogoService (frontend/src/app/services/catalogo.service.ts)
+expone observables que hacen fetch al backend al iniciar la app:
+
+  catalogoService.carreras$        → Observable<string[]>
+  catalogoService.niveles$         → Observable<string[]>
+  catalogoService.modalidades$     → Observable<ModalidadCatalogo[]>
+  catalogoService.departamentos$   → Observable<DepartamentoCatalogo[]>
+
+CÓMO USAR EN UN COMPONENTE:
+
+  // En el constructor o como dependencia:
+  constructor(private catalogoService: CatalogoService) {}
+
+  // En ngOnInit (con takeUntil si el componente se destruye):
+  this.catalogoService.carreras$
+    .pipe(takeUntil(this.destroy$))
+    .subscribe(lista => (this.carreras = lista));
+
+  // En el template:
+  <option *ngFor="let c of carreras" [value]="c">{{ c }}</option>
+
+Si el backend no responde, el servicio cae automáticamente a un fallback
+con los datos base (definido dentro del propio CatalogoService).
+No necesitas crear tu propio fallback en el componente.
+
+
+================================================================================
+3. MÉTODOS SÍNCRONOS DISPONIBLES (para lógica que no puede ser async)
+================================================================================
+
+Estos métodos usan el caché interno del servicio (se llena al arrancar):
+
+  catalogoService.mesesVigencia(nombreModalidad)
+    → number | null — duración de la modalidad en meses
+
+  catalogoService.esResidencia(nombreModalidad)
+    → boolean — true si es Residencia Profesional
+
+  catalogoService.tipoMentoresPorNombre(nombreModalidad)
+    → "estandar" | "residencia" | "ninguno"
+
+  catalogoService.carrerasPorSlugSync(slug)
+    → string[] — carreras del departamento con ese slug
+
+  catalogoService.nombreDepartamentoPorSlug(slug)
+    → string | null — nombre legible del departamento
+
+
+================================================================================
+4. ENDPOINTS DEL BACKEND
+================================================================================
+
+Todos son GET públicos (no requieren autenticación):
+
+  GET /api/catalogos/carreras       → string[]
+  GET /api/catalogos/niveles        → string[]
+  GET /api/catalogos/modalidades    → ModalidadDto[]
+  GET /api/catalogos/departamentos  → DepartamentoDto[]
+
+Solo devuelven ítems con activo = true.
+
+El coordinador además tiene acceso a:
+  GET    /api/catalogos        → lista completa (activos e inactivos)
+  POST   /api/catalogos        → crear ítem
+  PUT    /api/catalogos/{id}   → editar ítem
+  DELETE /api/catalogos/{id}   → desactivar ítem
+  POST   /api/catalogos/{id}/activar → reactivar ítem
+
+
+================================================================================
+5. AGREGAR UN NUEVO DEPARTAMENTO (sin tocar código)
+================================================================================
+
+1. Inicia sesión como coordinador.
+2. Ve a /home/catalogos.
+3. Crea un ítem de tipo "departamento" con:
+   - nombre: "Nombre visible del departamento"
+   - slug:   "clave_sin_espacios" (ej. "ciencias_sociales")
+   - carreras: lista de nombres exactos (deben existir como tipo "carrera")
+4. Guarda. Listo.
+
+El nuevo departamento aparecerá automáticamente como card en
+/home/departamento-academico y como opción en el formulario
+"Agregar usuario" (perfil académico).
+
+IMPORTANTE: el slug debe ser único y no cambiar una vez asignado.
+Si un usuario académico tiene segmento_academico = "ciencias_sociales",
+el sistema lo enlaza con ese slug para filtrar su bandeja.
+
+
+================================================================================
+6. AGREGAR UNA NUEVA MODALIDAD
+================================================================================
+
+1. Ve a /home/catalogos → nueva modalidad.
+2. Campos relevantes:
+   - nombre:           nombre exacto que verá el egresado en el formulario
+   - mesesVigencia:    duración en meses (dejar vacío si no aplica, ej. CENEVAL)
+   - esResidencia:     true si la modalidad es de tipo residencia profesional.
+                        IMPORTANTE: este campo controla TODO el flujo de la modalidad:
+                        · El expediente aparece en /home/departamento-academico (card del
+                          departamento) en lugar de la bandeja global de coordinación.
+                        · En la bandeja del departamento muestra el botón "Liberar"
+                          en vez de "Revisar expediente".
+                        · En el detalle del egresado muestra "Asesor interno" y
+                          "Asesor externo" en lugar de "Director", "Asesor 1", "Asesor 2".
+                        · Afecta el flujo de certificación y generación de documentos.
+                        NO uses el nombre de la modalidad para determinar si es residencia;
+                        usa siempre este campo.
+   - esCursoTitulacion: true si la modalidad SOLO aplica cuando el egresado
+                        marca "Curso de titulación" en el formulario de alta
+                        (ej. Monografía). Las demás modalidades dejan esto en false.
+   - tipoMentores:     "estandar", "residencia" o "ninguno"
+3. Guarda. La modalidad aparece en el select del formulario de alta.
+
+Si esCursoTitulacion = false → aparece en la lista general de modalidades.
+Si esCursoTitulacion = true  → aparece SOLO cuando el checkbox
+                               "Curso de titulación" está activado.
+
+
+================================================================================
+7. AGREGAR UNA NUEVA CARRERA
+================================================================================
+
+1. Ve a /home/catalogos → nueva carrera.
+2. Escribe el nombre exacto en MAYÚSCULAS (ej. "INGENIERIA EN ROBÓTICA").
+   Atención: si ya hay expedientes guardados con ese nombre de carrera,
+   deben coincidir exactamente (incluyendo espacios y acentos).
+3. Asigna la carrera al departamento correspondiente editando el departamento
+   y añadiéndola a su lista de carreras.
+4. Guarda.
+
+
+================================================================================
+8. DÓNDE NO HARDCODEAR (lista de archivos con datos que vienen del catálogo)
+================================================================================
+
+Los siguientes archivos tienen datos de catálogo SOLO como fallback de
+emergencia (si el backend no responde). No los edites para agregar datos
+nuevos; usa la pantalla de catálogos:
+
+  frontend/src/app/services/catalogo.service.ts
+    → CARRERAS_FALLBACK, NIVELES_FALLBACK, MODALIDADES_FALLBACK,
+      DEPARTAMENTOS_FALLBACK
+
+  src/main/kotlin/.../config/SeedCatalogosRunner.kt
+    → Siembra los datos base en MongoDB al arrancar si no existen.
+      Solo se ejecuta una vez por ítem (idempotente).
+      Agrega aquí ítems que deben existir siempre desde cero,
+      no datos que el coordinador gestiona en producción.
+
+El archivo frontend/src/app/core/datos.ts contiene MODALIDADES_CURSO_TITULACION,
+que se usa ÚNICAMENTE como fallback si el catálogo no ha cargado aún.
+No edites ese archivo para agregar modalidades; hazlo desde la pantalla
+de catálogos con esCursoTitulacion = true.
+
+
+================================================================================
+9. PERFILES DE USUARIO — cómo funciona
+================================================================================
+
+El formulario "Agregar usuario" tiene un desplegable "Departamento / división".
+Las opciones NO están hardcodeadas; se construyen así:
+
+  Perfiles estáticos (siempre presentes, no dependen del catálogo):
+    - Apoyo a Titulación
+    - División Administrativa
+    - Coordinación general (académico sin segmento)
+    - Servicios Escolares
+
+  Perfiles de departamento (dinámicos, desde catalogoService.departamentos$):
+    - Un perfil por cada departamento activo en el catálogo
+    - ID interno: academico_{slug}  (ej. academico_ingenierias)
+    - Etiqueta:   el nombre del departamento
+
+Cuando el coordinador selecciona un perfil de departamento, el sistema
+asigna automáticamente al usuario:
+  - rol = "academico"
+  - segmento_academico = slug del departamento
+  - carreras_asignadas = las carreras del departamento (del catálogo)
+
+Para agregar un nuevo perfil de departamento: solo crea el departamento
+en el catálogo (ver sección 5). No toques código.
+
+
+================================================================================
+10. FLUJO DE FILTRADO POR DEPARTAMENTO (resumen técnico)
+================================================================================
+
+Cuando un coordinador abre /home/departamento-academico ve las cards de
+los departamentos activos. Al hacer clic navega a:
+  /home/revisiones?segmento={slug}
+
+El backend recibe el slug, busca el documento en la colección "catalogos"
+con tipo="departamento" y slug={slug}, y filtra los expedientes cuya
+carrera esté en la lista "carreras" de ese documento.
+
+Esto significa que si cambias las carreras de un departamento en el catálogo,
+el filtro de la bandeja cambia automáticamente, sin reiniciar el servidor.
+
+
+================================================================================
+11. CORRECCIÓN IMPORTANTE — DETECCIÓN DE MODALIDAD RESIDENCIA (mayo 2026)
+================================================================================
+
+PROBLEMA QUE SE CORRIGIÓ:
+Antes, el sistema detectaba si una modalidad era "residencia" comparando el
+nombre exacto "Residencia Profesional" en el código (backend y frontend).
+Esto hacía que cualquier modalidad nueva con esResidencia = true pero un
+nombre diferente fuera tratada como modalidad estándar, causando que:
+
+  · El expediente apareciera en la bandeja global (/home/revisiones)
+    en lugar de la card del departamento académico.
+  · Se mostrara el botón "Revisar expediente" en vez de "Liberar".
+  · Se mostraran los campos "Director / Asesor 1 / Asesor 2" en vez de
+    "Asesor interno / Asesor externo".
+
+CÓMO QUEDÓ:
+El backend (EgresadoService.kt) ahora consulta el campo esResidencia del
+catálogo en MongoDB. El frontend usa catalogoService.esResidencia(modalidad)
+que también lee el campo esResidencia del catálogo, no el nombre.
+
+REGLA PARA COLABORADORES:
+· NUNCA compares modalidad === "Residencia Profesional" en el código.
+· SIEMPRE usa catalogoService.esResidencia(modalidad) en el frontend,
+  o consulta el catálogo en el backend.
+· Si agregas una nueva modalidad de tipo residencia, activa el campo
+  esResidencia = true en el catálogo. No hay que tocar código.
+
+ARCHIVOS CORREGIDOS:
+  src/main/kotlin/.../service/EgresadoService.kt     → fun esResidenciaProfesional()
+  frontend/.../departamento-academico.component.ts   → método esResidencia()
+  frontend/.../departamento-academico.component.html → botones Liberar/Revisar
+  frontend/.../home.component.ts                     → método esResidencia()
+  frontend/.../home.component.html                   → campos de mentores
+
+
+================================================================================
