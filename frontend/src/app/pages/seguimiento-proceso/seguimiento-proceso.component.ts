@@ -41,8 +41,9 @@ interface SeguimientoItem {
   id: string;
   alumno: string;
   noControl: string;
-  producto: string;
   carrera: string;
+  /** Modalidad del proceso (valor de catálogo / formulario). */
+  modalidad: string;
   estado: Exclude<EstadoFiltro, 'todos'>;
   documentoFaltante: string;
   ultimoMovimiento: string;
@@ -84,7 +85,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
 
   buscarControl = '';
   filtroCarrera = '';
-  filtroProducto = '';
+  filtroModalidad = '';
   filtroDocumento = 'todos';
   filtroEstado: EstadoFiltro = 'todos';
   ordenarPor: OrdenFiltro = 'prioridad';
@@ -113,8 +114,14 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     return [...new Set(this.items.map((i) => i.carrera))].sort((a, b) => a.localeCompare(b));
   }
 
-  get productosDisponibles(): string[] {
-    return [...new Set(this.items.map((i) => i.producto))].sort((a, b) => a.localeCompare(b));
+  get modalidadesDisponibles(): string[] {
+    const set = new Set<string>();
+    for (const i of this.items) {
+      const m = i.modalidad?.trim() ?? '';
+      if (!m || m === '—') set.add('(Sin modalidad)');
+      else set.add(m);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
   }
 
   get totalExpedientes(): number {
@@ -142,7 +149,11 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     let out = this.items.filter((i) => {
       if (term && !i.noControl.toLowerCase().includes(term)) return false;
       if (this.filtroCarrera && i.carrera !== this.filtroCarrera) return false;
-      if (this.filtroProducto && i.producto !== this.filtroProducto) return false;
+      if (this.filtroModalidad) {
+        const m = i.modalidad?.trim() ?? '';
+        const etiqueta = !m || m === '—' ? '(Sin modalidad)' : m;
+        if (etiqueta !== this.filtroModalidad) return false;
+      }
       if (this.filtroDocumento !== 'todos' && i.documentoFaltante !== this.filtroDocumento) return false;
       if (this.filtroEstado !== 'todos' && i.estado !== this.filtroEstado) return false;
       return true;
@@ -193,7 +204,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
   limpiarFiltros(): void {
     this.buscarControl = '';
     this.filtroCarrera = '';
-    this.filtroProducto = '';
+    this.filtroModalidad = '';
     this.filtroDocumento = 'todos';
     this.filtroEstado = 'todos';
     this.ordenarPor = 'prioridad';
@@ -522,23 +533,30 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     const defs: PasoTitulacionDef[] = [
       {
         key: 'fecha_envio_solicitud_registro_anteproyecto_depto_academico',
-        titulo: 'Envío de solicitud de registro y anteproyecto al departamento académico',
-        descripcion: 'La DEP envía al departamento académico la solicitud de registro y el anteproyecto.',
+        titulo:
+          'Envío de solicitud de proceso de titulación (anexo XXXI), anteproyecto y solicitud del proyecto (anexo XXXII)',
+        descripcion: 'La DEP registra el envío al departamento académico (solicitud, anteproyecto y anexo XXXII).',
+      },
+      {
+        key: 'fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii',
+        titulo:
+          'Recepción en la DEP del anexo XXXI, anteproyecto y anexo XXXII del trabajo de titulación a desarrollar',
+        descripcion: 'La DEP confirma que recibió del departamento académico los anexos y documentos indicados.',
       },
       {
         key: 'fecha_recepcion_trabajo_division_estudios_prof',
-        titulo: 'Recepción del trabajo en división de estudios PROFESIONALES',
-        descripcion: 'División de estudios profesionales confirma la recepción; inicia el periodo de desarrollo del proyecto.',
+        titulo: 'Recepción del trabajo en división de estudios profesionales',
+        descripcion: 'División confirma la recepción del trabajo del egresado; concluye el plazo de desarrollo en curso.',
       },
       {
         key: 'fecha_solicitud_registro_liberacion_depto_academico',
-        titulo: 'Solicitud de registro y liberación al departamento académico',
-        descripcion: 'La DEP solicita al departamento académico el registro y la liberación correspondientes.',
+        titulo: 'Solicitud de liberación al departamento académico',
+        descripcion: 'La DEP solicita al departamento académico la liberación correspondiente a la titulación.',
       },
       {
         key: 'fecha_recepcion_registro_liberacion_depto_academico',
-        titulo: 'Recepción de registro y liberación del departamento académico',
-        descripcion: 'El departamento académico entrega registro y liberación; la DEP confirma su recepción.',
+        titulo: 'Recepción de liberación del departamento académico',
+        descripcion: 'El departamento académico entrega la liberación; la DEP confirma su recepción.',
       },
       {
         key: 'fecha_enviado_departamento_academico',
@@ -559,7 +577,8 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     let todosPreviosCompletados = true;
     return defs.map((s, i) => {
       const esRecepcionDesarrollo = s.key === 'fecha_recepcion_trabajo_division_estudios_prof';
-      const numeroPaso = esRecepcionDesarrollo ? 3 : i > 1 ? i + 2 : i + 1;
+      /** Numeración 1…n en este panel (sin saltos). No forzar “3” aquí: el paso 1 del alumno no está en esta lista. */
+      const numeroPaso = i + 1;
       const tituloPaso = esRecepcionDesarrollo
         ? `El egresado está desarrollando su proyecto de ${modalidadTitulo}. Confirma la recepción cuando el egresado entregue su proyecto.`
         : s.titulo;
@@ -785,12 +804,29 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     this.egresadoService.solicitarRegistroAnteproyectoNoResidencia(this.detalleSeleccionado.id).subscribe({
       next: () => {
         this.procesandoPaso = false;
-        this.mensajeProceso = 'Solicitud de registro y anteproyecto registrada.';
+        this.mensajeProceso = 'Envío de solicitud de titulación, anteproyecto y anexo XXXII registrado.';
         this.refrescarDetalle();
       },
       error: (err) => {
         this.procesandoPaso = false;
         this.mensajeProceso = err?.error?.error ?? 'No se pudo registrar el envío.';
+      },
+    });
+  }
+
+  confirmarRecepcionInicialAnexosNoResidencia(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService.confirmarRecepcionInicialAnexosXxxiXxxiiNoResidencia(this.detalleSeleccionado.id).subscribe({
+      next: () => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = 'Recepción de anexos XXXI y XXXII confirmada.';
+        this.refrescarDetalle();
+      },
+      error: (err) => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar la recepción inicial.';
       },
     });
   }
@@ -819,7 +855,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     this.egresadoService.solicitarRegistroLiberacionNoResidencia(this.detalleSeleccionado.id).subscribe({
       next: () => {
         this.procesandoPaso = false;
-        this.mensajeProceso = 'Solicitud de registro y liberación registrada.';
+        this.mensajeProceso = 'Solicitud de liberación al departamento académico registrada.';
         this.refrescarDetalle();
       },
       error: (err) => {
@@ -836,7 +872,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     this.egresadoService.confirmarRecepcionRegistroLiberacionNoResidencia(this.detalleSeleccionado.id).subscribe({
       next: () => {
         this.procesandoPaso = false;
-        this.mensajeProceso = 'Recepción de registro y liberación confirmada.';
+        this.mensajeProceso = 'Recepción de liberación confirmada.';
         this.refrescarDetalle();
       },
       error: (err) => {
@@ -1146,7 +1182,6 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
   private mapearItem(e: EgresadoItem): SeguimientoItem {
     const hoy = new Date();
     const modalidad = e.modalidad?.trim() || '—';
-    const producto = modalidad !== '—' ? `Titulación — ${modalidad}` : 'Seguimiento de titulación';
 
     const isoUltimo = e.fecha_actualizacion;
     const ultimoMovimiento = isoUltimo ? this.formatoFecha(new Date(isoUltimo)) : '—';
@@ -1157,7 +1192,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         id: e.id,
         alumno: e.nombre || '—',
         noControl: e.numero_control || '—',
-        producto,
+        modalidad,
         carrera: e.carrera || '—',
         estado: 'concluido',
         documentoFaltante: 'Proceso concluido',
@@ -1186,7 +1221,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         id: e.id,
         alumno: e.nombre || '—',
         noControl: e.numero_control || '—',
-        producto,
+        modalidad,
         carrera: e.carrera || '—',
         estado,
         documentoFaltante,
@@ -1202,7 +1237,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         id: e.id,
         alumno: e.nombre || '—',
         noControl: e.numero_control || '—',
-        producto,
+        modalidad,
         carrera: e.carrera || '—',
         estado: 'en_tiempo',
         documentoFaltante: 'En curso',
@@ -1218,7 +1253,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         id: e.id,
         alumno: e.nombre || '—',
         noControl: e.numero_control || '—',
-        producto,
+        modalidad,
         carrera: e.carrera || '—',
         estado: 'en_tiempo',
         documentoFaltante: 'En curso',
@@ -1242,7 +1277,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       id: e.id,
       alumno: e.nombre || '—',
       noControl: e.numero_control || '—',
-      producto,
+      modalidad,
       carrera: e.carrera || '—',
       estado,
       documentoFaltante,

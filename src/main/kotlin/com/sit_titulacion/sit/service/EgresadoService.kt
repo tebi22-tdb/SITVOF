@@ -105,6 +105,21 @@ class EgresadoService(
 ) {
     private val log = LoggerFactory.getLogger(EgresadoService::class.java)
 
+    /**
+     * Zona usada para interpretar la fecha/hora del acto 9.3 enviada sin offset (como en flatpickr)
+     * y para validar ventana horaria / PDF del acto. Debe coincidir con la zona institucional, no con la del host (p. ej. UTC en contenedor).
+     * Override: `sit.acto93.zona-horaria` (ej. `America/Mazatlan`).
+     */
+    private val zonaActo93: ZoneId by lazy {
+        val key = env.getProperty("sit.acto93.zona-horaria", "America/Mexico_City")!!.trim()
+        try {
+            ZoneId.of(key)
+        } catch (_: Exception) {
+            log.warn("sit.acto93.zona-horaria inválida '{}', se usa America/Mexico_City", key)
+            ZoneId.of("America/Mexico_City")
+        }
+    }
+
     fun crear(datos: EgresadoRequestDto, archivo: MultipartFile?): Egresado {
         val ahora = Instant.now()
         val documentoAdjunto = buildDocumentoAdjunto(archivo, ahora)
@@ -268,10 +283,12 @@ class EgresadoService(
         listarParaLista(numeroControlFilter, null)
 
     fun listarParaLista(numeroControlFilter: String?, scopeUsername: String?): List<EgresadoListItemDto> {
+        val porReciente =
+            compareByDescending<Egresado> { it.fechaCreacion }.thenByDescending { it.id }
         val base = if (numeroControlFilter.isNullOrBlank()) {
-            egresadoRepository.findAll().sortedByDescending { it.id }
+            egresadoRepository.findAll().sortedWith(porReciente)
         } else {
-            egresadoRepository.findByNumeroControlContaining(numeroControlFilter.trim()).sortedByDescending { it.id }
+            egresadoRepository.findByNumeroControlContaining(numeroControlFilter.trim()).sortedWith(porReciente)
         }
         val lista = if (scopeUsername.isNullOrBlank()) {
             base
@@ -693,11 +710,29 @@ class EgresadoService(
         return true
     }
 
+    /** No residencia (flujo 16): la DEP confirma recepción de anexo XXXI, anteproyecto y anexo XXXII (tras el envío al departamento). */
+    fun confirmarRecepcionInicialAnexosXxxiXxxiiNoResidencia(id: String): Boolean {
+        val e = cargarEgresadoPorId(id) ?: return false
+        if (esResidenciaProfesional(e)) return false
+        val p = e.procesoActivoOrNull() ?: return false
+        if (p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico == null) return false
+        if (p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii != null) return false
+        if (p.fechaRecepcionTrabajoDivisionEstudiosProf != null) return false
+        val ahora = Instant.now()
+        egresadoRepository.save(
+            e.actualizarProcesoActivo(
+                p.copy(fechaConfirmacionRecepcionInicialAnexosXxxiXxxii = ahora, fecha_actualizacion = ahora),
+            ),
+        )
+        return true
+    }
+
     fun confirmarRecepcionTrabajoNoResidencia(id: String): Boolean {
         val e = cargarEgresadoPorId(id) ?: return false
         if (esResidenciaProfesional(e)) return false
         val p = e.procesoActivoOrNull() ?: return false
         if (p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico == null) return false
+        if (p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii == null) return false
         if (p.fechaRecepcionTrabajoDivisionEstudiosProf != null) return false
         val ahora = Instant.now()
         egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaRecepcionTrabajoDivisionEstudiosProf = ahora, fecha_actualizacion = ahora)))
@@ -861,7 +896,7 @@ class EgresadoService(
         if (p.fechaCreacionAnexo93 == null) {
             egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaCreacionAnexo93 = ahora, fecha_actualizacion = ahora)))
         }
-        val zona = ZoneId.systemDefault()
+        val zona = zonaActo93
         val acto = p.fechaAgendaActo93!!
         val actoLegible = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(zona).format(acto)
         val zActo = acto.atZone(zona)
@@ -1005,8 +1040,8 @@ class EgresadoService(
         val p = e.procesoActivoOrNull() ?: return false
         if (p.fechaConfirmacionSinodalesRecibidos == null) return false
 
-        val inicio = parseFechaHoraLocal(fechaHoraRaw) ?: return false
-        val zona = ZoneId.systemDefault()
+        val inicio = parseFechaHoraActo93(fechaHoraRaw) ?: return false
+        val zona = zonaActo93
         val zInicio = inicio.atZone(zona)
         val diaSemana = zInicio.dayOfWeek.value
         if (diaSemana !in 1..5) return false
@@ -1059,7 +1094,7 @@ class EgresadoService(
     }
 
     fun listarActo93Ocupados(): List<Instant> {
-        val zona = ZoneId.systemDefault()
+        val zona = zonaActo93
         val inicio = LocalDate.now(zona).minusMonths(1).atStartOfDay(zona).toInstant()
         val fin = LocalDate.now(zona).plusYears(2).atStartOfDay(zona).toInstant()
         return try {
@@ -1125,6 +1160,7 @@ class EgresadoService(
                         fechaConfirmacionRecibidosAnexoXxxiXxxii = p.fechaConfirmacionRecibidosAnexoXxxiXxxii?.let { formatter.format(it) },
                         fechaLiberacionDocumentoCoordinacionCat = p.fechaLiberacionDocumentoCoordinacionCat?.let { formatter.format(it) },
                         fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico = p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico?.let { formatter.format(it) },
+                        fechaConfirmacionRecepcionInicialAnexosXxxiXxxii = p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii?.let { formatter.format(it) },
                         fechaCreacionAnexo91 = p.fechaCreacionAnexo91?.let { formatter.format(it) },
                         fechaConfirmacionEntregaAnexo91 = p.fechaConfirmacionEntregaAnexo91?.let { formatter.format(it) },
                         fechaSolicitudAnexo92 = p.fechaSolicitudAnexo92?.let { formatter.format(it) },
@@ -1142,6 +1178,7 @@ class EgresadoService(
                 }
             } else emptyList(),
             fecha_envio_solicitud_registro_anteproyecto_depto_academico = pr?.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico?.let { formatter.format(it) },
+            fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii = pr?.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii?.let { formatter.format(it) },
             fecha_recepcion_trabajo_division_estudios_prof = pr?.fechaRecepcionTrabajoDivisionEstudiosProf?.let { formatter.format(it) },
             fecha_solicitud_registro_liberacion_depto_academico = pr?.fechaSolicitudRegistroLiberacionDeptoAcademico?.let { formatter.format(it) },
             fecha_recepcion_registro_liberacion_depto_academico = pr?.fechaRecepcionRegistroLiberacionDeptoAcademico?.let { formatter.format(it) },
@@ -1436,14 +1473,14 @@ class EgresadoService(
         catch (_: DateTimeParseException) { null }
     }
 
-    private fun parseFechaHoraLocal(s: String?): Instant? {
+    private fun parseFechaHoraActo93(s: String?): Instant? {
         if (s.isNullOrBlank()) return null
         val raw = s.trim()
         val normalized = if (!raw.contains('T') && raw.contains(' ')) raw.replaceFirst(" ", "T") else raw
         return try {
-            LocalDateTime.parse(normalized, DateTimeFormatter.ISO_LOCAL_DATE_TIME).atZone(ZoneId.systemDefault()).toInstant()
+            LocalDateTime.parse(normalized, DateTimeFormatter.ISO_LOCAL_DATE_TIME).atZone(zonaActo93).toInstant()
         } catch (_: DateTimeParseException) {
-            try { LocalDateTime.parse(normalized).atZone(ZoneId.systemDefault()).toInstant() }
+            try { LocalDateTime.parse(normalized).atZone(zonaActo93).toInstant() }
             catch (_: Exception) { null }
         }
     }

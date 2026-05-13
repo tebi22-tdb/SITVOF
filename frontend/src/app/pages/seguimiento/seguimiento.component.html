@@ -13,14 +13,14 @@
       <button type="button"
               class="seg-tab"
               [class.seg-tab--activa]="tabActiva === 'actual'"
-              (click)="tabActiva = 'actual'">
+              (click)="cambiarTabProceso('actual')">
         Proceso actual
       </button>
       <button type="button"
               *ngFor="let p of datos.procesos_anteriores; let i = index"
               class="seg-tab seg-tab--anterior"
               [class.seg-tab--activa]="tabActiva === i"
-              (click)="tabActiva = i">
+              (click)="cambiarTabProceso(i)">
         Intento {{ i + 1 }} · {{ p.modalidad }}
         <span class="seg-tab-badge" [class.seg-tab-badge--vencido]="p.estado === 'vencido'" [class.seg-tab-badge--titulado]="p.estado === 'titulado'">
           {{ p.estado }}

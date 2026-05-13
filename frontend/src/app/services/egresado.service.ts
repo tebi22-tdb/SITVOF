@@ -56,6 +56,7 @@ export interface EgresadoDetail {
   procesos_anteriores?: ProcesoAnterior[];
   /** Fecha en que se marcó "Enviado al departamento académico" (paso 1.1). */
   fecha_envio_solicitud_registro_anteproyecto_depto_academico?: string;
+  fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii?: string;
   fecha_recepcion_trabajo_division_estudios_prof?: string;
   fecha_solicitud_registro_liberacion_depto_academico?: string;
   fecha_recepcion_registro_liberacion_depto_academico?: string;
@@ -128,6 +129,7 @@ export interface ProcesoAnterior {
   fecha_confirmacion_recibidos_anexo_xxxi_xxxii?: string;
   fecha_liberacion_documento_coordinacion_cat?: string;
   fecha_envio_solicitud_registro_anteproyecto_depto_academico?: string;
+  fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii?: string;
   fecha_creacion_anexo_9_1?: string;
   fecha_confirmacion_entrega_anexo_9_1?: string;
   fecha_solicitud_anexo_9_2?: string;
@@ -284,6 +286,10 @@ export class EgresadoService {
 
   solicitarRegistroAnteproyectoNoResidencia(id: string): Observable<unknown> {
     return this.http.post(`${API}/${id}/no-residencia/solicitar-registro-anteproyecto`, {});
+  }
+
+  confirmarRecepcionInicialAnexosXxxiXxxiiNoResidencia(id: string): Observable<unknown> {
+    return this.http.post(`${API}/${id}/no-residencia/confirmar-recepcion-inicial-anexos-xxxi-xxxii`, {});
   }
 
   confirmarRecepcionTrabajoNoResidencia(id: string): Observable<unknown> {

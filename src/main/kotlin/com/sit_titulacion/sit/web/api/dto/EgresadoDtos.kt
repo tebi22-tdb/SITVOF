@@ -144,6 +144,8 @@ data class EgresadoDetailDto(
     @JsonProperty("procesos_anteriores") val procesos_anteriores: List<ProcesoAnteriorDto> = emptyList(),
     @JsonProperty("fecha_envio_solicitud_registro_anteproyecto_depto_academico")
     val fecha_envio_solicitud_registro_anteproyecto_depto_academico: String? = null,
+    @JsonProperty("fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii")
+    val fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii: String? = null,
     @JsonProperty("fecha_recepcion_trabajo_division_estudios_prof")
     val fecha_recepcion_trabajo_division_estudios_prof: String? = null,
     @JsonProperty("fecha_solicitud_registro_liberacion_depto_academico")
@@ -191,6 +193,8 @@ data class ProcesoAnteriorDto(
     @JsonProperty("fecha_confirmacion_recibidos_anexo_xxxi_xxxii") val fechaConfirmacionRecibidosAnexoXxxiXxxii: String? = null,
     @JsonProperty("fecha_liberacion_documento_coordinacion_cat") val fechaLiberacionDocumentoCoordinacionCat: String? = null,
     @JsonProperty("fecha_envio_solicitud_registro_anteproyecto_depto_academico") val fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico: String? = null,
+    @JsonProperty("fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii")
+    val fechaConfirmacionRecepcionInicialAnexosXxxiXxxii: String? = null,
     @JsonProperty("fecha_creacion_anexo_9_1") val fechaCreacionAnexo91: String? = null,
     @JsonProperty("fecha_confirmacion_entrega_anexo_9_1") val fechaConfirmacionEntregaAnexo91: String? = null,
     @JsonProperty("fecha_solicitud_anexo_9_2") val fechaSolicitudAnexo92: String? = null,

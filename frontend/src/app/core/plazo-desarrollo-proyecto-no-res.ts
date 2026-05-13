@@ -75,10 +75,13 @@ export function calcularPlazoDesarrolloProyectoNoRes(opts: {
   modalidad: string | undefined | null;
   fechaRecepcionDivision?: string | null;
   fechaEnvioAnteproyecto?: string | null;
+  /** Si existe, el plazo de desarrollo (12/18 meses) cuenta desde esta confirmación de la DEP (flujo 16). */
+  fechaConfirmacionInicial?: string | null;
   hoy?: Date;
 }): PlazoDesarrolloProyectoVista | null {
   const recep = opts.fechaRecepcionDivision?.trim();
   const envio = opts.fechaEnvioAnteproyecto?.trim();
+  const inicial = opts.fechaConfirmacionInicial?.trim();
 
   let fechaInicio: Date;
   let mesesTotales: number;
@@ -91,14 +94,14 @@ export function calcularPlazoDesarrolloProyectoNoRes(opts: {
     mesesTotales = MESES_PLAZO_TITULACION_NO_RES;
     usaInicioProvisionalDesdeEnvio = false;
     fasePostRecepcion = true;
-  } else if (envio) {
-    fechaInicio = new Date(envio);
+  } else {
+    const inicioIso = inicial || envio;
+    if (!inicioIso) return null;
+    fechaInicio = new Date(inicioIso);
     if (isNaN(fechaInicio.getTime())) return null;
     mesesTotales = mesesPlazoDesarrolloProyectoNoRes(opts.modalidad);
-    usaInicioProvisionalDesdeEnvio = true;
+    usaInicioProvisionalDesdeEnvio = !inicial;
     fasePostRecepcion = false;
-  } else {
-    return null;
   }
 
   const hoy = inicioDiaLocal(opts.hoy ?? new Date());
@@ -174,6 +177,7 @@ function textoTiempoRestanteCorto(v: PlazoDesarrolloProyectoVista): string {
 export interface EgresadoPlazoRecepcionInput {
   datos_proyecto?: { modalidad?: string };
   fecha_envio_solicitud_registro_anteproyecto_depto_academico?: string;
+  fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii?: string;
   fecha_recepcion_trabajo_division_estudios_prof?: string;
   fecha_solicitud_registro_liberacion_depto_academico?: string;
 }
@@ -190,7 +194,8 @@ export function calcularVistaPlazoDesarrolloRecepcionNoRes(
   return calcularPlazoDesarrolloProyectoNoRes({
     modalidad: d.datos_proyecto?.modalidad,
     fechaRecepcionDivision: d.fecha_recepcion_trabajo_division_estudios_prof,
-    fechaEnvioAnteproyecto: d.fecha_envio_solicitud_registro_anteproyecto_depto_academico,
+    fechaEnvioAnteproyecto: d.fecha_envio_solicitud_registro_anteproyecto_depto_academico.trim(),
+    fechaConfirmacionInicial: d.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii,
   });
 }
 
@@ -200,6 +205,8 @@ export function calcularVistaPlazoDesarrolloRecepcionNoRes(
  */
 export function construirPlazoDesarrolloRecepcionUi(d: EgresadoPlazoRecepcionInput): PlazoDesarrolloRecepcionUi | null {
   if (d.fecha_recepcion_trabajo_division_estudios_prof?.trim()) return null;
+  const envio = d.fecha_envio_solicitud_registro_anteproyecto_depto_academico?.trim();
+  if (!envio) return null;
   const raw = calcularVistaPlazoDesarrolloRecepcionNoRes(d);
   if (!raw) return null;
   const claseSemafono: PlazoDesarrolloRecepcionUi['claseSemafono'] =

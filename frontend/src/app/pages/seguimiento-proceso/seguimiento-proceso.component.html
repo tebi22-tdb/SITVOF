@@ -40,10 +40,13 @@
     </section>
 
     <section class="seg-filtros seg-filtros-sec" *ngIf="mostrarMasFiltros">
-      <select [(ngModel)]="filtroProducto">
-        <option value="">Producto (todos)</option>
-        <option *ngFor="let p of productosDisponibles" [value]="p">{{ p }}</option>
-      </select>
+      <div class="seg-filtro-grupo">
+        <label for="filtro-modalidad">Modalidad:</label>
+        <select id="filtro-modalidad" [(ngModel)]="filtroModalidad">
+          <option value="">Todas</option>
+          <option *ngFor="let m of modalidadesDisponibles" [value]="m">{{ m }}</option>
+        </select>
+      </div>
       <select [(ngModel)]="filtroDocumento">
         <option value="todos">Documento / situación (todos)</option>
         <option value="Sin atraso">Sin atraso</option>
@@ -187,8 +190,22 @@
               </button>
               <button
                 *ngIf="
+                  paso.key === 'fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii' &&
+                  detalleSeleccionado.fecha_envio_solicitud_registro_anteproyecto_depto_academico &&
+                  !detalleSeleccionado.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii
+                "
+                type="button"
+                class="seg-btn"
+                [disabled]="accionesProcesoBloqueadas"
+                (click)="confirmarRecepcionInicialAnexosNoResidencia()"
+              >
+                Confirmar
+              </button>
+              <button
+                *ngIf="
                   paso.key === 'fecha_recepcion_trabajo_division_estudios_prof' &&
                   detalleSeleccionado.fecha_envio_solicitud_registro_anteproyecto_depto_academico &&
+                  detalleSeleccionado.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii &&
                   !detalleSeleccionado.fecha_recepcion_trabajo_division_estudios_prof
                 "
                 type="button"
@@ -209,7 +226,7 @@
                 [disabled]="accionesProcesoBloqueadas"
                 (click)="solicitarRegistroLiberacionNoResidencia()"
               >
-                Solicitar
+                Enviar
               </button>
               <button
                 *ngIf="
@@ -222,7 +239,7 @@
                 [disabled]="accionesProcesoBloqueadas"
                 (click)="confirmarRecepcionRegistroLiberacionNoResidencia()"
               >
-                Confirmar recibidos
+                Confirmar
               </button>
               <button
                 *ngIf="

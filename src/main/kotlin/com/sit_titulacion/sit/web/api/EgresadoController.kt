@@ -447,15 +447,22 @@ class EgresadoController(
         if (egresadoService.solicitarRegistroAnteproyectoNoResidencia(id)) ResponseEntity.ok().build<Void>()
         else ResponseEntity.badRequest().body(mapOf("error" to "No se pudo registrar el envío (solo modalidades distintas a residencia)."))
 
+    @PostMapping("/{id}/no-residencia/confirmar-recepcion-inicial-anexos-xxxi-xxxii")
+    fun confirmarRecepcionInicialAnexosXxxiXxxiiNoResidencia(@PathVariable id: String): ResponseEntity<*> =
+        if (egresadoService.confirmarRecepcionInicialAnexosXxxiXxxiiNoResidencia(id)) ResponseEntity.ok().build<Void>()
+        else ResponseEntity.badRequest().body(
+            mapOf("error" to "No se pudo confirmar. Requiere envío de anteproyecto previo y no aplica a residencia."),
+        )
+
     @PostMapping("/{id}/no-residencia/confirmar-recepcion-trabajo-division")
     fun confirmarRecepcionTrabajoNoResidencia(@PathVariable id: String): ResponseEntity<*> =
         if (egresadoService.confirmarRecepcionTrabajoNoResidencia(id)) ResponseEntity.ok().build<Void>()
-        else ResponseEntity.badRequest().body(mapOf("error" to "No se pudo confirmar la recepción en división de estudios."))
+        else ResponseEntity.badRequest().body(mapOf("error" to "No se pudo confirmar. Confirma antes la recepción inicial de anexos XXXI/XXXII (flujo 16) o revisa que no sea residencia."))
 
     @PostMapping("/{id}/no-residencia/solicitar-registro-liberacion-depto")
     fun solicitarRegistroLiberacionNoResidencia(@PathVariable id: String): ResponseEntity<*> =
         if (egresadoService.solicitarRegistroLiberacionNoResidencia(id)) ResponseEntity.ok().build<Void>()
-        else ResponseEntity.badRequest().body(mapOf("error" to "No se pudo registrar la solicitud de registro y liberación."))
+        else ResponseEntity.badRequest().body(mapOf("error" to "No se pudo registrar la solicitud de liberación al departamento académico."))
 
     @PostMapping("/{id}/no-residencia/confirmar-recepcion-registro-liberacion-depto")
     fun confirmarRecepcionRegistroLiberacionNoResidencia(@PathVariable id: String): ResponseEntity<*> =

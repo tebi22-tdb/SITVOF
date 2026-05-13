@@ -511,12 +511,11 @@
   color: #1a202c;
 }
 
-/* Paso actual: borde azul claro */
 .timeline-item.activo .timeline-content {
   padding: 0.75rem 1rem;
-  border: 2px solid #90cdf4;
-  border-radius: 10px;
-  background: #f7fafc;
+  border-radius: 8px;
+  background: #ebf8ff;
+  border: 1px solid #bee3f8;
 }
 
 /* Subida de documentación escaneada (dentro del paso 13 / aviso en paso 14) */
