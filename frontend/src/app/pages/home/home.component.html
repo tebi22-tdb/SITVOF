@@ -90,7 +90,7 @@
         >
           <span class="sit-card-numero">{{ u.username }}</span>
           <span class="sit-card-nombre">{{ u.nombre || '—' }}</span>
-          <span class="sit-card-carrera">{{ u.rol }}{{ u.segmento_academico ? (' • ' + u.segmento_academico) : '' }}{{ u.curp ? (' • CURP: ' + u.curp) : '' }}</span>
+          <span class="sit-card-carrera">{{ u.rol }}{{ u.segmento_academico ? (' • ' + u.segmento_academico) : '' }}</span>
         </button>
       </ng-container>
       <p *ngIf="!cargandoLista && !errorLista && tabLista === 'egresados' && lista.length === 0 && !mostrarFormulario" class="sit-lista-sin-resultados">No hay egresados o no hay resultados.</p>
@@ -141,14 +141,6 @@
             readonly
           ></textarea>
         </ng-container>
-        <label for="usuario-curp">CURP</label>
-        <input
-          id="usuario-curp"
-          type="text"
-          [(ngModel)]="usuarioForm.curp"
-          name="usuarioCurp"
-          placeholder="Ej. PEGA010101HOCXXX00"
-        />
         <label for="usuario-correo">Correo electrónico</label>
         <input
           id="usuario-correo"
@@ -349,7 +341,6 @@
               <dt>Carreras asignadas</dt>
               <dd>{{ (usuarioSeleccionado.carreras_asignadas && usuarioSeleccionado.carreras_asignadas.length) ? usuarioSeleccionado.carreras_asignadas.join(', ') : '—' }}</dd>
             </div>
-            <div class="sit-campo"><dt>CURP</dt><dd>{{ usuarioSeleccionado.curp || '—' }}</dd></div>
             <div class="sit-campo"><dt>Correo</dt><dd>{{ usuarioSeleccionado.correo_electronico || '—' }}</dd></div>
             <div class="sit-campo"><dt>Activo</dt><dd>{{ usuarioSeleccionado.activo ? 'Sí' : 'No' }}</dd></div>
           </dl>

@@ -340,12 +340,19 @@ class EgresadoService(
             val pr = it.procesoActivoOrNull()
             pr?.fechaSolicitudSinodales != null && pr.fechaConfirmacionSinodalesRecibidos == null
         }
+        val anteproyecto = porCarrera.count {
+            val pr = it.procesoActivoOrNull()
+            pr != null && !esResidenciaProfesional(it) &&
+                pr.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null &&
+                pr.fechaEnviadoDepartamentoAcademico == null
+        }
         return mapOf(
             "pendientes" to pendientes,
             "en_correccion" to enCorreccion,
             "aprobados" to aprobados,
             "todos" to todos,
             "sinodales_por_asignar" to sinodales,
+            "anteproyecto" to anteproyecto,
         )
     }
 
@@ -358,7 +365,7 @@ class EgresadoService(
         // Sinodales y Todos muestran todos los egresados del departamento sin filtrar por modalidad.
         val norm = estado.trim().lowercase()
         val all = when (norm) {
-            "sinodales", "todos" -> porCarrera
+            "sinodales", "todos", "anteproyecto" -> porCarrera
             else -> filtrarBandejaSegmentoCoordinacion(porCarrera, segmentoSlug, academicoUsername)
         }
         val lista = when (norm) {
@@ -374,6 +381,12 @@ class EgresadoService(
             "en_correccion" -> all.filter {
                 it.procesoActivoOrNull()?.fechaEnviadoDepartamentoAcademico != null &&
                     !liberacionRevisionCompletada(it) && enCorreccionAcademico(it)
+            }
+            "anteproyecto" -> all.filter {
+                val pr = it.procesoActivoOrNull()
+                pr != null && !esResidenciaProfesional(it) &&
+                    pr.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null &&
+                    pr.fechaEnviadoDepartamentoAcademico == null
             }
             else -> all.filter {
                 it.procesoActivoOrNull()?.fechaEnviadoDepartamentoAcademico != null &&
@@ -396,6 +409,7 @@ class EgresadoService(
                 estadoRevision = estadoRevisionDepartamento(e),
                 fechaSolicitudSinodales = pr.fechaSolicitudSinodales?.let { formatter.format(it) },
                 sinodalesAsignados = pr.fechaAsignacionSinodales != null,
+                fechaEnvioAnteproyectoDepto = pr.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico?.let { formatter.format(it) },
             )
         }
     }

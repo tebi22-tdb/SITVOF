@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import flatpickr from 'flatpickr';
 import { Instance as FlatpickrInstance } from 'flatpickr/dist/types/instance';
 import { catchError, EMPTY, finalize, of, throwError, timeout } from 'rxjs';
@@ -162,11 +162,14 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
   constructor(
     private egresadoService: EgresadoService,
     private router: Router,
+    private route: ActivatedRoute,
     private catalogoService: CatalogoService,
     private sanitizer: DomSanitizer,
   ) {}
 
   ngOnInit(): void {
+    const buscar = this.route.snapshot.queryParamMap.get('buscar')?.trim();
+    if (buscar) this.buscarControl = buscar;
     this.cargar();
   }
 

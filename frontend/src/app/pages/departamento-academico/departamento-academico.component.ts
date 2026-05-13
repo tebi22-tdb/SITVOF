@@ -10,7 +10,7 @@ import { AuthService } from '../../services/auth.service';
 import { EgresadoService, DepartamentoListItem, DepartamentoCounts } from '../../services/egresado.service';
 import { CatalogoService } from '../../services/catalogo.service';
 
-type TabEstado = 'pendientes' | 'en_correccion' | 'aprobados' | 'sinodales' | 'todos';
+type TabEstado = 'pendientes' | 'en_correccion' | 'aprobados' | 'sinodales' | 'todos' | 'anteproyecto';
 @Component({
   selector: 'app-departamento-academico',
   standalone: true,
@@ -24,7 +24,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   esModoRevision = false;
   /** Filtro por slug de departamento (solo coordinación; query `?segmento=`). */
   segmentoCoordinacion: string | null = null;
-  counts: DepartamentoCounts = { pendientes: 0, en_correccion: 0, aprobados: 0, todos: 0, sinodales_por_asignar: 0 };
+  counts: DepartamentoCounts = { pendientes: 0, en_correccion: 0, aprobados: 0, todos: 0, sinodales_por_asignar: 0, anteproyecto: 0 };
   lista: DepartamentoListItem[] = [];
   cargando = true;
   error = '';
@@ -155,6 +155,11 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     return this.catalogoService.esResidencia(modalidad);
   }
 
+  /** Navega a seguimiento-proceso pre-filtrando por número de control del egresado. */
+  verEnSeguimiento(item: DepartamentoListItem): void {
+    this.router.navigate(['/home/seguimiento-proceso'], { queryParams: { buscar: item.numero_control } });
+  }
+
   /** Abre Revisión de documento (solo para modalidades que no son residencia). */
   irARevision(item: DepartamentoListItem): void {
     if (this.catalogoService.esResidencia(item.modalidad)) return;
@@ -184,6 +189,9 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     }
     if (this.tabActivo === 'sinodales') {
       return 'No hay registros de sinodales para mostrar.';
+    }
+    if (this.tabActivo === 'anteproyecto') {
+      return 'No hay anteproyectos enviados al departamento pendientes de respuesta.';
     }
     return 'No hay registros en esta sección.';
   }
@@ -227,6 +235,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
           aprobados: c.aprobados ?? 0,
           todos: c.todos ?? 0,
           sinodales_por_asignar: c.sinodales_por_asignar ?? 0,
+          anteproyecto: c.anteproyecto ?? 0,
         };
       },
       error: () => {},
@@ -321,6 +330,18 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   /** Fecha de última modificación: DD/MM/YYYY. */
   ultimoCambio(item: DepartamentoListItem): string {
     const iso = item.fecha_actualizacion;
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    const dia = d.getDate().toString().padStart(2, '0');
+    const mes = (d.getMonth() + 1).toString().padStart(2, '0');
+    const anio = d.getFullYear();
+    return `${dia}/${mes}/${anio}`;
+  }
+
+  /** Fecha en que DEP envió anteproyecto + Anexo XXXI al departamento: DD/MM/YYYY. */
+  fechaEnvioAnteproyecto(item: DepartamentoListItem): string {
+    const iso = item.fecha_envio_anteproyecto_depto;
     if (!iso) return '—';
     const d = new Date(iso);
     if (isNaN(d.getTime())) return iso;

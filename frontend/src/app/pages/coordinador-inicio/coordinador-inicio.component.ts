@@ -104,6 +104,19 @@ import { AuthService } from '../../services/auth.service';
               </svg>
             </div>
           </button>
+          <button type="button" class="card" (click)="irRepositorio()">
+            <div class="card-texto">
+              <h2>Repositorio de titulados</h2>
+              <p>Consulta los egresados titulados con su documento final certificado.</p>
+            </div>
+            <div class="card-icono" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="card-icono-svg">
+                <path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M4 19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M9 7h6M9 11h6M9 15h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </button>
           <button type="button" class="card" (click)="irCatalogos()">
             <div class="card-texto">
               <h2>Configuración de catálogos</h2>
@@ -234,6 +247,10 @@ export class CoordinadorInicioComponent {
 
   irGestionCuentas(): void {
     this.router.navigate(['/home/gestion-cuentas']);
+  }
+
+  irRepositorio(): void {
+    this.router.navigate(['/repositorio']);
   }
 
   irCatalogos(): void {

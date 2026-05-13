@@ -24,7 +24,7 @@ export interface CrearUsuarioBody {
   nombre: string;
   rol: string;
   correo_electronico: string;
-  curp: string;
+  curp?: string;
   segmento_academico?: string;
   carreras_asignadas?: string[];
 }
@@ -128,6 +128,10 @@ export class AuthService {
     const partes = raw.split(/\s*[-–—]\s*|,/g).map((p) => p.trim()).filter(Boolean);
     const candidatos = partes.length ? partes : [raw];
     return candidatos.some((r) => r === 'coordinador' || r === 'division_estudios_prof_admin');
+  }
+
+  isSubdireccionAcademica(): boolean {
+    return this.usuario?.rol?.toLowerCase().trim() === 'subdireccion_academica';
   }
 
   isEgresado(): boolean {

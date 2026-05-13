@@ -91,7 +91,7 @@ class UsuarioService(
         usernameLogin: String,
         rol: String,
         correoElectronico: String,
-        curp: String,
+        curp: String = "",
         segmentoAcademico: String? = null,
         carrerasAsignadas: List<String> = emptyList(),
     ): Pair<String, String> {
@@ -100,7 +100,6 @@ class UsuarioService(
         val curpNorm = curp.trim().uppercase()
         if (userTrim.isBlank()) throw IllegalArgumentException("El usuario (para iniciar sesión) es obligatorio.")
         if (correoTrim.isBlank()) throw IllegalArgumentException("El correo electrónico es obligatorio.")
-        if (curpNorm.isBlank()) throw IllegalArgumentException("La CURP es obligatoria.")
         val usernameUnico = generarUsernameStaffUnico(userTrim)
         val passwordPlana = generarPasswordSegura()
         val passwordHash = passwordEncoder.encode(passwordPlana) ?: ""

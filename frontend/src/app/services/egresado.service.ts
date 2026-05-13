@@ -155,6 +155,8 @@ export interface DepartamentoListItem {
   estado_revision?: string;
   sinodales_asignados?: boolean;
   fecha_solicitud_sinodales?: string;
+  /** Pestaña Anteproyecto: fecha en que DEP envió anteproyecto + Anexo XXXI al departamento. */
+  fecha_envio_anteproyecto_depto?: string;
 }
 
 /** Revisión guardada (del backend). */
@@ -181,6 +183,7 @@ export interface DepartamentoCounts {
   aprobados: number;
   todos: number;
   sinodales_por_asignar?: number;
+  anteproyecto?: number;
 }
 
 export interface AgendaActo93OcupadosResponse {

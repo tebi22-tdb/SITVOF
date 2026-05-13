@@ -78,6 +78,8 @@ data class DepartamentoListItemDto(
     @JsonProperty("fecha_solicitud_sinodales") val fechaSolicitudSinodales: String? = null,
     /** true si el departamento ya guardó la asignación (fecha_asignacion_sinodales). */
     @JsonProperty("sinodales_asignados") val sinodalesAsignados: Boolean = false,
+    /** Pestaña Anteproyecto: fecha en que DEP envió anteproyecto + Anexo XXXI al departamento. */
+    @JsonProperty("fecha_envio_anteproyecto_depto") val fechaEnvioAnteproyectoDepto: String? = null,
 )
 
 /** Cuerpo para asignar o actualizar sinodales (departamento académico). */

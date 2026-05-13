@@ -6,6 +6,7 @@ import org.springframework.core.io.ClassPathResource
 import org.springframework.stereotype.Service
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
+import java.util.Base64
 
 /**
  * PDF a partir de plantillas XHTML en classpath (sin LibreOffice).
@@ -21,7 +22,7 @@ class HtmlAnexoPdfService {
                 ClassPathResource(templateClasspath).inputStream.use {
                     String(it.readAllBytes(), StandardCharsets.UTF_8)
                 }
-            val html = aplicarPlaceholders(raw, valores)
+            val html = embedirImagenesLocales(aplicarPlaceholders(raw, valores), templateClasspath)
             val baseUri = baseUriDirectorioPlantilla(templateClasspath)
             ByteArrayOutputStream().use { os ->
                 val builder = PdfRendererBuilder()
@@ -34,6 +35,33 @@ class HtmlAnexoPdfService {
         } catch (ex: Exception) {
             log.error("HtmlAnexoPdfService {}: {}", templateClasspath, ex.message, ex)
             null
+        }
+    }
+
+    /**
+     * Sustituye src="nombre.png" por un data URI base64 cargado desde el classpath
+     * junto a la plantilla. Evita problemas de resolución de rutas en fat JARs.
+     */
+    private fun embedirImagenesLocales(html: String, templateClasspath: String): String {
+        val directorio = templateClasspath.substringBeforeLast("/")
+        val imagenes = Regex("""src="([^"]+\.(png|jpg|jpeg|gif|svg))"""")
+        return imagenes.replace(html) { match ->
+            val nombreArchivo = match.groupValues[1]
+            if (nombreArchivo.startsWith("data:")) return@replace match.value
+            val classpath = "$directorio/$nombreArchivo"
+            try {
+                val bytes = ClassPathResource(classpath).inputStream.use { it.readAllBytes() }
+                val mime = when (nombreArchivo.substringAfterLast(".").lowercase()) {
+                    "jpg", "jpeg" -> "image/jpeg"
+                    "gif"         -> "image/gif"
+                    "svg"         -> "image/svg+xml"
+                    else          -> "image/png"
+                }
+                val b64 = Base64.getEncoder().encodeToString(bytes)
+                """src="data:$mime;base64,$b64""""
+            } catch (_: Exception) {
+                match.value
+            }
         }
     }
 

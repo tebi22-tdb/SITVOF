@@ -375,10 +375,6 @@ export class HomeComponent implements OnInit {
       this.mensajeUsuario = 'El correo electrónico es obligatorio.';
       return;
     }
-    if (!this.usuarioForm.curp?.trim()) {
-      this.mensajeUsuario = 'La CURP es obligatoria.';
-      return;
-    }
     if (
       this.usuarioForm.rol === 'academico' &&
       this.usuarioForm.perfil !== 'academico_general' &&
@@ -387,13 +383,11 @@ export class HomeComponent implements OnInit {
       this.mensajeUsuario = 'El perfil académico elegido no tiene carreras asignadas; vuelve a seleccionar el departamento.';
       return;
     }
-    this.usuarioForm.curp = this.usuarioForm.curp.trim().toUpperCase();
     this.guardandoUsuario = true;
     const body: CrearUsuarioBody = {
       nombre: this.usuarioForm.nombre,
       rol: this.usuarioForm.rol,
       correo_electronico: this.usuarioForm.correo_electronico,
-      curp: this.usuarioForm.curp,
     };
     if (this.usuarioForm.rol === 'academico' && this.usuarioForm.perfil !== 'academico_general') {
       body.segmento_academico = this.usuarioForm.segmento_academico;
@@ -440,7 +434,6 @@ export class HomeComponent implements OnInit {
       perfil: 'division_estudios_prof_admin',
       rol: d.rol,
       correo_electronico: '',
-      curp: '',
       segmento_academico: d.segmento_academico,
       carreras_asignadas: d.carreras_asignadas,
     };

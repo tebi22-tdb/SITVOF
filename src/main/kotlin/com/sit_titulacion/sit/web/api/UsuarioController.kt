@@ -21,7 +21,7 @@ data class CrearUsuarioRequest(
     val nombre: String = "",
     val rol: String = "",
     val correo_electronico: String = "",
-    val curp: String = "",
+    val curp: String? = null,
     val segmento_academico: String? = null,
     val carreras_asignadas: List<String>? = null,
 )
@@ -92,7 +92,7 @@ class UsuarioController(
         val nombre = body.nombre.trim()
         val rol = body.rol.trim().ifBlank { "coordinador" }
         val correo = body.correo_electronico.trim()
-        val curp = body.curp.trim().uppercase()
+        val curp = body.curp?.trim()?.uppercase() ?: ""
         var segmentoAcademico = body.segmento_academico?.trim()?.lowercase()?.ifBlank { null }
         var carrerasAsignadas =
             body.carreras_asignadas
@@ -102,9 +102,6 @@ class UsuarioController(
                 ?: emptyList()
         if (correo.isBlank()) {
             return ResponseEntity.badRequest().body(mapOf("error" to "El correo electrónico es obligatorio."))
-        }
-        if (curp.isBlank()) {
-            return ResponseEntity.badRequest().body(mapOf("error" to "La CURP es obligatoria."))
         }
         if (!rol.equals("academico", ignoreCase = true)) {
             segmentoAcademico = null

@@ -59,4 +59,9 @@ interface EgresadoRepository : MongoRepository<Egresado, ObjectId> {
     @Meta(maxExecutionTimeMs = 5000)
     @Query("{ 'procesos.cert_uuid' : { \$exists: true, \$ne: null } }")
     fun findConCertificacion(): List<Egresado>
+
+    /** Egresados que completaron el último paso administrativo (documentación escaneada confirmada). */
+    @Meta(maxExecutionTimeMs = 5000)
+    @Query("{ 'procesos.fecha_confirmacion_documentacion_escaneada_recibida' : { \$exists: true, \$ne: null } }")
+    fun findConDocumentacionConfirmada(): List<Egresado>
 }

@@ -53,11 +53,39 @@ export const coordinadorGuard: CanActivateFn = (route, state) => {
         router.navigate(['/servicios-escolares']);
         return false;
       }
+      if (auth.isSubdireccionAcademica()) {
+        router.navigate(['/repositorio']);
+        return false;
+      }
       if (auth.isAcademico()) {
         router.navigate(['/departamento-academico']);
         return false;
       }
       if (auth.isCoordinador()) return true;
+      if (auth.isEgresado()) {
+        router.navigate(['/seguimiento']);
+        return false;
+      }
+      router.navigate(['/login']);
+      return false;
+    }),
+    catchError(() => {
+      router.navigate(['/login']);
+      return of(false);
+    })
+  );
+};
+
+export const repositorioGuard: CanActivateFn = (route, state) => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  return auth.me().pipe(
+    map(() => {
+      if (auth.isCoordinador() || auth.isSubdireccionAcademica()) return true;
+      if (auth.isAcademico()) {
+        router.navigate(['/departamento-academico']);
+        return false;
+      }
       if (auth.isEgresado()) {
         router.navigate(['/seguimiento']);
         return false;

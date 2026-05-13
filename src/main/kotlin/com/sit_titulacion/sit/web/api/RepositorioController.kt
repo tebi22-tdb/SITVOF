@@ -25,12 +25,11 @@ class RepositorioController(
 
     @GetMapping
     fun listar(): ResponseEntity<List<TituladoPublicoDto>> {
-        val titulados = egresadoRepository.findConCertificacion()
-            .sortedByDescending { it.procesoActivoOrNull()?.fechaCertificacion ?: it.fechaCreacion }
+        val titulados = egresadoRepository.findConDocumentacionConfirmada()
+            .sortedByDescending { it.procesos.lastOrNull { p -> p.fechaConfirmacionDocumentacionEscaneadaRecibida != null }?.fechaConfirmacionDocumentacionEscaneadaRecibida ?: it.fechaCreacion }
             .map { e ->
                 val p = e.datos_personales
-                // Usar el último proceso que tenga cert_uuid (puede no ser el activo si hay uno nuevo sin certificar)
-                val pr = e.procesos.lastOrNull { !it.cert_uuid.isNullOrBlank() }
+                val pr = e.procesos.lastOrNull { it.fechaConfirmacionDocumentacionEscaneadaRecibida != null }
                     ?: e.procesoActivoOrNull()
                 val proy = pr?.datos_proyecto
                 val nombre = listOf(p.nombre, p.apellido_paterno, p.apellido_materno)
@@ -66,8 +65,7 @@ class RepositorioController(
         }
         val eg = egresadoRepository.findById(oid).orElse(null)
             ?: return ResponseEntity.notFound().build<Any>()
-        // Buscar el proceso certificado (puede no ser el último si el egresado inició uno nuevo)
-        val pr = eg.procesos.lastOrNull { !it.cert_uuid.isNullOrBlank() }
+        val pr = eg.procesos.lastOrNull { it.fechaConfirmacionDocumentacionEscaneadaRecibida != null }
             ?: eg.procesoActivoOrNull()
             ?: return ResponseEntity.notFound().build<Any>()
 
