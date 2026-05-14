@@ -40,7 +40,25 @@ export class RepositorioComponent implements OnInit {
     });
   }
 
+  descargando = new Set<string>();
+
   constructor(readonly repositorioService: RepositorioService) {}
+
+  verDocumento(egresadoId: string): void {
+    if (this.descargando.has(egresadoId)) return;
+    this.descargando.add(egresadoId);
+    this.repositorioService.descargarDocumento(egresadoId).subscribe({
+      next: (blob) => {
+        this.descargando.delete(egresadoId);
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank', 'noopener');
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      },
+      error: () => {
+        this.descargando.delete(egresadoId);
+      },
+    });
+  }
 
   ngOnInit(): void {
     this.repositorioService.listar().subscribe({

@@ -69,7 +69,8 @@
   border-color: transparent;
 }
 
-.departamento-tab--residencia.activo {
+.departamento-tab--residencia.activo,
+.departamento-tab--pendientes.activo {
   background: #3182ce;
   color: #fff;
 }
@@ -122,6 +123,14 @@
   to   { transform: scale(1);   opacity: 1; }
 }
 
+.departamento-tab-badge--total {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+  box-shadow: none;
+  animation: none;
+}
+
 .departamento-btn-revision {
   padding: 0.35rem 0.75rem;
   border: none;
@@ -138,6 +147,12 @@
   color: #c53030;
   border-color: rgba(255, 255, 255, 0.6);
   box-shadow: none;
+}
+
+.departamento-tab.activo .departamento-tab-badge--total {
+  background: rgba(255, 255, 255, 0.9);
+  color: #1d4ed8;
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 .departamento-tab:focus-visible {
@@ -796,37 +811,26 @@
   background: #eff6ff;
 }
 
-.departamento-btn-seguimiento {
+.departamento-btn-registrar {
   padding: 0.25rem 0.55rem;
-  border: 1px solid #6366f1;
+  border: 1px solid #0369a1;
   border-radius: 5px;
   background: #fff;
-  color: #4338ca;
+  color: #0369a1;
   font-size: 0.74rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background 0.12s, border-color 0.12s;
 }
 
-.departamento-btn-seguimiento:hover {
-  background: #eef2ff;
+.departamento-btn-registrar:hover:not(:disabled) {
+  background: #e0f2fe;
+  border-color: #0284c7;
 }
 
-.departamento-btn-seguimiento-panel {
-  min-height: 30px;
-  padding: 0.28rem 0.6rem;
-  border: 1px solid #6366f1;
-  border-radius: 5px;
-  background: #fff;
-  color: #4338ca;
-  font-size: 0.74rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.12s;
-}
-
-.departamento-btn-seguimiento-panel:hover {
-  background: #eef2ff;
+.departamento-btn-registrar:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .departamento-anteproyecto-info {
@@ -849,10 +853,34 @@
 }
 
 .departamento-anteproyecto-nota {
-  margin: 0;
+  margin: 0 0 0.5rem;
   font-size: 0.78rem;
   color: #64748b;
   line-height: 1.45;
+}
+
+.departamento-btn-confirmar-xxxii {
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid #d97706;
+  border-radius: 6px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  text-align: center;
+}
+
+.departamento-btn-confirmar-xxxii:hover:not(:disabled) {
+  background: #fef3c7;
+  border-color: #b45309;
+}
+
+.departamento-btn-confirmar-xxxii:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .departamento-doc-cargando,

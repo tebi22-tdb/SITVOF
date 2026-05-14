@@ -81,7 +81,7 @@ export const repositorioGuard: CanActivateFn = (route, state) => {
   const router = inject(Router);
   return auth.me().pipe(
     map(() => {
-      if (auth.isCoordinador() || auth.isSubdireccionAcademica()) return true;
+      if (auth.puedeAccederRepositorio()) return true;
       if (auth.isAcademico()) {
         router.navigate(['/departamento-academico']);
         return false;

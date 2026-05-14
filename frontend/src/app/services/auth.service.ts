@@ -134,6 +134,17 @@ export class AuthService {
     return this.usuario?.rol?.toLowerCase().trim() === 'subdireccion_academica';
   }
 
+  /** Solo coordinador, administrador y subdireccion_academica pueden acceder al repositorio. */
+  puedeAccederRepositorio(): boolean {
+    const raw = this.usuario?.rol?.toLowerCase().trim() ?? '';
+    if (!raw) return false;
+    const partes = raw.split(/\s*[-–—]\s*|,/g).map((p) => p.trim()).filter(Boolean);
+    const candidatos = partes.length ? partes : [raw];
+    return candidatos.some(
+      (r) => r === 'coordinador' || r === 'administrador' || r === 'subdireccion_academica',
+    );
+  }
+
   isEgresado(): boolean {
     return this.usuario?.rol?.toLowerCase() === 'egresado';
   }

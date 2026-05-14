@@ -1,5 +1,6 @@
 package com.sit_titulacion.sit.service
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.sit_titulacion.sit.domain.Usuario
 import com.sit_titulacion.sit.repository.EgresadoRepository
 import com.sit_titulacion.sit.repository.UsuarioRepository
@@ -177,7 +178,7 @@ class UsuarioService(
         val correo: String,
         val nombre: String,
         val rol: String,
-        val esEgresado: Boolean,
+        @JsonProperty("es_egresado") val esEgresado: Boolean,
     )
 
     fun buscarPorUsername(username: String): UsuarioCuentaInfo? {

@@ -355,13 +355,23 @@ class EgresadoService(
         val todos = porCarrera.count { it.procesoActivoOrNull()?.fechaEnviadoDepartamentoAcademico != null }
         val sinodales = porCarrera.count {
             val pr = it.procesoActivoOrNull()
-            pr?.fechaSolicitudSinodales != null && pr.fechaConfirmacionSinodalesRecibidos == null
+            pr?.fechaSolicitudSinodales != null && pr.fechaAsignacionSinodales == null
+        }
+        val totalAnteproyecto = porCarrera.count {
+            val pr = it.procesoActivoOrNull()
+            pr != null && !esResidenciaProfesional(it) &&
+                pr.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null &&
+                pr.fechaEnviadoDepartamentoAcademico == null
         }
         val anteproyecto = porCarrera.count {
             val pr = it.procesoActivoOrNull()
             pr != null && !esResidenciaProfesional(it) &&
                 pr.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null &&
+                pr.fechaRegistradoDepartamento == null &&
                 pr.fechaEnviadoDepartamentoAcademico == null
+        }
+        val totalSinodales = porCarrera.count {
+            it.procesoActivoOrNull()?.fechaSolicitudSinodales != null
         }
         return mapOf(
             "pendientes" to pendientes,
@@ -370,6 +380,8 @@ class EgresadoService(
             "todos" to todos,
             "sinodales_por_asignar" to sinodales,
             "anteproyecto" to anteproyecto,
+            "total_anteproyecto" to totalAnteproyecto,
+            "total_sinodales" to totalSinodales,
         )
     }
 
@@ -405,9 +417,15 @@ class EgresadoService(
                     pr.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null &&
                     pr.fechaEnviadoDepartamentoAcademico == null
             }
-            else -> all.filter {
-                it.procesoActivoOrNull()?.fechaEnviadoDepartamentoAcademico != null &&
-                    !liberacionRevisionCompletada(it) && !enCorreccionAcademico(it)
+            else -> if (!segmentoSlug.isNullOrBlank()) {
+                // Vista departamento: muestra todos los de residencia (liberados y pendientes)
+                all.filter { it.procesoActivoOrNull()?.fechaEnviadoDepartamentoAcademico != null }
+            } else {
+                // Vista global de coordinación: solo pendientes de liberación
+                all.filter {
+                    it.procesoActivoOrNull()?.fechaEnviadoDepartamentoAcademico != null &&
+                        !liberacionRevisionCompletada(it) && !enCorreccionAcademico(it)
+                }
             }
         }
         val formatter = DateTimeFormatter.ISO_INSTANT
@@ -427,6 +445,7 @@ class EgresadoService(
                 fechaSolicitudSinodales = pr.fechaSolicitudSinodales?.let { formatter.format(it) },
                 sinodalesAsignados = pr.fechaAsignacionSinodales != null,
                 fechaEnvioAnteproyectoDepto = pr.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico?.let { formatter.format(it) },
+                fechaRegistradoDepartamento = pr.fechaRegistradoDepartamento?.let { formatter.format(it) },
             )
         }
     }
@@ -697,6 +716,17 @@ class EgresadoService(
         if (p.fechaRecibidoRegistroLiberacion != null) return false
         val ahora = Instant.now()
         egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaRecibidoRegistroLiberacion = ahora, fecha_actualizacion = ahora)))
+        return true
+    }
+
+    /** Marca el anteproyecto como registrado en la bandeja del departamento. Acción independiente del flujo de seguimiento. */
+    fun marcarRegistradoDepartamento(id: String): Boolean {
+        val e = cargarEgresadoPorId(id) ?: return false
+        val p = e.procesoActivoOrNull() ?: return false
+        if (p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico == null) return false
+        if (p.fechaRegistradoDepartamento != null) return false
+        val ahora = Instant.now()
+        egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaRegistradoDepartamento = ahora, fecha_actualizacion = ahora)))
         return true
     }
 

@@ -169,7 +169,7 @@ export class GestionCuentasComponent {
         this.mensajeCorreo = { ok: true, texto: 'Correo actualizado correctamente.' };
         if (this.usuario) {
           this.usuario.correo = this.nuevoCorreo.trim();
-          if (!this.usuario.es_egresado) this.usuario.username = this.nuevoCorreo.trim();
+          if (!this.usuario.es_egresado && this.usuario.rol.toLowerCase() !== 'egresado') this.usuario.username = this.nuevoCorreo.trim();
         }
         this.nuevoCorreo = '';
       },
