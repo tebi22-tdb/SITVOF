@@ -22,6 +22,9 @@ data class ProcesoTitulacion(
     // ── Flujo no residencia (16 pasos) ──────────────────────────────────────
     @Field("fecha_envio_solicitud_registro_anteproyecto_depto_academico")
     val fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico: Instant? = null,
+    /** Dashboard del departamento: marca que el registro fue acusado/procesado en la bandeja. Independiente del flujo de seguimiento. */
+    @Field("fecha_registrado_departamento")
+    val fechaRegistradoDepartamento: Instant? = null,
     /** No residencia (flujo 16): la DEP confirma recepción de anexo XXXI, anteproyecto y anexo XXXII antes del plazo de desarrollo. */
     @Field("fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii")
     val fechaConfirmacionRecepcionInicialAnexosXxxiXxxii: Instant? = null,

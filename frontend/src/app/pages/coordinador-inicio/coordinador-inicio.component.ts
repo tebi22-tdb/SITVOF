@@ -104,7 +104,7 @@ import { AuthService } from '../../services/auth.service';
               </svg>
             </div>
           </button>
-          <button type="button" class="card" (click)="irRepositorio()">
+          <button *ngIf="puedeVerRepositorio" type="button" class="card" (click)="irRepositorio()">
             <div class="card-texto">
               <h2>Repositorio de titulados</h2>
               <p>Consulta los egresados titulados con su documento final certificado.</p>
@@ -216,6 +216,10 @@ export class CoordinadorInicioComponent {
     private router: Router,
     private auth: AuthService,
   ) {}
+
+  get puedeVerRepositorio(): boolean {
+    return this.auth.puedeAccederRepositorio();
+  }
 
   get tituloCardAlta(): string {
     return this.auth.puedeAdministrarUsuariosStaff()

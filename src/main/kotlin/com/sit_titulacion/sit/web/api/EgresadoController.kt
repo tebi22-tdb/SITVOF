@@ -441,6 +441,12 @@ class EgresadoController(
         }
     }
 
+    /** Dashboard departamento: marca el anteproyecto como registrado/acusado en la bandeja. Independiente del flujo de seguimiento. */
+    @PostMapping("/{id}/departamento/marcar-registrado")
+    fun marcarRegistradoDepartamento(@PathVariable id: String): ResponseEntity<*> =
+        if (egresadoService.marcarRegistradoDepartamento(id)) ResponseEntity.ok().build<Void>()
+        else ResponseEntity.badRequest().body(mapOf("error" to "No se pudo marcar como registrado."))
+
     /** No residencia (16 pasos): envío solicitud registro y anteproyecto al departamento académico. */
     @PostMapping("/{id}/no-residencia/solicitar-registro-anteproyecto")
     fun solicitarRegistroAnteproyectoNoResidencia(@PathVariable id: String): ResponseEntity<*> =

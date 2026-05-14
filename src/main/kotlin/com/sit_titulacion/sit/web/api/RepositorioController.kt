@@ -1,5 +1,7 @@
 package com.sit_titulacion.sit.web.api
 
+import com.sit_titulacion.sit.config.RolSoporte
+import com.sit_titulacion.sit.config.UsuarioPrincipal
 import com.sit_titulacion.sit.repository.EgresadoRepository
 import com.sit_titulacion.sit.web.api.dto.TituladoPublicoDto
 import org.bson.types.ObjectId
@@ -8,8 +10,10 @@ import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
 import org.springframework.data.mongodb.gridfs.GridFsTemplate
 import org.springframework.http.HttpHeaders
+import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
@@ -23,8 +27,19 @@ class RepositorioController(
     private val gridFsTemplate: GridFsTemplate,
 ) {
 
+    private fun puedeAccederRepositorio(principal: UsuarioPrincipal?): Boolean {
+        if (principal == null) return false
+        return RolSoporte.tieneAlgunRol(
+            principal.getRol(),
+            "coordinador",
+            "administrador",
+            "subdireccion_academica",
+        )
+    }
+
     @GetMapping
-    fun listar(): ResponseEntity<List<TituladoPublicoDto>> {
+    fun listar(@AuthenticationPrincipal principal: UsuarioPrincipal?): ResponseEntity<List<TituladoPublicoDto>> {
+        if (!puedeAccederRepositorio(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         val titulados = egresadoRepository.findConDocumentacionConfirmada()
             .sortedByDescending { it.procesos.lastOrNull { p -> p.fechaConfirmacionDocumentacionEscaneadaRecibida != null }?.fechaConfirmacionDocumentacionEscaneadaRecibida ?: it.fechaCreacion }
             .map { e ->
@@ -57,9 +72,12 @@ class RepositorioController(
         return ResponseEntity.ok(titulados)
     }
 
-    /** Descarga pública del documento final certificado de un egresado titulado. */
     @GetMapping("/{egresadoId}/documento")
-    fun descargarDocumento(@PathVariable egresadoId: String): ResponseEntity<*> {
+    fun descargarDocumento(
+        @PathVariable egresadoId: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (!puedeAccederRepositorio(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Any>()
         val oid = try { ObjectId(egresadoId) } catch (_: Exception) {
             return ResponseEntity.badRequest().build<Any>()
         }

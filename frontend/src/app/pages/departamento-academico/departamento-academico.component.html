@@ -16,12 +16,20 @@
     <nav class="departamento-tabs" aria-label="Filtrar por estado">
       <button
         type="button"
-        class="departamento-tab departamento-tab--residencia"
+        class="departamento-tab"
+        [class.departamento-tab--pendientes]="mostrarTabsRevisionCoordinacion"
+        [class.departamento-tab--residencia]="!mostrarTabsRevisionCoordinacion"
         [class.activo]="tabActivo === 'pendientes'"
         (click)="cambiarTab('pendientes')"
       >
-        Residencia
-        <span *ngIf="counts.pendientes > 0" class="departamento-tab-badge">{{ counts.pendientes }}</span>
+        {{ mostrarTabsRevisionCoordinacion ? 'Pendientes' : 'Residencia' }}
+        <ng-container *ngIf="mostrarTabsRevisionCoordinacion">
+          <span *ngIf="counts.pendientes > 0" class="departamento-tab-badge">{{ counts.pendientes }}</span>
+        </ng-container>
+        <ng-container *ngIf="!mostrarTabsRevisionCoordinacion">
+          <span *ngIf="counts.pendientes > 0" class="departamento-tab-badge">{{ counts.pendientes }}</span>
+          <span *ngIf="counts.pendientes === 0 && counts.aprobados > 0" class="departamento-tab-badge departamento-tab-badge--total">{{ counts.aprobados }}</span>
+        </ng-container>
       </button>
       <button
         *ngIf="mostrarTabsRevisionCoordinacion"
@@ -31,7 +39,6 @@
         (click)="cambiarTab('en_correccion')"
       >
         En corrección
-        <span *ngIf="counts.en_correccion > 0" class="departamento-tab-badge">{{ counts.en_correccion }}</span>
       </button>
       <button
         *ngIf="mostrarTabsRevisionCoordinacion"
@@ -41,7 +48,6 @@
         (click)="cambiarTab('aprobados')"
       >
         Aprobados
-        <span *ngIf="counts.aprobados > 0" class="departamento-tab-badge">{{ counts.aprobados }}</span>
       </button>
       <button
         *ngIf="!mostrarTabsRevisionCoordinacion"
@@ -52,6 +58,7 @@
       >
         Anteproyecto
         <span *ngIf="(counts.anteproyecto ?? 0) > 0" class="departamento-tab-badge">{{ counts.anteproyecto }}</span>
+        <span *ngIf="(counts.anteproyecto ?? 0) === 0 && (counts.total_anteproyecto ?? 0) > 0" class="departamento-tab-badge departamento-tab-badge--total">{{ counts.total_anteproyecto }}</span>
       </button>
       <button
         *ngIf="!mostrarTabsRevisionCoordinacion"
@@ -62,6 +69,7 @@
       >
         Sinodales
         <span *ngIf="(counts.sinodales_por_asignar ?? 0) > 0" class="departamento-tab-badge">{{ counts.sinodales_por_asignar }}</span>
+        <span *ngIf="(counts.sinodales_por_asignar ?? 0) === 0 && (counts.total_sinodales ?? 0) > 0" class="departamento-tab-badge departamento-tab-badge--total">{{ counts.total_sinodales }}</span>
       </button>
       <button
         type="button"
@@ -125,7 +133,7 @@
                 </p>
                 <div class="departamento-doc-card-acciones">
                   <button
-                    *ngIf="esResidencia(seleccionado.modalidad) && seleccionado.estado_revision !== 'aprobado'"
+                    *ngIf="tabActivo !== 'todos' && esResidencia(seleccionado.modalidad) && seleccionado.estado_revision !== 'aprobado'"
                     type="button"
                     class="departamento-btn-liberar departamento-btn-liberar--panel"
                     (click)="liberar(seleccionado.id)"
@@ -134,32 +142,32 @@
                     {{ liberandoId === seleccionado.id ? 'Liberando…' : 'Liberar' }}
                   </button>
                   <button
-                    *ngIf="!esResidencia(seleccionado.modalidad) && seleccionado.estado_revision !== 'aprobado' && tabActivo !== 'anteproyecto'"
+                    *ngIf="tabActivo !== 'todos' && tabActivo !== 'anteproyecto' && !esResidencia(seleccionado.modalidad) && seleccionado.estado_revision !== 'aprobado'"
                     type="button"
                     class="departamento-btn-revision-panel"
                     (click)="irARevision(seleccionado)"
                   >
                     Revisar expediente
                   </button>
-                  <button
-                    *ngIf="tabActivo === 'anteproyecto'"
-                    type="button"
-                    class="departamento-btn-seguimiento-panel"
-                    (click)="verEnSeguimiento(seleccionado)"
-                  >
-                    Ver en seguimiento
-                  </button>
                 </div>
                 <div *ngIf="tabActivo === 'anteproyecto'" class="departamento-anteproyecto-info">
                   <div class="departamento-anteproyecto-badge">
                     <span class="departamento-badge departamento-badge--aprobado">Anteproyecto enviado</span>
                     <span class="departamento-badge departamento-badge--fisico">Anexo XXXI enviado en físico</span>
+                    <span *ngIf="seleccionado.fecha_registrado_departamento" class="departamento-badge departamento-badge--aprobado">Registrado</span>
                   </div>
                   <p class="departamento-anteproyecto-nota">
                     Enviado el {{ fechaEnvioAnteproyecto(seleccionado) }}.
-                    El departamento debe generar el Anexo XXXII y entregarlo en físico a la DEP.
                   </p>
-                  <!-- Colaborador: conectar aquí el botón de confirmación de Anexo XXXII recibido -->
+                  <button
+                    *ngIf="!seleccionado.fecha_registrado_departamento"
+                    type="button"
+                    class="departamento-btn-confirmar-xxxii"
+                    [disabled]="confirmandoXxxiiId === seleccionado.id"
+                    (click)="marcarRegistrado(seleccionado)"
+                  >
+                    {{ confirmandoXxxiiId === seleccionado.id ? 'Marcando…' : 'Marcar como registrado' }}
+                  </button>
                 </div>
               </div>
               <div *ngIf="cargandoDocumento" class="departamento-doc-cargando">Cargando documento…</div>
@@ -223,12 +231,15 @@
           <td class="departamento-td departamento-td--fecha">{{ fechaEnvioAnteproyecto(item) }}</td>
           <td class="departamento-td departamento-td--accion">
             <button
+              *ngIf="!item.fecha_registrado_departamento"
               type="button"
-              class="departamento-btn-seguimiento"
-              (click)="verEnSeguimiento(item); $event.stopPropagation()"
+              class="departamento-btn-registrar"
+              [disabled]="confirmandoXxxiiId === item.id"
+              (click)="marcarRegistrado(item, $event)"
             >
-              Ver seguimiento
+              {{ confirmandoXxxiiId === item.id ? '…' : 'Marcar como registrado' }}
             </button>
+            <span *ngIf="item.fecha_registrado_departamento" class="departamento-badge departamento-badge--aprobado">Registrado</span>
           </td>
         </tr>
       </tbody>
@@ -313,7 +324,7 @@
           <td class="departamento-td departamento-td--fecha">{{ ultimoCambio(item) }}</td>
           <td class="departamento-td departamento-td--accion">
             <button
-              *ngIf="esResidencia(item.modalidad) && item.estado_revision !== 'aprobado'"
+              *ngIf="tabActivo !== 'todos' && esResidencia(item.modalidad) && item.estado_revision !== 'aprobado'"
               type="button"
               class="departamento-btn-liberar"
               (click)="liberar(item.id); $event.stopPropagation()"
@@ -322,7 +333,7 @@
               {{ liberandoId === item.id ? '…' : 'Liberar' }}
             </button>
             <button
-              *ngIf="!esResidencia(item.modalidad) && item.estado_revision !== 'aprobado'"
+              *ngIf="tabActivo !== 'todos' && !esResidencia(item.modalidad) && item.estado_revision !== 'aprobado'"
               type="button"
               class="departamento-btn-liberar"
               (click)="irARevision(item); $event.stopPropagation()"
