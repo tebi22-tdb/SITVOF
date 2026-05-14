@@ -56,6 +56,8 @@ export interface EgresadoDetail {
   procesos_anteriores?: ProcesoAnterior[];
   /** Fecha en que se marcó "Enviado al departamento académico" (paso 1.1). */
   fecha_envio_solicitud_registro_anteproyecto_depto_academico?: string;
+  /** Marca del departamento académico (Anteproyecto registrado); habilita confirmación DEP paso 2 en no residencia. */
+  fecha_registrado_departamento?: string;
   fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii?: string;
   fecha_recepcion_trabajo_division_estudios_prof?: string;
   fecha_solicitud_registro_liberacion_depto_academico?: string;
@@ -356,6 +358,13 @@ export class EgresadoService {
   /** Seguimiento del egresado: revisiones enviadas desde apoyo/departamento. */
   getMisRevisionesEnviadas(): Observable<RevisionApi[]> {
     return this.http.get<RevisionApi[]>(`${API}/mi-seguimiento/revisiones`);
+  }
+
+  /** Egresado: sustituye el PDF/Word del expediente que revisa Coordinación de Apoyo a la Titulación (con observaciones pendientes). */
+  reemplazarDocumentoExpedienteMiSeguimiento(archivo: File): Observable<void> {
+    const form = new FormData();
+    form.append('archivo', archivo, archivo.name);
+    return this.http.post<void>(`${API}/mi-seguimiento/documento-expediente/reemplazar`, form);
   }
 
   descargarDocumentoRevision(egresadoId: string, revisionId: string): Observable<{ blob: Blob; fileName: string }> {

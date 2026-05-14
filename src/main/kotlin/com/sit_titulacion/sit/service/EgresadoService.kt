@@ -673,13 +673,79 @@ class EgresadoService(
         return true
     }
 
+    /**
+     * Egresado sustituye el PDF/Word del expediente ante Coordinación de Apoyo a la Titulación,
+     * solo cuando la última revisión enviada pide observaciones y el documento aún no está liberado.
+     * @return null si OK, mensaje de error en español si no aplica.
+     */
+    fun reemplazarDocumentoExpedienteEgresadoTrasRevision(egresadoId: String, archivo: MultipartFile): String? {
+        if (archivo.isEmpty) return "Selecciona un archivo no vacío."
+        val objectId = try { ObjectId(egresadoId) } catch (_: Exception) { return "Identificador no válido." }
+        val existente = egresadoRepository.findById(objectId).orElse(null) ?: return "No se encontró tu registro."
+        val eid = existente.id ?: return "Registro incompleto."
+        val p = existente.procesoActivoOrNull() ?: return "No hay un proceso activo."
+        if (p.documento_adjunto.gridfs_id == null) {
+            return "No hay documento en el sistema que reemplazar. Contacta a tu división de estudios."
+        }
+        if (p.fechaEnviadoDepartamentoAcademico == null) {
+            return "Tu expediente aún no está en revisión por Coordinación de Apoyo a la Titulación."
+        }
+        if (liberacionRevisionCompletada(existente)) {
+            return "El documento ya fue liberado; no puedes enviar otro archivo por esta opción."
+        }
+        val ultima = revisionService.ultimaRevision(eid, p.id)
+            ?: return "No hay revisiones registradas."
+        if (!ultima.enviadoAlEgresado) {
+            return "Aún no hay una revisión enviada a la que puedas responder con un documento corregido."
+        }
+        if (ultima.resultado != "observaciones") {
+            return "Solo puedes subir corrección cuando la última revisión indica observaciones."
+        }
+        val ahora = Instant.now()
+        val gridFsIdAnterior = p.documento_adjunto.gridfs_id
+        return try {
+            val gridFsIdNuevo = subirArchivo(archivo)
+            val nuevoAdj = DocumentoAdjunto(
+                gridfs_id = gridFsIdNuevo,
+                nombre_original = archivo.originalFilename ?: "",
+                content_type = archivo.contentType ?: "application/octet-stream",
+                tamanio_bytes = archivo.size,
+                fecha_subida = ahora,
+            )
+            egresadoRepository.save(
+                existente.actualizarProcesoActivo(
+                    p.copy(
+                        documento_adjunto = nuevoAdj,
+                        cert_uuid = null,
+                        cert_hash = null,
+                        fechaCertificacion = null,
+                        fecha_actualizacion = ahora,
+                    ),
+                ),
+            )
+            if (gridFsIdAnterior != null) {
+                try {
+                    gridFsTemplate.delete(Query.query(Criteria.where("_id").`is`(gridFsIdAnterior)))
+                } catch (ex: Exception) {
+                    log.warn("No se pudo eliminar el adjunto GridFS anterior {}: {}", gridFsIdAnterior, ex.message)
+                }
+            }
+            log.info("Documento expediente reemplazado por egresado egresadoId={}", egresadoId)
+            null
+        } catch (ex: IllegalArgumentException) {
+            ex.message ?: "Archivo no válido (solo PDF o Word .docx)."
+        }
+    }
+
     fun marcarEnviadoDepartamentoAcademico(id: String): Boolean {
         val objectId = try { ObjectId(id) } catch (_: Exception) { return false }
         val e = egresadoRepository.findById(objectId).orElse(null) ?: return false
         val p = e.procesoActivoOrNull() ?: return false
         if (p.fechaEnviadoDepartamentoAcademico != null) return false
         if (!esResidenciaProfesional(e) && p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null) {
-            if (p.fechaRecepcionRegistroLiberacionDeptoAcademico == null) return false
+            val liberacionOk = p.fechaRecepcionRegistroLiberacionDeptoAcademico != null ||
+                (p.fechaRecepcionTrabajoDivisionEstudiosProf != null && p.fechaSolicitudRegistroLiberacionDeptoAcademico == null)
+            if (!liberacionOk) return false
         }
         val ahora = Instant.now()
         val pEnviado = p.copy(fechaEnviadoDepartamentoAcademico = ahora, fecha_actualizacion = ahora)
@@ -746,6 +812,7 @@ class EgresadoService(
         if (esResidenciaProfesional(e)) return false
         val p = e.procesoActivoOrNull() ?: return false
         if (p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico == null) return false
+        if (p.fechaRegistradoDepartamento == null) return false
         if (p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii != null) return false
         if (p.fechaRecepcionTrabajoDivisionEstudiosProf != null) return false
         val ahora = Instant.now()
@@ -765,7 +832,16 @@ class EgresadoService(
         if (p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii == null) return false
         if (p.fechaRecepcionTrabajoDivisionEstudiosProf != null) return false
         val ahora = Instant.now()
-        egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaRecepcionTrabajoDivisionEstudiosProf = ahora, fecha_actualizacion = ahora)))
+        egresadoRepository.save(
+            e.actualizarProcesoActivo(
+                p.copy(
+                    fechaRecepcionTrabajoDivisionEstudiosProf = ahora,
+                    fechaSolicitudRegistroLiberacionDeptoAcademico = ahora,
+                    fechaRecepcionRegistroLiberacionDeptoAcademico = ahora,
+                    fecha_actualizacion = ahora,
+                ),
+            ),
+        )
         return true
     }
 
@@ -1208,6 +1284,7 @@ class EgresadoService(
                 }
             } else emptyList(),
             fecha_envio_solicitud_registro_anteproyecto_depto_academico = pr?.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico?.let { formatter.format(it) },
+            fecha_registrado_departamento = pr?.fechaRegistradoDepartamento?.let { formatter.format(it) },
             fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii = pr?.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii?.let { formatter.format(it) },
             fecha_recepcion_trabajo_division_estudios_prof = pr?.fechaRecepcionTrabajoDivisionEstudiosProf?.let { formatter.format(it) },
             fecha_solicitud_registro_liberacion_depto_academico = pr?.fechaSolicitudRegistroLiberacionDeptoAcademico?.let { formatter.format(it) },

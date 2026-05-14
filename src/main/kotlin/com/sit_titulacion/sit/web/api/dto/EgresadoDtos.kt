@@ -146,6 +146,8 @@ data class EgresadoDetailDto(
     @JsonProperty("procesos_anteriores") val procesos_anteriores: List<ProcesoAnteriorDto> = emptyList(),
     @JsonProperty("fecha_envio_solicitud_registro_anteproyecto_depto_academico")
     val fecha_envio_solicitud_registro_anteproyecto_depto_academico: String? = null,
+    /** Marca del departamento académico (bandeja Anteproyecto); requisito para que la DEP confirme el paso 2 en no residencia. */
+    @JsonProperty("fecha_registrado_departamento") val fecha_registrado_departamento: String? = null,
     @JsonProperty("fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii")
     val fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii: String? = null,
     @JsonProperty("fecha_recepcion_trabajo_division_estudios_prof")

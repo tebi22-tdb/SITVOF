@@ -1,8 +1,9 @@
 /**
  * No residencia, flujo 16:
- * - Hasta que división confirme la recepción del trabajo: plazo de desarrollo desde el envío
- *   del anteproyecto (12 meses Tesis/Tesina/Investigación, 18 Monografía).
- * - Tras confirmar recepción: concluye el plazo de desarrollo; cuenta un plazo de 6 meses
+ * - Hasta que división confirme la recepción del trabajo: plazo de desarrollo (12/18 meses)
+ *   cuenta solo desde la confirmación en la DEP del paso 2 (anexo XXXI, anteproyecto y XXXII),
+ *   no desde el envío al departamento académico.
+ * - Tras confirmar recepción del trabajo en división: concluye el plazo de desarrollo; 6 meses
  *   calendario desde esa fecha para el proceso de titulación posterior.
  * Semáforo respecto a la fecha límite con margen de rezago antes del vencimiento.
  */
@@ -75,12 +76,11 @@ export function calcularPlazoDesarrolloProyectoNoRes(opts: {
   modalidad: string | undefined | null;
   fechaRecepcionDivision?: string | null;
   fechaEnvioAnteproyecto?: string | null;
-  /** Si existe, el plazo de desarrollo (12/18 meses) cuenta desde esta confirmación de la DEP (flujo 16). */
+  /** Confirmación DEP paso 2 (flujo 16): inicio del plazo de desarrollo 12/18 meses (obligatoria si aún no hay recepción en división). */
   fechaConfirmacionInicial?: string | null;
   hoy?: Date;
 }): PlazoDesarrolloProyectoVista | null {
   const recep = opts.fechaRecepcionDivision?.trim();
-  const envio = opts.fechaEnvioAnteproyecto?.trim();
   const inicial = opts.fechaConfirmacionInicial?.trim();
 
   let fechaInicio: Date;
@@ -95,12 +95,12 @@ export function calcularPlazoDesarrolloProyectoNoRes(opts: {
     usaInicioProvisionalDesdeEnvio = false;
     fasePostRecepcion = true;
   } else {
-    const inicioIso = inicial || envio;
+    const inicioIso = inicial?.trim();
     if (!inicioIso) return null;
     fechaInicio = new Date(inicioIso);
     if (isNaN(fechaInicio.getTime())) return null;
     mesesTotales = mesesPlazoDesarrolloProyectoNoRes(opts.modalidad);
-    usaInicioProvisionalDesdeEnvio = !inicial;
+    usaInicioProvisionalDesdeEnvio = false;
     fasePostRecepcion = false;
   }
 
@@ -180,6 +180,8 @@ export interface EgresadoPlazoRecepcionInput {
   fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii?: string;
   fecha_recepcion_trabajo_division_estudios_prof?: string;
   fecha_solicitud_registro_liberacion_depto_academico?: string;
+  /** Tras envío a CAT deja de aplicar esta vista de plazo (no residencia). */
+  fecha_enviado_departamento_academico?: string;
 }
 
 /**
@@ -190,7 +192,7 @@ export function calcularVistaPlazoDesarrolloRecepcionNoRes(
   d: EgresadoPlazoRecepcionInput,
 ): PlazoDesarrolloProyectoVista | null {
   if (!d.fecha_envio_solicitud_registro_anteproyecto_depto_academico?.trim()) return null;
-  if (d.fecha_solicitud_registro_liberacion_depto_academico) return null;
+  if (d.fecha_enviado_departamento_academico?.trim()) return null;
   return calcularPlazoDesarrolloProyectoNoRes({
     modalidad: d.datos_proyecto?.modalidad,
     fechaRecepcionDivision: d.fecha_recepcion_trabajo_division_estudios_prof,
@@ -200,8 +202,9 @@ export function calcularVistaPlazoDesarrolloRecepcionNoRes(
 }
 
 /**
- * UI del cuadro verde bajo el paso de recepción: solo mientras falta confirmar la recepción del trabajo.
- * Tras confirmar, el sistema sigue contando 6 meses en {@link calcularVistaPlazoDesarrolloRecepcionNoRes} (bloqueos, badge).
+ * UI del cuadro verde bajo el paso de recepción: solo cuando ya corre el plazo de desarrollo
+ * (confirmación DEP paso 2) y falta confirmar la recepción del trabajo en división.
+ * Tras confirmar recepción del trabajo, el sistema sigue contando 6 meses en {@link calcularVistaPlazoDesarrolloRecepcionNoRes} (bloqueos, badge).
  */
 export function construirPlazoDesarrolloRecepcionUi(d: EgresadoPlazoRecepcionInput): PlazoDesarrolloRecepcionUi | null {
   if (d.fecha_recepcion_trabajo_division_estudios_prof?.trim()) return null;

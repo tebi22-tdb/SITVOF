@@ -803,6 +803,31 @@ class EgresadoController(
             .body(doc.bytes)
     }
 
+    /** Egresado: sube expediente corregido (PDF o .docx) y sustituye el archivo que ve Coordinación de Apoyo a la Titulación. */
+    @PostMapping("/mi-seguimiento/documento-expediente/reemplazar")
+    fun miSeguimientoReemplazarDocumentoExpediente(
+        @RequestParam("archivo") archivo: MultipartFile,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        if (!esRolEgresado(principal)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                mapOf("error" to "Solo el egresado puede subir el expediente corregido desde el seguimiento."),
+            )
+        }
+        val egresadoId = resolverEgresadoIdParaMiSeguimiento(principal)
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("error" to "No se encontró tu registro de titulación."))
+        if (archivo.isEmpty) {
+            return ResponseEntity.badRequest().body(mapOf("error" to "Selecciona un archivo no vacío."))
+        }
+        val err = egresadoService.reemplazarDocumentoExpedienteEgresadoTrasRevision(egresadoId, archivo)
+        return if (err == null) {
+            ResponseEntity.ok().build<Void>()
+        } else {
+            ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("error" to err))
+        }
+    }
+
     @PostMapping("/{id}/agendar-acto-9-3", consumes = [MediaType.APPLICATION_JSON_VALUE])
     fun agendarActo93(
         @PathVariable id: String,

@@ -192,6 +192,7 @@
                 *ngIf="
                   paso.key === 'fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii' &&
                   detalleSeleccionado.fecha_envio_solicitud_registro_anteproyecto_depto_academico &&
+                  detalleSeleccionado.fecha_registrado_departamento &&
                   !detalleSeleccionado.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii
                 "
                 type="button"
@@ -217,37 +218,13 @@
               </button>
               <button
                 *ngIf="
-                  paso.key === 'fecha_solicitud_registro_liberacion_depto_academico' &&
-                  detalleSeleccionado.fecha_recepcion_trabajo_division_estudios_prof &&
-                  !detalleSeleccionado.fecha_solicitud_registro_liberacion_depto_academico
-                "
-                type="button"
-                class="seg-btn"
-                [disabled]="accionesProcesoBloqueadas"
-                (click)="solicitarRegistroLiberacionNoResidencia()"
-              >
-                Enviar
-              </button>
-              <button
-                *ngIf="
-                  paso.key === 'fecha_recepcion_registro_liberacion_depto_academico' &&
-                  detalleSeleccionado.fecha_solicitud_registro_liberacion_depto_academico &&
-                  !detalleSeleccionado.fecha_recepcion_registro_liberacion_depto_academico
-                "
-                type="button"
-                class="seg-btn"
-                [disabled]="accionesProcesoBloqueadas"
-                (click)="confirmarRecepcionRegistroLiberacionNoResidencia()"
-              >
-                Confirmar
-              </button>
-              <button
-                *ngIf="
                   paso.key === 'fecha_enviado_departamento_academico' &&
                   !detalleSeleccionado.fecha_enviado_departamento_academico &&
                   (esResidenciaProfesionalSeguimiento ||
                     noResidenciaFlujoLegacy ||
-                    !!detalleSeleccionado.fecha_recepcion_registro_liberacion_depto_academico)
+                    !!detalleSeleccionado.fecha_recepcion_registro_liberacion_depto_academico ||
+                    (!!detalleSeleccionado.fecha_recepcion_trabajo_division_estudios_prof &&
+                      !detalleSeleccionado.fecha_solicitud_registro_liberacion_depto_academico))
                 "
                 type="button"
                 class="seg-btn"
