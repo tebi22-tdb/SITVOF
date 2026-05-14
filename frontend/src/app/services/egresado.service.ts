@@ -159,6 +159,8 @@ export interface DepartamentoListItem {
   fecha_solicitud_sinodales?: string;
   /** Pestaña Anteproyecto: fecha en que DEP envió anteproyecto + Anexo XXXI al departamento. */
   fecha_envio_anteproyecto_depto?: string;
+  /** Pestaña Anteproyecto: fecha en que se marcó como registrado en la bandeja del departamento. */
+  fecha_registrado_departamento?: string;
 }
 
 /** Revisión guardada (del backend). */
@@ -186,6 +188,9 @@ export interface DepartamentoCounts {
   todos: number;
   sinodales_por_asignar?: number;
   anteproyecto?: number;
+  /** Total de registros en la sección (pendientes + ya registrados). */
+  total_anteproyecto?: number;
+  total_sinodales?: number;
 }
 
 export interface AgendaActo93OcupadosResponse {
@@ -282,6 +287,10 @@ export class EgresadoService {
 
   enviarDepartamentoAcademico(id: string): Observable<unknown> {
     return this.http.post(`${API}/${id}/enviar-departamento-academico`, {});
+  }
+
+  marcarRegistradoDepartamento(id: string): Observable<unknown> {
+    return this.http.post(`${API}/${id}/departamento/marcar-registrado`, {});
   }
 
   solicitarRegistroAnteproyectoNoResidencia(id: string): Observable<unknown> {

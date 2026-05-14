@@ -29,7 +29,7 @@ export class RepositorioService {
     return this.http.get<TituladoPublico[]>(this.api);
   }
 
-  urlDocumento(egresadoId: string): string {
-    return `${this.api}/${egresadoId}/documento`;
+  descargarDocumento(egresadoId: string): Observable<Blob> {
+    return this.http.get(`${this.api}/${egresadoId}/documento`, { responseType: 'blob' });
   }
 }

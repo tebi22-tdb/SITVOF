@@ -24,12 +24,14 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   esModoRevision = false;
   /** Filtro por slug de departamento (solo coordinación; query `?segmento=`). */
   segmentoCoordinacion: string | null = null;
-  counts: DepartamentoCounts = { pendientes: 0, en_correccion: 0, aprobados: 0, todos: 0, sinodales_por_asignar: 0, anteproyecto: 0 };
+  counts: DepartamentoCounts = { pendientes: 0, en_correccion: 0, aprobados: 0, todos: 0, sinodales_por_asignar: 0, anteproyecto: 0, total_anteproyecto: 0, total_sinodales: 0 };
   lista: DepartamentoListItem[] = [];
   cargando = true;
   error = '';
   /** ID del egresado mientras se ejecuta Liberar (evita doble clic). */
   liberandoId: string | null = null;
+  /** ID del egresado mientras se confirma recepción Anexo XXXII (evita doble clic). */
+  confirmandoXxxiiId: string | null = null;
   /** Número de control para buscar (pestañas Todos/Sinodales). */
   searchNumeroControl = '';
   /** Filtro aplicado al hacer clic en Buscar. */
@@ -155,9 +157,24 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     return this.catalogoService.esResidencia(modalidad);
   }
 
-  /** Navega a seguimiento-proceso pre-filtrando por número de control del egresado. */
-  verEnSeguimiento(item: DepartamentoListItem): void {
-    this.router.navigate(['/home/seguimiento-proceso'], { queryParams: { buscar: item.numero_control } });
+  /** Marca el anteproyecto como registrado en la bandeja del departamento. No repercute en el flujo de seguimiento. */
+  marcarRegistrado(item: DepartamentoListItem, ev?: Event): void {
+    ev?.stopPropagation();
+    if (this.confirmandoXxxiiId) return;
+    this.confirmandoXxxiiId = item.id;
+    this.error = '';
+    this.egresadoService.marcarRegistradoDepartamento(item.id).subscribe({
+      next: () => {
+        this.confirmandoXxxiiId = null;
+        this.cargarCounts();
+        this.cargarLista();
+      },
+      error: (err: { error?: { error?: string }; message?: string }) => {
+        this.confirmandoXxxiiId = null;
+        const msg = err?.error?.error ?? err?.message;
+        this.error = msg ? `No se pudo marcar: ${msg}` : 'No se pudo marcar como registrado.';
+      },
+    });
   }
 
   /** Abre Revisión de documento (solo para modalidades que no son residencia). */
@@ -236,6 +253,8 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
           todos: c.todos ?? 0,
           sinodales_por_asignar: c.sinodales_por_asignar ?? 0,
           anteproyecto: c.anteproyecto ?? 0,
+          total_anteproyecto: c.total_anteproyecto ?? 0,
+          total_sinodales: c.total_sinodales ?? 0,
         };
       },
       error: () => {},

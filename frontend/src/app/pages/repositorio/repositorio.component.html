@@ -58,9 +58,14 @@
           <span class="repo-asesores-label">Asesor(es):</span> {{ asesores(t) }}
         </p>
         <div class="repo-card-acciones" *ngIf="t.tiene_documento">
-          <a [href]="repositorioService.urlDocumento(t.egresado_id)" target="_blank" rel="noopener" class="repo-btn-ver">
-            Ver documento
-          </a>
+          <button
+            type="button"
+            class="repo-btn-ver"
+            [disabled]="descargando.has(t.egresado_id)"
+            (click)="verDocumento(t.egresado_id)"
+          >
+            {{ descargando.has(t.egresado_id) ? 'Cargando…' : 'Ver documento' }}
+          </button>
         </div>
       </article>
     </div>
