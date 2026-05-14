@@ -93,6 +93,46 @@
                   <button type="button" class="timeline-revisiones-link" (click)="togglePanelRevisiones()">
                     {{ mostrarPanelRevisiones ? 'Ocultar revisiones' : 'Ver revisiones' }}
                   </button>
+                  <div
+                    *ngIf="expedienteAprobadoPorCoordinacion && !etapaRevisionesCompletada && !estaViendoProcesoAnterior"
+                    class="timeline-expediente-aprobado"
+                    role="status"
+                  >
+                    <p class="timeline-expediente-aprobado__txt">
+                      Tu expediente fue <strong>aprobado</strong> por Coordinación de Apoyo a la Titulación. El documento quedó
+                      liberado para continuar; ya no debes subir correcciones por aquí.
+                    </p>
+                  </div>
+                  <div
+                    *ngIf="tieneRevisionesPendientes && !estaViendoProcesoAnterior"
+                    class="timeline-corregir-expediente"
+                  >
+                    <p class="timeline-corregir-expediente__tit">Subir expediente corregido</p>
+                    <p class="timeline-corregir-expediente__txt">
+                      Sustituye el PDF o Word que tiene Coordinación de Apoyo a la Titulación por tu versión corregida.
+                    </p>
+                    <input
+                      type="file"
+                      accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      class="timeline-doc-escaneada-input"
+                      [disabled]="enviandoCorreccionExpediente || procesoBloqueadoPorVencimientoPlazoAlumno"
+                      (change)="onArchivoCorreccionExpediente($event)"
+                    />
+                    <p *ngIf="archivoCorreccionExpediente" class="timeline-doc-escaneada-lista">
+                      Archivo: {{ archivoCorreccionExpediente.name }}
+                    </p>
+                    <p *ngIf="mensajeCorreccionExpediente" class="timeline-doc-escaneada-msg">{{ mensajeCorreccionExpediente }}</p>
+                    <button
+                      type="button"
+                      class="timeline-doc-escaneada-btn"
+                      [disabled]="
+                        !archivoCorreccionExpediente || enviandoCorreccionExpediente || procesoBloqueadoPorVencimientoPlazoAlumno
+                      "
+                      (click)="enviarExpedienteCorregido()"
+                    >
+                      {{ enviandoCorreccionExpediente ? 'Enviando…' : 'Enviar expediente corregido' }}
+                    </button>
+                  </div>
                 </div>
 
                 <div *ngIf="(paso.clave === 'doc_escaneada_subir' || paso.clave === 'doc_escaneada_unificada') && mostrarFormularioSubidaDocEscaneada" class="timeline-doc-escaneada">

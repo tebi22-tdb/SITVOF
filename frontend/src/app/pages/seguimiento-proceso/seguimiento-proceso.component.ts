@@ -549,16 +549,6 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         descripcion: 'División confirma la recepción del trabajo del egresado; concluye el plazo de desarrollo en curso.',
       },
       {
-        key: 'fecha_solicitud_registro_liberacion_depto_academico',
-        titulo: 'Solicitud de liberación al departamento académico',
-        descripcion: 'La DEP solicita al departamento académico la liberación correspondiente a la titulación.',
-      },
-      {
-        key: 'fecha_recepcion_registro_liberacion_depto_academico',
-        titulo: 'Recepción de liberación del departamento académico',
-        descripcion: 'El departamento académico entrega la liberación; la DEP confirma su recepción.',
-      },
-      {
         key: 'fecha_enviado_departamento_academico',
         titulo: 'Envío a Departamento de Apoyo a la Titulación para revisión',
         descripcion: 'La DEP envía el expediente al Departamento de Apoyo a la Titulación (revisión académica).',
@@ -585,6 +575,27 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       const plazoDesarrolloRecepcion = esRecepcionDesarrollo
         ? construirPlazoDesarrolloRecepcionUi(d) ?? undefined
         : undefined;
+      if (s.key === 'fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii') {
+        const fecha = d.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii;
+        const completado = !!fecha;
+        const paso1Completo = !!d.fecha_envio_solicitud_registro_anteproyecto_depto_academico;
+        const registradoAcademico = !!d.fecha_registrado_departamento;
+        let estado: EstadoPaso;
+        if (completado) estado = 'completado';
+        else if (!paso1Completo || !todosPreviosCompletados) estado = 'pendiente';
+        else if (!registradoAcademico) estado = 'pendiente';
+        else estado = 'en_curso';
+        if (!completado) todosPreviosCompletados = false;
+        return {
+          numero: numeroPaso,
+          key: s.key,
+          titulo: tituloPaso,
+          descripcion: s.descripcion,
+          fecha,
+          estado,
+          plazoDesarrolloRecepcion,
+        };
+      }
       if (s.key === 'fecha_solicitud_documentacion_escaneada') {
         const fecha = d.fecha_solicitud_documentacion_escaneada;
         const completado = !!fecha;

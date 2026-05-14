@@ -958,6 +958,43 @@
   color: #1e40af;
 }
 
+.timeline-corregir-expediente {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+
+.timeline-corregir-expediente__tit {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.timeline-corregir-expediente__txt {
+  margin: 0 0 0.65rem;
+  font-size: 0.85rem;
+  color: #78350f;
+  line-height: 1.4;
+}
+
+.timeline-expediente-aprobado {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  background: #ecfdf5;
+  border: 1px solid #6ee7b7;
+}
+
+.timeline-expediente-aprobado__txt {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #065f46;
+  line-height: 1.45;
+}
+
 @media (max-width: 680px) {
   .seguimiento-aside {
     flex: 1 1 100%;
