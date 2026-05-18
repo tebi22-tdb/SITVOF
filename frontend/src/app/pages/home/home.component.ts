@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { HeaderComponent } from '../../layout/header/header.component';
-import { NuevoEgresadoComponent } from './nuevo-egresado/nuevo-egresado.component';
+import { NuevoEgresadoComponent, NuevoProcesoVencidoPayload } from './nuevo-egresado/nuevo-egresado.component';
 import { EgresadoForm } from '../../core/datos';
 import { EgresadoService, EgresadoItem, EgresadoDetail, EgresadoCrearResponse } from '../../services/egresado.service';
 import { AuthService, CrearUsuarioBody, UsuarioStaffItem } from '../../services/auth.service';
@@ -293,6 +293,25 @@ export class HomeComponent implements OnInit {
         this.mensaje = msg
           ? `Error al guardar: ${msg}`
           : 'Error al guardar. Revisa que el backend esté en marcha y MongoDB conectada.';
+      },
+    });
+  }
+
+  onNuevoProcesoVencido(payload: NuevoProcesoVencidoPayload): void {
+    if (this.guardandoEgresado) return;
+    this.mensaje = '';
+    this.guardandoEgresado = true;
+    this.egresadoService.activarNuevoProceso(payload.id, payload.datos, payload.archivo).subscribe({
+      next: () => {
+        this.guardandoEgresado = false;
+        this.mostrarFormulario = false;
+        this.cargarLista();
+        this.mensaje = 'Nuevo proceso de titulación registrado correctamente.';
+      },
+      error: (err) => {
+        this.guardandoEgresado = false;
+        const msg = err?.error?.error ?? err?.message ?? err?.statusText;
+        this.mensaje = msg ? `Error al registrar nuevo proceso: ${msg}` : 'Error al registrar el nuevo proceso.';
       },
     });
   }
