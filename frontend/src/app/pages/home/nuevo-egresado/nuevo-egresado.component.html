@@ -13,8 +13,20 @@
     </div>
   </div>
 
+  <div *ngIf="modoNuevoProceso" class="nuevo-proceso-banner">
+    <strong>Nuevo proceso de titulación</strong>
+    <p>
+      Se detectó un proceso anterior <strong>vencido</strong> para este número de control.
+      Los datos personales se pre-cargaron del registro existente y no pueden modificarse.
+      Elige una <strong>modalidad diferente</strong> a la anterior, completa los datos del proyecto y adjunta los documentos para iniciar el nuevo proceso.
+    </p>
+  </div>
+
   <div class="form-seccion">
-    <h3 class="form-seccion-titulo">Datos personales</h3>
+    <h3 class="form-seccion-titulo">
+      Datos personales
+      <span *ngIf="modoNuevoProceso" class="datos-precargados-label">pre-cargados del registro existente</span>
+    </h3>
     <div class="form-fila">
       <div class="form-campo" [class.form-campo-error]="campoInvalido('nombre')">
         <label for="nombre">Nombre <span class="form-obligatorio">*</span></label>
@@ -92,7 +104,11 @@
       <label for="modalidad">Modalidad <span class="form-obligatorio">*</span></label>
       <select id="modalidad" formControlName="modalidad">
         <option value="">Seleccione modalidad</option>
-        <option *ngFor="let m of opcionesModalidad" [value]="m">{{ m }}</option>
+        <option
+          *ngFor="let m of opcionesModalidad"
+          [value]="m"
+          [disabled]="esModalidadVencida(m)"
+        >{{ m }}{{ esModalidadVencida(m) ? ' (ya usada)' : '' }}</option>
       </select>
       <span class="form-error-msg" *ngIf="campoInvalido('modalidad')">Campo obligatorio</span>
     </div>
@@ -201,7 +217,9 @@
         controlAltaEstado === 'comprobando'
       "
     >
-      {{ guardando ? (editando ? 'Guardando cambios...' : 'Agregando...') : (editando ? 'Guardar cambios' : 'Agregar') }}
+      {{ guardando
+        ? (modoNuevoProceso ? 'Registrando nuevo proceso...' : (editando ? 'Guardando cambios...' : 'Agregando...'))
+        : (modoNuevoProceso ? 'Registrar nuevo proceso' : (editando ? 'Guardar cambios' : 'Agregar')) }}
     </button>
   </div>
 </form>
