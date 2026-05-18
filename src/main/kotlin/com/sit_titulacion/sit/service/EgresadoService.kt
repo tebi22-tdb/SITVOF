@@ -89,6 +89,7 @@ data class DepartamentoCounts(
 data class VerificacionDuplicadoAlta(
     val estado: String,
     val expedienteEstado: String?,
+    val egresadoId: String? = null,
 )
 
 @Service
@@ -576,11 +577,12 @@ class EgresadoService(
 
         val modalidadNueva = normalizarModalidadAlta(modalidad)
         if (modalidadNueva.isBlank()) {
-            val estadoCerrado = when (expedientes.firstOrNull()?.procesoActivoOrNull()?.estado_general?.trim()?.lowercase()) {
+            val primero = expedientes.firstOrNull()
+            val estadoCerrado = when (primero?.procesoActivoOrNull()?.estado_general?.trim()?.lowercase()) {
                 "vencido" -> "vencido"
                 else -> "titulado"
             }
-            return VerificacionDuplicadoAlta("BLOQUEADO", estadoCerrado)
+            return VerificacionDuplicadoAlta("BLOQUEADO", estadoCerrado, primero?.id?.toString())
         }
 
         val repetida = expedientes.firstOrNull {
@@ -588,7 +590,7 @@ class EgresadoService(
         }
         if (repetida != null) {
             val estado = if (repetida.procesoActivoOrNull()?.estado_general?.trim().equals("vencido", ignoreCase = true)) "vencido" else "titulado"
-            return VerificacionDuplicadoAlta("BLOQUEADO", estado)
+            return VerificacionDuplicadoAlta("BLOQUEADO", estado, repetida.id?.toString())
         }
         return VerificacionDuplicadoAlta("LIBRE", null)
     }

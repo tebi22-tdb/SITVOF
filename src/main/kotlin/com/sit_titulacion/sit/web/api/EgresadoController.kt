@@ -281,6 +281,7 @@ class EgresadoController(
             mapOf(
                 "estado" to r.estado,
                 "expediente_estado" to (r.expedienteEstado ?: ""),
+                "egresado_id" to (r.egresadoId ?: ""),
             ),
         )
     }
