@@ -18,6 +18,12 @@ export interface ActualizarEgresadoPayload {
   archivo: File | null;
 }
 
+export interface NuevoProcesoVencidoPayload {
+  id: string;
+  datos: EgresadoForm;
+  archivo: File | null;
+}
+
 @Component({
   selector: 'app-nuevo-egresado',
   standalone: true,
@@ -31,6 +37,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
   @Output() cancelar = new EventEmitter<void>();
   @Output() agregar = new EventEmitter<AgregarEgresadoPayload>();
   @Output() actualizar = new EventEmitter<ActualizarEgresadoPayload>();
+  @Output() nuevoProcesoVencido = new EventEmitter<NuevoProcesoVencidoPayload>();
 
   carreras: string[] = [];
   niveles: string[] = [];
@@ -50,6 +57,15 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
 
   controlAltaEstado: 'LIBRE' | 'BLOQUEADO' | 'comprobando' | null = null;
   controlAltaExpedienteEstado: 'vencido' | 'titulado' | 'en_proceso' | null = null;
+
+  /** true cuando se detectó un proceso vencido y el form actúa como "nuevo proceso" */
+  modoNuevoProceso = false;
+  egresadoVencidoId: string | null = null;
+  /** Modalidades bloqueadas porque ya se usaron en procesos anteriores (vencidos/titulados) */
+  modalidadesVencidas: string[] = [];
+  private egresadoVencidoNc: string | null = null;
+  private camposPersonales = ['nombre', 'apellido_paterno', 'apellido_materno', 'carrera', 'nivel', 'direccion', 'telefono', 'correo_electronico'];
+
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -142,9 +158,13 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       distinctUntilChanged(),
       switchMap((nc) => {
         const t = (nc || '').trim();
+        if (this.egresadoVencidoNc && t !== this.egresadoVencidoNc) {
+          this.salirModoNuevoProceso();
+        }
         if (t.length < 4) {
           this.controlAltaEstado = null;
           this.controlAltaExpedienteEstado = null;
+          if (this.modoNuevoProceso) this.salirModoNuevoProceso();
           return of(null);
         }
         this.controlAltaEstado = 'comprobando';
@@ -163,6 +183,11 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       const ex = (resultado.expediente_estado || '').trim();
       this.controlAltaExpedienteEstado =
         ex === 'vencido' || ex === 'titulado' || ex === 'en_proceso' ? ex : null;
+
+      if (!this.modoNuevoProceso && resultado.estado === 'BLOQUEADO' && ex === 'vencido' && resultado.egresado_id) {
+        const nc = (this.form.get('numero_control')?.value || '').trim();
+        this.entrarModoNuevoProceso(resultado.egresado_id, nc);
+      }
     });
 
     this.form.get('modalidad')!.valueChanges.pipe(
@@ -195,6 +220,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
   ngOnChanges(changes: SimpleChanges): void {
     const d = changes['egresadoParaEditar']?.currentValue as EgresadoDetail | null;
     if (d) {
+      if (this.modoNuevoProceso) this.salirModoNuevoProceso();
       const isoToDate = (s?: string) => (s ? s.slice(0, 10) : '');
       this.form.patchValue({
         numero_control: d.numero_control,
@@ -247,6 +273,9 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
   /** Mensaje bajo «Número de control» cuando ya está registrado. */
   get mensajeBloqueoNumeroControl(): string {
     if (this.controlAltaEstado !== 'BLOQUEADO') return '';
+    if (this.modoNuevoProceso && this.controlAltaExpedienteEstado === 'vencido') {
+      return 'Selecciona una modalidad diferente a la usada en el proceso vencido para continuar.';
+    }
     if (this.controlAltaExpedienteEstado === 'vencido') {
       return 'Este número de control ya tuvo un expediente vencido. Para registrarlo nuevamente debes elegir una modalidad distinta.';
     }
@@ -254,6 +283,56 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       return 'Este número de control ya fue usado en un expediente titulado. Para registrarlo nuevamente debes elegir una modalidad distinta.';
     }
     return 'Este número de control ya está registrado; el expediente se encuentra en proceso.';
+  }
+
+  /** Devuelve true si la modalidad ya fue usada en un proceso cerrado de este egresado */
+  esModalidadVencida(nombre: string): boolean {
+    const n = nombre.trim().toLowerCase();
+    return this.modalidadesVencidas.some(m => m === n);
+  }
+
+  private entrarModoNuevoProceso(egresadoId: string, nc: string): void {
+    this.egresadoVencidoId = egresadoId;
+    this.egresadoVencidoNc = nc;
+    this.modoNuevoProceso = true;
+    this.egresadoService.obtenerPorId(egresadoId).subscribe({
+      next: (detalle) => {
+        const p = detalle.datos_personales;
+        this.form.patchValue({
+          nombre: p.nombre || '',
+          apellido_paterno: p.apellido_paterno || '',
+          apellido_materno: p.apellido_materno || '',
+          carrera: p.carrera || '',
+          nivel: p.nivel || '',
+          direccion: p.direccion || '',
+          telefono: p.telefono || '',
+          correo_electronico: p.correo_electronico || '',
+        });
+        this.camposPersonales.forEach(f => this.form.get(f)?.disable());
+
+        // Recopilar todas las modalidades ya usadas en procesos cerrados
+        const bloqueadas = new Set<string>();
+        if (detalle.datos_proyecto?.modalidad) {
+          bloqueadas.add(detalle.datos_proyecto.modalidad.trim().toLowerCase());
+        }
+        for (const anterior of (detalle.procesos_anteriores || [])) {
+          if (anterior.modalidad) bloqueadas.add(anterior.modalidad.trim().toLowerCase());
+        }
+        this.modalidadesVencidas = [...bloqueadas];
+      },
+    });
+  }
+
+  private salirModoNuevoProceso(): void {
+    this.modoNuevoProceso = false;
+    this.egresadoVencidoId = null;
+    this.egresadoVencidoNc = null;
+    this.modalidadesVencidas = [];
+    this.camposPersonales.forEach(f => this.form.get(f)?.enable());
+    this.form.patchValue({
+      nombre: '', apellido_paterno: '', apellido_materno: '',
+      carrera: '', nivel: '', direccion: '', telefono: '', correo_electronico: '',
+    });
   }
 
   /** Si la modalidad actual no está en las opciones visibles (por cambiar el checkbox), se limpia. */
@@ -345,7 +424,13 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       curso_titulacion: raw.curso_titulacion ? 'si' : 'no',
       quitar_archivo: this.editando ? this.quitarArchivoSeleccionado : undefined,
     };
-    if (this.editando && this.egresadoParaEditar) {
+    if (this.modoNuevoProceso && this.egresadoVencidoId) {
+      this.nuevoProcesoVencido.emit({
+        id: this.egresadoVencidoId,
+        datos,
+        archivo: this.archivoSeleccionado,
+      });
+    } else if (this.editando && this.egresadoParaEditar) {
       this.actualizar.emit({
         id: this.egresadoParaEditar.id,
         datos,

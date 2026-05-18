@@ -505,11 +505,11 @@ export class EgresadoService {
     numeroControl: string,
     modalidad?: string,
     excluirId?: string,
-  ): Observable<{ estado: string; expediente_estado?: string }> {
+  ): Observable<{ estado: string; expediente_estado?: string; egresado_id?: string }> {
     let params = new HttpParams().set('numero_control', numeroControl.trim());
     if (modalidad?.trim()) params = params.set('modalidad', modalidad.trim());
     if (excluirId) params = params.set('excluirId', excluirId);
-    return this.http.get<{ estado: string; expediente_estado?: string }>(`${API}/verificar-numero-control`, {
+    return this.http.get<{ estado: string; expediente_estado?: string; egresado_id?: string }>(`${API}/verificar-numero-control`, {
       params,
     });
   }
