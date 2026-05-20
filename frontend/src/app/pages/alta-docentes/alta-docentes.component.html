@@ -1,0 +1,109 @@
+<div class="docentes-contenido">
+  <app-header [showNuevoButton]="false" [showAgregarUsuarioButton]="false" [showVolverInicioButton]="true" (volverInicioClick)="volverInicio()"></app-header>
+
+  <div class="docentes-layout">
+    <!-- Panel izquierdo: lista -->
+    <div class="docentes-panel-izq">
+      <div class="docentes-panel-header">
+        <h2 class="docentes-panel-titulo">Docentes</h2>
+        <button type="button" class="docentes-btn-nuevo" (click)="abrirNuevo()">+ Nuevo</button>
+      </div>
+
+      <div *ngIf="cargando" class="docentes-estado">Cargando…</div>
+      <div *ngIf="error && !cargando" class="docentes-estado docentes-estado--error">{{ error }}</div>
+      <div *ngIf="!cargando && !error && docentes.length === 0" class="docentes-estado">
+        No hay docentes registrados.
+      </div>
+
+      <button
+        *ngFor="let d of docentes"
+        type="button"
+        class="docentes-card"
+        [class.docentes-card--sel]="docenteSeleccionado?.id === d.id"
+        (click)="seleccionar(d)"
+      >
+        <span class="docentes-card-nombre">{{ d.nombreCompleto }}</span>
+        <span class="docentes-card-detalle">{{ d.correo }}</span>
+      </button>
+    </div>
+
+    <!-- Panel derecho: formulario -->
+    <div class="docentes-panel-der" *ngIf="modoForm; else sinSeleccion">
+      <h2 class="docentes-form-titulo">
+        {{ modoForm === 'nuevo' ? 'Nuevo docente' : 'Editar docente' }}
+      </h2>
+
+      <div *ngIf="mensajeExito" class="docentes-mensaje docentes-mensaje--ok">{{ mensajeExito }}</div>
+      <div *ngIf="errorForm" class="docentes-mensaje docentes-mensaje--err">{{ errorForm }}</div>
+
+      <div class="docentes-form">
+        <label class="docentes-label">
+          Nombre completo
+          <input
+            type="text"
+            class="docentes-input"
+            [(ngModel)]="formNombre"
+            autocomplete="name"
+            placeholder="Ej. Juan Pérez García"
+          />
+        </label>
+
+        <label class="docentes-label">
+          Correo electrónico
+          <input
+            type="email"
+            class="docentes-input"
+            [(ngModel)]="formCorreo"
+            autocomplete="email"
+            placeholder="docente@institucion.edu.mx"
+          />
+        </label>
+
+        <label class="docentes-label">
+          Cédula profesional
+          <input
+            type="text"
+            class="docentes-input"
+            [(ngModel)]="formCedula"
+            autocomplete="off"
+            placeholder="Número de cédula"
+          />
+        </label>
+
+        <div class="docentes-form-acciones">
+          <button
+            type="button"
+            class="docentes-btn docentes-btn--sec"
+            (click)="cancelar()"
+            [disabled]="guardando || eliminando"
+          >
+            Cancelar
+          </button>
+          <button
+            *ngIf="modoForm === 'editar'"
+            type="button"
+            class="docentes-btn docentes-btn--danger"
+            (click)="eliminar()"
+            [disabled]="guardando || eliminando"
+          >
+            {{ eliminando ? 'Eliminando…' : 'Eliminar' }}
+          </button>
+          <button
+            type="button"
+            class="docentes-btn docentes-btn--pri"
+            (click)="guardar()"
+            [disabled]="guardando || eliminando"
+          >
+            {{ guardando ? 'Guardando…' : 'Guardar' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <ng-template #sinSeleccion>
+      <div class="docentes-panel-der docentes-panel-vacio">
+        <p>Selecciona un docente de la lista o haz clic en <strong>+ Nuevo</strong> para registrar uno.</p>
+      </div>
+    </ng-template>
+  </div>
+</div>

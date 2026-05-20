@@ -153,7 +153,7 @@
       <h4>Anexo XXXI</h4>
       <div class="form-campo" [class.form-campo-error]="campoInvalido('fecha_registro_anexo')">
         <label for="fecha_registro_anexo">Fecha de registro <span class="form-obligatorio">*</span></label>
-        <input id="fecha_registro_anexo" type="date" formControlName="fecha_registro_anexo" />
+        <input #fechaAnexo id="fecha_registro_anexo" type="date" formControlName="fecha_registro_anexo" (click)="abrirPicker(fechaAnexo)" />
         <span class="form-error-msg" *ngIf="campoInvalido('fecha_registro_anexo')">Campo obligatorio</span>
       </div>
     </div>
@@ -161,7 +161,7 @@
       <h4>Constancia no inconveniencia</h4>
       <div class="form-campo" [class.form-campo-error]="campoInvalido('fecha_expedicion_constancia')">
         <label for="fecha_expedicion_constancia">Fecha de expedición <span class="form-obligatorio">*</span></label>
-        <input id="fecha_expedicion_constancia" type="date" formControlName="fecha_expedicion_constancia" />
+        <input #fechaConstancia id="fecha_expedicion_constancia" type="date" formControlName="fecha_expedicion_constancia" (click)="abrirPicker(fechaConstancia)" />
         <span class="form-error-msg" *ngIf="campoInvalido('fecha_expedicion_constancia')">Campo obligatorio</span>
       </div>
     </div>
