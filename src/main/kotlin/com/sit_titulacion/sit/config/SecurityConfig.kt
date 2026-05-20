@@ -89,7 +89,7 @@ class SecurityConfig(
             )
             allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
             allowedHeaders = listOf("Content-Type", "Authorization")
-            exposedHeaders = listOf("Authorization")
+            exposedHeaders = listOf("Authorization", "X-Sinodales-Notificados")
         }
         val source = UrlBasedCorsConfigurationSource()
         source.registerCorsConfiguration("/**", config)
