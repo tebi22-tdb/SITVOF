@@ -9,6 +9,7 @@ import { HeaderComponent } from '../../layout/header/header.component';
 import { AuthService } from '../../services/auth.service';
 import { EgresadoService, DepartamentoListItem, DepartamentoCounts } from '../../services/egresado.service';
 import { CatalogoService } from '../../services/catalogo.service';
+import { DocenteService, DocenteItem } from '../../services/docente.service';
 
 type TabEstado = 'pendientes' | 'en_correccion' | 'aprobados' | 'sinodales' | 'todos' | 'anteproyecto' | 'liberacion_producto';
 @Component({
@@ -60,6 +61,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   sinodalesCargando = false;
   sinodalesGuardando = false;
   sinodalesError = '';
+  docentesLista: DocenteItem[] = [];
 
   /** Filas simuladas mientras carga la tabla. */
   readonly skeletonPlaceholders = [0, 1, 2, 3, 4, 5];
@@ -83,6 +85,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private sanitizer: DomSanitizer,
     private catalogoService: CatalogoService,
+    private docenteService: DocenteService,
   ) {}
 
   ngOnDestroy(): void {
@@ -99,6 +102,11 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
    * Pestañas "En corrección / Aprobados" solo en vista global de coordinación.
    * Con `?segmento=` la bandeja es la del departamento (Pendientes, Sinodales, Todos), como usuario académico.
    */
+  get mostrarBotonVolver(): boolean {
+    const rol = this.authService.getUsuario()?.rol?.toLowerCase().trim() ?? '';
+    return rol === 'coordinador' || rol === 'administrador';
+  }
+
   get mostrarTabsRevisionCoordinacion(): boolean {
     return this.esModoRevision && !this.segmentoCoordinacion;
   }
@@ -465,6 +473,11 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     return `${dia}/${mes}/${anio} ${h}:${m}`;
   }
 
+  /** True si el valor ya está en la lista de docentes (para no duplicar la opción). */
+  docenteEnLista(valor: string): boolean {
+    return !valor || this.docentesLista.some((d) => d.nombreCompleto === valor);
+  }
+
   abrirModalSinodales(item: DepartamentoListItem, ev?: Event): void {
     ev?.stopPropagation();
     this.sinodalesModalItem = item;
@@ -474,6 +487,12 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     this.sinodalesVocal = '';
     this.sinodalesVocalSuplente = '';
     this.sinodalesCargando = true;
+    if (this.docentesLista.length === 0) {
+      this.docenteService.listar().subscribe({
+        next: (lista) => { this.docentesLista = lista; },
+        error: () => {},
+      });
+    }
     this.egresadoService.getSinodalesAcademico(item.id).subscribe({
       next: (r: { presidente?: string; secretario?: string; vocal?: string; vocal_suplente?: string }) => {
         this.sinodalesCargando = false;
