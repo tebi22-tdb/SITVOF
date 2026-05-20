@@ -20,6 +20,8 @@ export interface EgresadoItem {
   carrera: string;
   modalidad?: string;
   fecha_creacion?: string;
+  /** Residencia: fecha Anexo XXXI al dar de alta (inicio plazo 6 meses). */
+  fecha_registro_anexo_xxxi?: string;
   fecha_enviado_departamento_academico?: string;
   fecha_recibido_registro_liberacion?: string;
   fecha_confirmacion_recibidos_anexo_xxxi_xxxii?: string;

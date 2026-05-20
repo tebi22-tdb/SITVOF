@@ -318,6 +318,7 @@ class EgresadoService(
                 carrera = p.carrera.ifBlank { "—" },
                 modalidad = pr?.datos_proyecto?.modalidad?.ifBlank { "—" } ?: "—",
                 fecha_creacion = formatter.format(e.fechaCreacion),
+                fecha_registro_anexo_xxxi = pr?.documentos?.anexo_xxxi?.fecha_registro?.let { formatter.format(it) },
                 fecha_enviado_departamento_academico = pr?.fechaEnviadoDepartamentoAcademico?.let { formatter.format(it) },
                 fecha_recibido_registro_liberacion = pr?.fechaRecibidoRegistroLiberacion?.let { formatter.format(it) },
                 fecha_confirmacion_recibidos_anexo_xxxi_xxxii = pr?.fechaConfirmacionRecibidosAnexoXxxiXxxii?.let { formatter.format(it) },
@@ -377,13 +378,13 @@ class EgresadoService(
         val totalLiberacionProducto = porCarrera.count {
             val pr = it.procesoActivoOrNull()
             pr != null && !esResidenciaProfesional(it) &&
-                pr.fechaRecepcionTrabajoDivisionEstudiosProf != null &&
+                pr.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii != null &&
                 pr.fechaEnviadoDepartamentoAcademico == null
         }
         val liberacionProducto = porCarrera.count {
             val pr = it.procesoActivoOrNull()
             pr != null && !esResidenciaProfesional(it) &&
-                pr.fechaRecepcionTrabajoDivisionEstudiosProf != null &&
+                pr.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii != null &&
                 pr.fechaSolicitudRegistroLiberacionDeptoAcademico == null &&
                 pr.fechaEnviadoDepartamentoAcademico == null
         }
@@ -439,7 +440,7 @@ class EgresadoService(
             "liberacion_producto" -> all.filter {
                 val pr = it.procesoActivoOrNull()
                 pr != null && !esResidenciaProfesional(it) &&
-                    pr.fechaRecepcionTrabajoDivisionEstudiosProf != null &&
+                    pr.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii != null &&
                     pr.fechaEnviadoDepartamentoAcademico == null
             }
             else -> if (!segmentoSlug.isNullOrBlank()) {
@@ -932,8 +933,8 @@ class EgresadoService(
         val e = cargarEgresadoPorId(id) ?: return "Registro no encontrado."
         if (esResidenciaProfesional(e)) return "Solo aplica a modalidades distintas de residencia."
         val p = e.procesoActivoOrNull() ?: return "No hay proceso activo."
-        if (p.fechaRecepcionTrabajoDivisionEstudiosProf == null) {
-            return "El egresado aún no ha concluido la fase de desarrollo del proyecto en la DEP."
+        if (p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii == null) {
+            return "La DEP debe confirmar la recepción del registro de la tesis (paso 3) antes de liberar."
         }
         if (p.fechaSolicitudRegistroLiberacionDeptoAcademico != null) return "La tesis ya fue liberada."
         if (archivo.isEmpty) return "Selecciona un archivo PDF de la tesis."
@@ -951,6 +952,7 @@ class EgresadoService(
             e.actualizarProcesoActivo(
                 p.copy(
                     fechaSolicitudRegistroLiberacionDeptoAcademico = ahora,
+                    fechaRecepcionTrabajoDivisionEstudiosProf = ahora,
                     tesisLiberacionAdjunto = adjunto,
                     fecha_actualizacion = ahora,
                 ),
@@ -1525,7 +1527,11 @@ class EgresadoService(
             .find { it.nombre.trim().equals(modalidad.trim(), ignoreCase = true) }
             ?.mesesVigencia?.toLong() ?: mesesPorModalidadFallback(modalidad)
             ?: return e
-        val fechaInicio = p.fechaEnviadoDepartamentoAcademico ?: p.fechaCreacion
+        val fechaInicio = if (esResidenciaProfesional(e)) {
+            p.documentos.anexo_xxxi.fecha_registro ?: p.fechaCreacion
+        } else {
+            p.fechaEnviadoDepartamentoAcademico ?: p.fechaCreacion
+        }
         val limiteLocal = fechaInicio.atZone(ZoneId.systemDefault()).toLocalDate().plusMonths(meses)
         if (LocalDate.now(ZoneId.systemDefault()) > limiteLocal) {
             val ahora = Instant.now()
