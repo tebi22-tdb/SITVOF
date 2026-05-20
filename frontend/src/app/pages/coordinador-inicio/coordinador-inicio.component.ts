@@ -34,6 +34,19 @@ import { AuthService } from '../../services/auth.service';
               </svg>
             </div>
           </button>
+          <button type="button" class="card" (click)="irAltaDocentes()">
+            <div class="card-texto">
+              <h2>Alta de docentes</h2>
+              <p>Registra docentes con nombre, correo y cédula para asignarlos como sinodales.</p>
+            </div>
+            <div class="card-icono" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="card-icono-svg">
+                <circle cx="9" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M16 11h6M19 8v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </button>
           <button type="button" class="card" (click)="irSeguimientoProceso()">
             <div class="card-texto">
               <h2>Seguimiento del proceso</h2>
@@ -239,6 +252,10 @@ export class CoordinadorInicioComponent {
 
   irAltaEgresadosUsuarios(): void {
     this.router.navigate(['/home/alta']);
+  }
+
+  irAltaDocentes(): void {
+    this.router.navigate(['/home/alta-docentes']);
   }
 
   irSeguimientoProceso(): void {
