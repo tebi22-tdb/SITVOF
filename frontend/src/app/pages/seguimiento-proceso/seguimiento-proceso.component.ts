@@ -11,7 +11,7 @@ import { HeaderComponent } from '../../layout/header/header.component';
 import { mensajeErrorApiConBlob } from '../../core/http-blob-error';
 import { EgresadoService, EgresadoDetail, EgresadoItem } from '../../services/egresado.service';
 import { CatalogoService } from '../../services/catalogo.service';
-import { calcularVistaPlazosNoResidencia } from '../../core/plazos-titulacion-no-residencia';
+import { calcularVistaPlazosNoResidencia, inicioPlazoIsoResidencia } from '../../core/plazos-titulacion-no-residencia';
 import {
   calcularVistaPlazoDesarrolloRecepcionNoRes,
   construirPlazoDesarrolloRecepcionUi,
@@ -561,15 +561,14 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       },
       {
         key: 'fecha_recepcion_trabajo_division_estudios_prof',
-        titulo: 'Recepción del trabajo en división de estudios profesionales',
-        descripcion:
-          'Confirma cuando el egresado entregue su proyecto; desde aquí corre el plazo de desarrollo del proyecto.',
+        titulo: 'El egresado está desarrollando su proyecto de Tesis',
+        descripcion: '',
       },
       {
         key: 'fecha_solicitud_registro_liberacion_depto_academico',
         titulo: 'Liberación de producto en el departamento académico',
         descripcion:
-          'El departamento académico sube la tesis y pulsa Liberar en la pestaña Liberación de producto (por carrera).',
+          'El departamento académico sube la tesis en la pestaña Liberación de producto y pulsa Liberar (por carrera).',
       },
       {
         key: 'fecha_recepcion_registro_liberacion_depto_academico',
@@ -612,24 +611,6 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         if (!completado) todosPreviosCompletados = false;
         return { numero: i + 1, key: s.key, titulo: s.titulo, descripcion: s.descripcion, fecha, estado };
       }
-      if (s.key === 'fecha_solicitud_registro_liberacion_depto_academico') {
-        const fecha = d.fecha_solicitud_registro_liberacion_depto_academico;
-        const completado = !!fecha;
-        const puede =
-          !!d.fecha_recepcion_trabajo_division_estudios_prof && todosPreviosCompletados;
-        const estado: EstadoPaso = completado ? 'completado' : puede ? 'en_curso' : 'pendiente';
-        if (!completado) todosPreviosCompletados = false;
-        return { numero: i + 1, key: s.key, titulo: s.titulo, descripcion: s.descripcion, fecha, estado };
-      }
-      const esRecepcionDesarrollo = s.key === 'fecha_recepcion_trabajo_division_estudios_prof';
-      /** Numeración 1…n en este panel (sin saltos). No forzar “3” aquí: el paso 1 del alumno no está en esta lista. */
-      const numeroPaso = i + 1;
-      const tituloPaso = esRecepcionDesarrollo
-        ? `El egresado está desarrollando su proyecto de ${modalidadTitulo}. Confirma la recepción cuando el egresado entregue su proyecto.`
-        : s.titulo;
-      const plazoDesarrolloRecepcion = esRecepcionDesarrollo
-        ? construirPlazoDesarrolloRecepcionUi(d) ?? undefined
-        : undefined;
       if (s.key === 'fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii') {
         const fecha = d.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii;
         const completado = !!fecha;
@@ -642,15 +623,55 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         else estado = 'en_curso';
         if (!completado) todosPreviosCompletados = false;
         return {
-          numero: numeroPaso,
+          numero: i + 1,
           key: s.key,
-          titulo: tituloPaso,
+          titulo: s.titulo,
           descripcion: s.descripcion,
           fecha,
+          estado,
+        };
+      }
+      if (s.key === 'fecha_recepcion_trabajo_division_estudios_prof') {
+        const inicial = !!d.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii;
+        const liberacion = d.fecha_solicitud_registro_liberacion_depto_academico;
+        const completado = !!liberacion;
+        let estado: EstadoPaso;
+        if (completado) estado = 'completado';
+        else if (!inicial || !todosPreviosCompletados) estado = 'pendiente';
+        else estado = 'en_curso';
+        if (!completado) todosPreviosCompletados = false;
+        const plazoDesarrolloRecepcion =
+          estado === 'en_curso' ? construirPlazoDesarrolloRecepcionUi(d) ?? undefined : undefined;
+        return {
+          numero: i + 1,
+          key: s.key,
+          titulo: `El egresado está desarrollando su proyecto de ${modalidadTitulo}.`,
+          descripcion: '',
+          fecha: liberacion || undefined,
           estado,
           plazoDesarrolloRecepcion,
         };
       }
+      if (s.key === 'fecha_solicitud_registro_liberacion_depto_academico') {
+        const inicial = !!d.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii;
+        const fecha = d.fecha_solicitud_registro_liberacion_depto_academico;
+        const completado = !!fecha;
+        let estado: EstadoPaso;
+        if (completado) estado = 'completado';
+        else if (!inicial || !todosPreviosCompletados) estado = 'pendiente';
+        else estado = 'en_curso';
+        if (!completado) todosPreviosCompletados = false;
+        return {
+          numero: i + 1,
+          key: s.key,
+          titulo: s.titulo,
+          descripcion: s.descripcion,
+          fecha,
+          estado,
+        };
+      }
+      const numeroPaso = i + 1;
+      const tituloPaso = s.titulo;
       if (s.key === 'fecha_solicitud_documentacion_escaneada') {
         const fecha = d.fecha_solicitud_documentacion_escaneada;
         const completado = !!fecha;
@@ -663,7 +684,6 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
           descripcion: s.descripcion,
           fecha,
           estado,
-          plazoDesarrolloRecepcion,
         };
       }
       if (s.key === 'fecha_confirmacion_documentacion_escaneada_recibida') {
@@ -684,7 +704,6 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
           descripcion: s.descripcion,
           fecha,
           estado,
-          plazoDesarrolloRecepcion,
         };
       }
       const fecha = (d as unknown as Record<string, string | undefined>)[s.key];
@@ -698,7 +717,6 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         descripcion: s.descripcion,
         fecha,
         estado,
-        plazoDesarrolloRecepcion,
       };
     });
   }
@@ -1304,7 +1322,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       };
     }
 
-    const isoInicio = e.fecha_enviado_departamento_academico || e.fecha_creacion;
+    const isoInicio = inicioPlazoIsoResidencia(e);
     const inicio = isoInicio ? new Date(isoInicio) : hoy;
     if (isNaN(inicio.getTime())) {
       return {
