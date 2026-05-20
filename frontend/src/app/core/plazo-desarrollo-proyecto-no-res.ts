@@ -74,12 +74,16 @@ export interface PlazoDesarrolloProyectoVista {
 export function calcularPlazoDesarrolloProyectoNoRes(opts: {
   modalidad: string | undefined | null;
   fechaRecepcionDivision?: string | null;
+  /** Liberación de producto en departamento: cierra plazo de desarrollo e inicia fase de 6 meses. */
+  fechaLiberacionProducto?: string | null;
   fechaEnvioAnteproyecto?: string | null;
-  /** Confirmación DEP paso 2 (flujo 16): inicio del plazo de desarrollo 12/18 meses (obligatoria si aún no hay recepción en división). */
+  /** Confirmación DEP paso 3: inicio del plazo de desarrollo 12/18 meses. */
   fechaConfirmacionInicial?: string | null;
   hoy?: Date;
 }): PlazoDesarrolloProyectoVista | null {
+  const liberacion = opts.fechaLiberacionProducto?.trim();
   const recep = opts.fechaRecepcionDivision?.trim();
+  const finDesarrollo = liberacion || recep;
   const inicial = opts.fechaConfirmacionInicial?.trim();
 
   let fechaInicio: Date;
@@ -87,8 +91,8 @@ export function calcularPlazoDesarrolloProyectoNoRes(opts: {
   let usaInicioProvisionalDesdeEnvio: boolean;
   let fasePostRecepcion: boolean;
 
-  if (recep) {
-    fechaInicio = new Date(recep);
+  if (finDesarrollo) {
+    fechaInicio = new Date(finDesarrollo);
     if (isNaN(fechaInicio.getTime())) return null;
     mesesTotales = MESES_PLAZO_TITULACION_NO_RES;
     usaInicioProvisionalDesdeEnvio = false;
@@ -195,18 +199,18 @@ export function calcularVistaPlazoDesarrolloRecepcionNoRes(
   return calcularPlazoDesarrolloProyectoNoRes({
     modalidad: d.datos_proyecto?.modalidad,
     fechaRecepcionDivision: d.fecha_recepcion_trabajo_division_estudios_prof,
+    fechaLiberacionProducto: d.fecha_solicitud_registro_liberacion_depto_academico,
     fechaEnvioAnteproyecto: d.fecha_envio_solicitud_registro_anteproyecto_depto_academico.trim(),
     fechaConfirmacionInicial: d.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii,
   });
 }
 
 /**
- * UI del cuadro verde bajo el paso de recepción: solo cuando ya corre el plazo de desarrollo
- * (confirmación DEP paso 3) y falta confirmar la recepción del trabajo en división (paso 4).
- * Tras confirmar recepción del trabajo, el sistema sigue contando 6 meses en {@link calcularVistaPlazoDesarrolloRecepcionNoRes} (bloqueos, badge).
+ * UI del cuadro verde en paso 4 (desarrollo): corre desde confirmación DEP paso 3 hasta liberación en departamento.
  */
 export function construirPlazoDesarrolloRecepcionUi(d: EgresadoPlazoRecepcionInput): PlazoDesarrolloRecepcionUi | null {
-  if (d.fecha_recepcion_trabajo_division_estudios_prof?.trim()) return null;
+  if (d.fecha_solicitud_registro_liberacion_depto_academico?.trim()) return null;
+  if (!d.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii?.trim()) return null;
   const envio = d.fecha_envio_solicitud_registro_anteproyecto_depto_academico?.trim();
   if (!envio) return null;
   const raw = calcularVistaPlazoDesarrolloRecepcionNoRes(d);

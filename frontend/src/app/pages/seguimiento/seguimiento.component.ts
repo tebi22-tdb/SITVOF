@@ -6,6 +6,7 @@ import { CatalogoService } from '../../services/catalogo.service';
 import {
   calcularVistaPlazosNoResidencia,
   MESES_PLAZO_TITULACION_NO_RES,
+  inicioPlazoIsoResidencia,
 } from '../../core/plazos-titulacion-no-residencia';
 import {
   calcularVistaPlazoDesarrolloRecepcionNoRes,
@@ -546,22 +547,21 @@ export class SeguimientoComponent implements OnInit {
     const c2 = this.entregaEgresadoDeptoCompleta(d);
     const c3 = !!d.fecha_envio_solicitud_registro_anteproyecto_depto_academico;
     const c4 = !!d.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii;
-    const c5 = !!d.fecha_recepcion_trabajo_division_estudios_prof;
-    const c6 = !!d.fecha_solicitud_registro_liberacion_depto_academico;
-    const c7 = !!d.fecha_recepcion_registro_liberacion_depto_academico;
-    const c8 = !!d.fecha_enviado_departamento_academico;
-    const c9 = !!(d.fecha_liberacion_documento_coordinacion_cat || d.fecha_confirmacion_recibidos_anexo_xxxi_xxxii);
-    const c10 = !!d.fecha_creacion_anexo_9_1;
-    const c11 = !!d.fecha_confirmacion_entrega_anexo_9_1;
-    const c12 = !!d.fecha_solicitud_anexo_9_2;
-    const c13 = !!d.fecha_confirmacion_recibido_anexo_9_2;
-    const c14 = !!d.fecha_solicitud_sinodales;
-    const c15 = !!d.fecha_confirmacion_sinodales_recibidos;
-    const c16 = !!d.fecha_agenda_acto_9_3;
-    const c17 = !!d.fecha_creacion_anexo_9_3;
-    const c18s = !!d.fecha_solicitud_documentacion_escaneada;
-    const c18e = !!d.fecha_envio_documentacion_escaneada_egresado;
-    const c18r = !!d.fecha_confirmacion_documentacion_escaneada_recibida;
+    const c5 = !!d.fecha_solicitud_registro_liberacion_depto_academico;
+    const c6 = !!d.fecha_recepcion_registro_liberacion_depto_academico;
+    const c7 = !!d.fecha_enviado_departamento_academico;
+    const c8 = !!(d.fecha_liberacion_documento_coordinacion_cat || d.fecha_confirmacion_recibidos_anexo_xxxi_xxxii);
+    const c9 = !!d.fecha_creacion_anexo_9_1;
+    const c10 = !!d.fecha_confirmacion_entrega_anexo_9_1;
+    const c11 = !!d.fecha_solicitud_anexo_9_2;
+    const c12 = !!d.fecha_confirmacion_recibido_anexo_9_2;
+    const c13 = !!d.fecha_solicitud_sinodales;
+    const c14 = !!d.fecha_confirmacion_sinodales_recibidos;
+    const c15 = !!d.fecha_agenda_acto_9_3;
+    const c16 = !!d.fecha_creacion_anexo_9_3;
+    const c17s = !!d.fecha_solicitud_documentacion_escaneada;
+    const c17e = !!d.fecha_envio_documentacion_escaneada_egresado;
+    const c17r = !!d.fecha_confirmacion_documentacion_escaneada_recibida;
     const plazoRecepcion = construirPlazoDesarrolloRecepcionUi(d) ?? undefined;
     const fechaPasoRevision = d.fecha_liberacion_documento_coordinacion_cat || d.fecha_confirmacion_recibidos_anexo_xxxi_xxxii;
     const fechaEntregaDepto =
@@ -594,25 +594,26 @@ export class SeguimientoComponent implements OnInit {
         numero: 4,
         titulo: 'Registro de la tesis en el departamento académico',
         detalle:
-          'Tu departamento académico registró la tesis y la DEP confirmó la recepción del anexo XXXII. A partir de aquí corre el plazo de desarrollo de tu trabajo.',
+          'Tu departamento académico registró la tesis y la DEP confirmó la recepción del anexo XXXII.',
         fecha: fh(d.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii),
         completado: c4,
       },
       {
         numero: 5,
-        titulo: `Desarrollar y entregar tu proyecto de ${modalidad}`,
+        titulo: `Desarrollo de tu proyecto de ${modalidad}`,
         detalle: this.detallePasoDesarrolloAlumnoNoRes16(d, modalidad),
-        fecha: fh(d.fecha_recepcion_trabajo_division_estudios_prof),
+        fecha: fh(c5 ? d.fecha_solicitud_registro_liberacion_depto_academico : d.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii),
         completado: c5,
-        plazoRecepcion,
+        plazoRecepcion: c4 && !c5 ? plazoRecepcion : undefined,
       },
       {
         numero: 6,
         titulo: 'Liberación de producto en tu departamento académico',
-        detalle:
-          'Tu departamento académico libera la tesis (anexo XXXIII) y la envía a la división de estudios profesionales.',
+        detalle: c5
+          ? 'Tu departamento académico liberó la tesis (anexo XXXIII) y la envió a la división de estudios profesionales.'
+          : 'Tu departamento académico liberará la tesis (anexo XXXIII) cuando concluyas el desarrollo; no requiere acción tuya en el SITVO.',
         fecha: fh(d.fecha_solicitud_registro_liberacion_depto_academico),
-        completado: c6,
+        completado: c5,
       },
       {
         numero: 7,
@@ -620,7 +621,7 @@ export class SeguimientoComponent implements OnInit {
         detalle:
           'La división de estudios profesionales confirmó la recepción del anexo XXXIII y de tu documento de tesis.',
         fecha: fh(d.fecha_recepcion_registro_liberacion_depto_academico),
-        completado: c7,
+        completado: c6,
       },
       {
         numero: 8,
@@ -628,7 +629,7 @@ export class SeguimientoComponent implements OnInit {
         detalle:
           'Tu expediente fue enviado al Departamento de Apoyo a la Titulación para la revisión académica de tu proyecto.',
         fecha: fh(d.fecha_enviado_departamento_academico),
-        completado: c8,
+        completado: c7,
       },
       {
         numero: 9,
@@ -637,7 +638,7 @@ export class SeguimientoComponent implements OnInit {
         detalle:
           'La Coordinación de Apoyo a la Titulación revisa tu expediente. Si hay observaciones, te las notificaremos aquí. Cuando el proyecto quede aprobado, el documento queda liberado para continuar.',
         fecha: fh(fechaPasoRevision),
-        completado: c9,
+        completado: c8,
       },
       {
         numero: 10,
@@ -645,7 +646,7 @@ export class SeguimientoComponent implements OnInit {
         detalle:
           'Acude a división de estudios profesionales para recoger y firmar tu anexo 9.1 (formato de solicitud de acto de recepción profesional).',
         fecha: fh(d.fecha_creacion_anexo_9_1),
-        completado: c10,
+        completado: c9,
       },
       {
         numero: 11,
@@ -653,7 +654,7 @@ export class SeguimientoComponent implements OnInit {
         detalle:
           'La DEP confirmó la recepción de tu anexo 9.1 (formato de solicitud de acto de recepción profesional) firmado.',
         fecha: fh(d.fecha_confirmacion_entrega_anexo_9_1),
-        completado: c11,
+        completado: c10,
       },
       {
         numero: 12,
@@ -661,7 +662,7 @@ export class SeguimientoComponent implements OnInit {
         detalle:
           'Solicita en servicios escolares tu anexo 9.2 (constancia de no inconveniencia para acto de recepción profesional) y entrégalo en la DEP para continuar con el trámite.',
         fecha: fh(d.fecha_solicitud_anexo_9_2),
-        completado: c12,
+        completado: c11,
       },
       {
         numero: 13,
@@ -669,21 +670,21 @@ export class SeguimientoComponent implements OnInit {
         detalle:
           'Quedó registrada la recepción de la constancia 9.2 (constancia de no inconveniencia para acto de recepción profesional) en división de estudios profesionales.',
         fecha: fh(d.fecha_confirmacion_recibido_anexo_9_2),
-        completado: c13,
+        completado: c12,
       },
       {
         numero: 14,
         titulo: 'Solicitud de sinodales',
         detalle: 'La DEP solicitó al departamento académico la asignación de sinodales.',
         fecha: fh(d.fecha_solicitud_sinodales),
-        completado: c14,
+        completado: c13,
       },
       {
         numero: 15,
         titulo: 'Oficio de sinodales recibido',
         detalle: 'Quedó confirmada la recepción del oficio de sinodales que el departamento académico entregó a la DEP.',
         fecha: fh(d.fecha_confirmacion_sinodales_recibidos),
-        completado: c15,
+        completado: c14,
       },
       {
         numero: 16,
@@ -691,7 +692,7 @@ export class SeguimientoComponent implements OnInit {
         detalle: this.detalleTextoPasoActo93AgendadoAlumno(d),
         fechaDetalleResaltada: d.fecha_agenda_acto_9_3 ? fh(d.fecha_agenda_acto_9_3) : undefined,
         fecha: fh(d.fecha_agenda_acto_9_3),
-        completado: c16,
+        completado: c15,
       },
       {
         numero: 17,
@@ -699,47 +700,47 @@ export class SeguimientoComponent implements OnInit {
         detalle:
           'La DEP generó el anexo 9.3 (aviso de realización de acto protocolario de titulación integral). Favor de recogerlo en división de estudios profesionales.',
         fecha: fh(d.fecha_creacion_anexo_9_3),
-        completado: c17,
+        completado: c16,
       },
       {
         numero: 18,
         clave: 'doc_escaneada_subir',
         titulo: 'La división de estudios profesionales solicita que subas al SITVO la documentación escaneada.',
-        detalle: c18e
+        detalle: c17e
           ? 'Quedó registrado el envío de tu archivo PDF.'
-          : c18s
+          : c17s
             ? d.observaciones_reenvio_documentacion_escaneada?.trim()
               ? `La DEP solicitó corrección. Observaciones: ${d.observaciones_reenvio_documentacion_escaneada}`
               : 'Sube al SITVO un solo archivo .PDF con toda la documentación escaneada (no fotos).'
             : 'Cuando la división de estudios solicite la documentación, aquí podrás subirla.',
         fecha: fh(
-          c18e
+          c17e
             ? d.fecha_envio_documentacion_escaneada_egresado
-            : c18s
+            : c17s
               ? d.fecha_solicitud_documentacion_escaneada
               : undefined,
         ),
-        completado: c18e,
+        completado: c17e,
       },
       {
         numero: 19,
         clave: 'doc_escaneada_espera',
         titulo: 'Tu proceso por esta opción quedó concluida.',
-        detalle: c18r
+        detalle: c17r
           ? 'La DEP confirmó la recepción de documentación escaneada.'
-          : c18e
+          : c17e
             ? 'La DEP confirmará la recepción de documentación escaneada en cuanto revise tu archivo.'
             : d.observaciones_reenvio_documentacion_escaneada?.trim()
               ? `Pendiente de nuevo envío del egresado. Observaciones: ${d.observaciones_reenvio_documentacion_escaneada}`
               : 'Cuando envíes tu archivo PDF, este paso se activará para la confirmación de la DEP.',
         fecha: fh(
-          c18r
+          c17r
             ? d.fecha_confirmacion_documentacion_escaneada_recibida
-            : c18e
+            : c17e
               ? d.fecha_envio_documentacion_escaneada_egresado
               : undefined,
         ),
-        completado: c18r,
+        completado: c17r,
       },
     ];
     return this.aplicarActivoPasos(raw);
@@ -766,13 +767,25 @@ export class SeguimientoComponent implements OnInit {
     });
   }
 
+  private inicioPlazoResidenciaIso(): string | null {
+    const d = this.datosVista;
+    if (!d) return null;
+    return inicioPlazoIsoResidencia({
+      documentos: d.documentos,
+      fecha_creacion: d.fecha_creacion,
+    });
+  }
+
   get estadoAvance(): EstadoAvance {
     const d = this.datosVista;
-    if (!d?.fecha_creacion) return 'en_tiempo';
+    if (!d) return 'en_tiempo';
     if (!this.esResidenciaProfesional) {
+      if (!d.fecha_creacion) return 'en_tiempo';
       return this.avisoPlazosNoResAlumno?.estadoGlobal ?? 'en_tiempo';
     }
-    const inicio = new Date(d.fecha_creacion);
+    const isoInicio = this.inicioPlazoResidenciaIso();
+    if (!isoInicio) return 'en_tiempo';
+    const inicio = new Date(isoInicio);
     if (isNaN(inicio.getTime())) return 'en_tiempo';
     const modalidad = d.datos_proyecto?.modalidad?.trim() ?? '';
     const meses = this.catalogoService.mesesVigencia(modalidad);
@@ -793,8 +806,9 @@ export class SeguimientoComponent implements OnInit {
 
   get fechaLimiteTexto(): string {
     const d = this.datosVista;
-    if (!d?.fecha_creacion) return '—';
+    if (!d) return '—';
     if (!this.esResidenciaProfesional) {
+      if (!d.fecha_creacion) return '—';
       const lim = this.avisoPlazosNoResAlumno?.fechaLimiteMasCercana;
       if (!lim) return '—';
       const dia = lim.getDate().toString().padStart(2, '0');
@@ -802,7 +816,9 @@ export class SeguimientoComponent implements OnInit {
       const anio = lim.getFullYear();
       return `${dia}/${mes}/${anio}`;
     }
-    const inicio = new Date(d.fecha_creacion);
+    const isoInicio = this.inicioPlazoResidenciaIso();
+    if (!isoInicio) return '—';
+    const inicio = new Date(isoInicio);
     if (isNaN(inicio.getTime())) return '—';
     const modalidad = d.datos_proyecto?.modalidad?.trim() ?? '';
     const meses = this.catalogoService.mesesVigencia(modalidad);
@@ -816,8 +832,9 @@ export class SeguimientoComponent implements OnInit {
 
   get detalleEstadoAvance(): string {
     const d = this.datosVista;
-    if (!d?.fecha_creacion) return 'Aún sin fecha de inicio registrada.';
+    if (!d) return '—';
     if (!this.esResidenciaProfesional) {
+      if (!d.fecha_creacion) return 'Aún sin fecha de inicio registrada.';
       const p = this.avisoPlazosNoResAlumno;
       if (!p) return '—';
       const dias = p.diasHastaLimiteMasCercano;
@@ -829,7 +846,9 @@ export class SeguimientoComponent implements OnInit {
       }
       return `Faltan ${dias} día(s) para la fecha límite más próxima. ${p.lineaProyecto} ${p.lineaTitulacion}`;
     }
-    const inicio = new Date(d.fecha_creacion);
+    const isoInicio = this.inicioPlazoResidenciaIso();
+    if (!isoInicio) return 'Aún no hay fecha de registro del Anexo XXXI.';
+    const inicio = new Date(isoInicio);
     if (isNaN(inicio.getTime())) return 'No se pudo calcular el plazo.';
     const modalidad = d.datos_proyecto?.modalidad?.trim() ?? '';
     const meses = this.catalogoService.mesesVigencia(modalidad);
@@ -1072,16 +1091,16 @@ export class SeguimientoComponent implements OnInit {
     const mod = modalidad.trim() || 'titulación integral';
     const mesesDev = mesesPlazoDesarrolloProyectoNoRes(d.datos_proyecto?.modalidad);
     const plazoDevTxt = mesesDev === 18 ? '18 meses' : '12 meses';
-    const recep = d.fecha_recepcion_trabajo_division_estudios_prof?.trim();
-    if (recep) {
-      const ini = this.formatearSoloFechaDesdeIso(recep);
-      return `La división confirmó la recepción de tu trabajo el ${ini}. El plazo de desarrollo del proyecto quedó concluido. Cuentas con ${MESES_PLAZO_TITULACION_NO_RES} meses calendario desde esa fecha para avanzar en el proceso de titulación.`;
+    const liberacion = d.fecha_solicitud_registro_liberacion_depto_academico?.trim();
+    if (liberacion) {
+      const ini = this.formatearSoloFechaDesdeIso(liberacion);
+      return `Tu departamento académico liberó la tesis el ${ini}. El plazo de desarrollo del proyecto quedó concluido. Cuentas con ${MESES_PLAZO_TITULACION_NO_RES} meses calendario desde esa fecha para avanzar en el trámite de titulación.`;
     }
     const inicial = d.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii?.trim();
     if (!inicial) {
-      return `El plazo de ${plazoDevTxt} calendario para desarrollar y entregar tu ${mod} comenzará cuando la división confirme en la DEP la recepción del anexo XXXII (registro de la tesis en tu departamento académico). Cuando la división confirme la recepción de tu trabajo, ese plazo de desarrollo termina y comienzan ${MESES_PLAZO_TITULACION_NO_RES} meses para el trámite de titulación.`;
+      return `El plazo de ${plazoDevTxt} calendario para desarrollar tu ${mod} comenzará cuando la división confirme en la DEP la recepción del registro de tu tesis.`;
     }
     const ref = this.formatearSoloFechaDesdeIso(inicial);
-    return `El desarrollo y la entrega de tu ${mod} tienen un plazo de ${plazoDevTxt} calendario desde el ${ref} (confirmación en la DEP del registro de tu tesis). Cuando la división confirme la recepción de tu trabajo, ese plazo de desarrollo termina y comienzan ${MESES_PLAZO_TITULACION_NO_RES} meses para el trámite de titulación.`;
+    return `Tienes un plazo de ${plazoDevTxt} calendario para desarrollar tu ${mod}, contado desde el ${ref}. El plazo termina cuando tu departamento académico libere la tesis.`;
   }
 }
