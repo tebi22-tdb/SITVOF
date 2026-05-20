@@ -63,6 +63,17 @@
       <button
         *ngIf="!mostrarTabsRevisionCoordinacion"
         type="button"
+        class="departamento-tab departamento-tab--liberacion"
+        [class.activo]="tabActivo === 'liberacion_producto'"
+        (click)="cambiarTab('liberacion_producto')"
+      >
+        Liberación de producto
+        <span *ngIf="(counts.liberacion_producto ?? 0) > 0" class="departamento-tab-badge">{{ counts.liberacion_producto }}</span>
+        <span *ngIf="(counts.liberacion_producto ?? 0) === 0 && (counts.total_liberacion_producto ?? 0) > 0" class="departamento-tab-badge departamento-tab-badge--total">{{ counts.total_liberacion_producto }}</span>
+      </button>
+      <button
+        *ngIf="!mostrarTabsRevisionCoordinacion"
+        type="button"
         class="departamento-tab departamento-tab--sinodales"
         [class.activo]="tabActivo === 'sinodales'"
         (click)="cambiarTab('sinodales')"
@@ -114,7 +125,15 @@
         <div class="departamento-split">
           <div class="departamento-split-izq">
             <div class="departamento-tabla-wrap departamento-tabla-wrap--en-split">
-              <ng-container *ngTemplateOutlet="tabActivo === 'anteproyecto' ? tplAnteproyecto : tplRevisiones"></ng-container>
+              <ng-container
+                *ngTemplateOutlet="
+                  tabActivo === 'anteproyecto'
+                    ? tplAnteproyecto
+                    : tabActivo === 'liberacion_producto'
+                      ? tplLiberacionProducto
+                      : tplRevisiones
+                "
+              ></ng-container>
             </div>
           </div>
           <aside class="departamento-split-der" aria-label="Vista previa del documento">
@@ -142,7 +161,7 @@
                     {{ liberandoId === seleccionado.id ? 'Liberando…' : 'Liberar' }}
                   </button>
                   <button
-                    *ngIf="tabActivo !== 'todos' && tabActivo !== 'anteproyecto' && !esResidencia(seleccionado.modalidad) && seleccionado.estado_revision !== 'aprobado'"
+                    *ngIf="tabActivo !== 'todos' && tabActivo !== 'anteproyecto' && tabActivo !== 'liberacion_producto' && !esResidencia(seleccionado.modalidad) && seleccionado.estado_revision !== 'aprobado'"
                     type="button"
                     class="departamento-btn-revision-panel"
                     (click)="irARevision(seleccionado)"
@@ -168,6 +187,27 @@
                   >
                     {{ confirmandoXxxiiId === seleccionado.id ? 'Marcando…' : 'Marcar como registrado' }}
                   </button>
+                </div>
+                <div *ngIf="tabActivo === 'liberacion_producto'" class="departamento-anteproyecto-info">
+                  <p class="departamento-anteproyecto-nota">
+                    Sube el PDF de la tesis y pulsa <strong>Liberar</strong> para enviar la liberación (anexo XXXIII) a la DEP.
+                  </p>
+                  <label class="departamento-tesis-upload">
+                    <span class="departamento-tesis-upload-label">Archivo PDF de la tesis</span>
+                    <input type="file" accept=".pdf,application/pdf" (change)="onTesisLiberacionSelected($event)" />
+                  </label>
+                  <p *ngIf="archivoTesisLiberacion" class="departamento-anteproyecto-nota">{{ archivoTesisLiberacion.name }}</p>
+                  <button
+                    *ngIf="seleccionado && !seleccionado.fecha_liberacion_producto"
+                    type="button"
+                    class="departamento-btn-liberar departamento-btn-liberar--panel"
+                    [disabled]="liberandoId === seleccionado.id || !archivoTesisLiberacion"
+                    (click)="liberarProductoNoRes(seleccionado)"
+                  >
+                    {{ liberandoId === seleccionado.id ? 'Liberando…' : 'Liberar' }}
+                  </button>
+                  <span *ngIf="seleccionado?.fecha_liberacion_producto" class="departamento-badge departamento-badge--aprobado">Liberado</span>
+                  <p *ngIf="mensajeLiberacionProducto" class="departamento-doc-error">{{ mensajeLiberacionProducto }}</p>
                 </div>
               </div>
               <div *ngIf="cargandoDocumento" class="departamento-doc-cargando">Cargando documento…</div>
@@ -211,6 +251,7 @@
           <th class="departamento-th departamento-th--dot" scope="col"></th>
           <th class="departamento-th departamento-th--nombre" scope="col">Nombre</th>
           <th class="departamento-th departamento-th--control" scope="col">No control</th>
+          <th class="departamento-th departamento-th--carrera" scope="col">Carrera</th>
           <th class="departamento-th departamento-th--modalidad" scope="col">Modalidad</th>
           <th class="departamento-th departamento-th--fecha" scope="col">Enviado</th>
           <th class="departamento-th departamento-th--accion" scope="col">Acción</th>
@@ -227,6 +268,7 @@
           <td class="departamento-td departamento-td--dot"><span class="departamento-item-dot" aria-hidden="true"></span></td>
           <td class="departamento-td departamento-td--nombre">{{ nombreDisplay(item) }}</td>
           <td class="departamento-td departamento-td--control">{{ item.numero_control }}</td>
+          <td class="departamento-td departamento-td--carrera">{{ item.carrera || '—' }}</td>
           <td class="departamento-td departamento-td--modalidad">{{ item.modalidad }}</td>
           <td class="departamento-td departamento-td--fecha">{{ fechaEnvioAnteproyecto(item) }}</td>
           <td class="departamento-td departamento-td--accion">
@@ -240,6 +282,43 @@
               {{ confirmandoXxxiiId === item.id ? '…' : 'Marcar como registrado' }}
             </button>
             <span *ngIf="item.fecha_registrado_departamento" class="departamento-badge departamento-badge--aprobado">Registrado</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </ng-template>
+
+  <ng-template #tplLiberacionProducto>
+    <table class="departamento-tabla departamento-tabla--liberacion" aria-label="Liberación de producto (tesis)">
+      <thead>
+        <tr>
+          <th class="departamento-th departamento-th--dot" scope="col"></th>
+          <th class="departamento-th departamento-th--nombre" scope="col">Nombre</th>
+          <th class="departamento-th departamento-th--control" scope="col">No control</th>
+          <th class="departamento-th departamento-th--modalidad" scope="col">Modalidad</th>
+          <th class="departamento-th departamento-th--fecha" scope="col">Estado</th>
+          <th class="departamento-th departamento-th--accion" scope="col">Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          *ngFor="let item of listaVisible; let i = index"
+          class="departamento-fila departamento-fila--clic"
+          [class.departamento-fila--stripe]="i % 2 === 1"
+          [class.departamento-fila--activa]="seleccionado?.id === item.id"
+          (click)="seleccionarFila(item)"
+        >
+          <td class="departamento-td departamento-td--dot"><span class="departamento-item-dot" aria-hidden="true"></span></td>
+          <td class="departamento-td departamento-td--nombre">{{ nombreDisplay(item) }}</td>
+          <td class="departamento-td departamento-td--control">{{ item.numero_control }}</td>
+          <td class="departamento-td departamento-td--modalidad">{{ item.modalidad }}</td>
+          <td class="departamento-td departamento-td--fecha">
+            <span *ngIf="item.fecha_liberacion_producto" class="departamento-badge departamento-badge--aprobado">Liberado</span>
+            <span *ngIf="!item.fecha_liberacion_producto" class="departamento-badge departamento-badge--pendiente">Pendiente</span>
+          </td>
+          <td class="departamento-td departamento-td--accion">
+            <span *ngIf="item.fecha_liberacion_producto">{{ fechaLiberacionProducto(item) }}</span>
+            <span *ngIf="!item.fecha_liberacion_producto" class="departamento-anteproyecto-nota">Usa el panel</span>
           </td>
         </tr>
       </tbody>

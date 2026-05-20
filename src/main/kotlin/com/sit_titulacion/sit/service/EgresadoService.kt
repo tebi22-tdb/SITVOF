@@ -371,6 +371,19 @@ class EgresadoService(
                 pr.fechaRegistradoDepartamento == null &&
                 pr.fechaEnviadoDepartamentoAcademico == null
         }
+        val totalLiberacionProducto = porCarrera.count {
+            val pr = it.procesoActivoOrNull()
+            pr != null && !esResidenciaProfesional(it) &&
+                pr.fechaRecepcionTrabajoDivisionEstudiosProf != null &&
+                pr.fechaEnviadoDepartamentoAcademico == null
+        }
+        val liberacionProducto = porCarrera.count {
+            val pr = it.procesoActivoOrNull()
+            pr != null && !esResidenciaProfesional(it) &&
+                pr.fechaRecepcionTrabajoDivisionEstudiosProf != null &&
+                pr.fechaSolicitudRegistroLiberacionDeptoAcademico == null &&
+                pr.fechaEnviadoDepartamentoAcademico == null
+        }
         val totalSinodales = porCarrera.count {
             it.procesoActivoOrNull()?.fechaSolicitudSinodales != null
         }
@@ -382,6 +395,8 @@ class EgresadoService(
             "sinodales_por_asignar" to sinodales,
             "anteproyecto" to anteproyecto,
             "total_anteproyecto" to totalAnteproyecto,
+            "liberacion_producto" to liberacionProducto,
+            "total_liberacion_producto" to totalLiberacionProducto,
             "total_sinodales" to totalSinodales,
         )
     }
@@ -395,7 +410,7 @@ class EgresadoService(
         // Sinodales y Todos muestran todos los egresados del departamento sin filtrar por modalidad.
         val norm = estado.trim().lowercase()
         val all = when (norm) {
-            "sinodales", "todos", "anteproyecto" -> porCarrera
+            "sinodales", "todos", "anteproyecto", "liberacion_producto" -> porCarrera
             else -> filtrarBandejaSegmentoCoordinacion(porCarrera, segmentoSlug, academicoUsername)
         }
         val lista = when (norm) {
@@ -416,6 +431,12 @@ class EgresadoService(
                 val pr = it.procesoActivoOrNull()
                 pr != null && !esResidenciaProfesional(it) &&
                     pr.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null &&
+                    pr.fechaEnviadoDepartamentoAcademico == null
+            }
+            "liberacion_producto" -> all.filter {
+                val pr = it.procesoActivoOrNull()
+                pr != null && !esResidenciaProfesional(it) &&
+                    pr.fechaRecepcionTrabajoDivisionEstudiosProf != null &&
                     pr.fechaEnviadoDepartamentoAcademico == null
             }
             else -> if (!segmentoSlug.isNullOrBlank()) {
@@ -439,6 +460,7 @@ class EgresadoService(
                 id = e.id?.toString() ?: "",
                 nombre = nombre,
                 numeroControl = e.numero_control,
+                carrera = p.carrera.takeIf { it.isNotBlank() },
                 modalidad = pr.datos_proyecto.modalidad,
                 fechaActualizacion = formatter.format(e.fecha_actualizacion),
                 fechaEnviadoDepartamento = pr.fechaEnviadoDepartamentoAcademico?.let { formatter.format(it) },
@@ -447,6 +469,7 @@ class EgresadoService(
                 sinodalesAsignados = pr.fechaAsignacionSinodales != null,
                 fechaEnvioAnteproyectoDepto = pr.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico?.let { formatter.format(it) },
                 fechaRegistradoDepartamento = pr.fechaRegistradoDepartamento?.let { formatter.format(it) },
+                fechaLiberacionProducto = pr.fechaSolicitudRegistroLiberacionDeptoAcademico?.let { formatter.format(it) },
             )
         }
     }
@@ -515,10 +538,29 @@ class EgresadoService(
         return RolSoporte.tieneAlgunRol(u.rol, "coordinador", "apoyo_titulacion", "division_estudios_prof_admin", "administrador")
     }
 
+    private fun normalizarCarreraKey(carrera: String): String {
+        val sinAcentos = java.text.Normalizer.normalize(carrera.trim(), java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "")
+        return sinAcentos.replace(Regex("\\s+"), " ").lowercase()
+    }
+
+    /** Departamento académico (slug + nombre) al que pertenece la carrera del egresado, según catálogo. */
+    private fun resolverDepartamentoPorCarrera(carrera: String): Pair<String, String>? {
+        val key = normalizarCarreraKey(carrera)
+        if (key.isEmpty()) return null
+        for (cat in catalogoRepository.findByTipoAndActivoTrue("departamento")) {
+            val slug = cat.slug?.trim()?.lowercase()?.ifBlank { null } ?: continue
+            if (cat.carreras.any { normalizarCarreraKey(it) == key }) {
+                return slug to cat.nombre
+            }
+        }
+        return null
+    }
+
     private fun carreraPermitidaParaAcademico(carrera: String, permitidas: Set<String>): Boolean {
-        val c = carrera.trim()
-        if (c.isEmpty()) return false
-        return permitidas.any { perm -> perm.equals(c, ignoreCase = true) }
+        val key = normalizarCarreraKey(carrera)
+        if (key.isEmpty()) return false
+        return permitidas.any { normalizarCarreraKey(it) == key }
     }
 
     fun obtenerPorId(id: String): EgresadoDetailDto? {
@@ -618,13 +660,24 @@ class EgresadoService(
         val objectId = try { ObjectId(id) } catch (_: Exception) { return null }
         val e = egresadoRepository.findById(objectId).orElse(null) ?: return null
         val adj = e.procesoActivoOrNull()?.documento_adjunto ?: return null
+        return streamDesdeAdjunto(adj, "documento")
+    }
+
+    fun obtenerTesisLiberacionAdjunto(id: String): DocumentoStream? {
+        val objectId = try { ObjectId(id) } catch (_: Exception) { return null }
+        val e = egresadoRepository.findById(objectId).orElse(null) ?: return null
+        val adj = e.procesoActivoOrNull()?.tesisLiberacionAdjunto ?: return null
+        return streamDesdeAdjunto(adj, "tesis-liberacion.pdf")
+    }
+
+    private fun streamDesdeAdjunto(adj: DocumentoAdjunto, defaultName: String): DocumentoStream? {
         val gridId = adj.gridfs_id ?: return null
         val file = gridFsTemplate.findOne(Query.query(Criteria.where("_id").`is`(gridId))) ?: return null
         val resource = gridFsTemplate.getResource(file)
         return DocumentoStream(
             inputStream = resource.inputStream,
             contentType = adj.content_type.ifBlank { "application/octet-stream" },
-            fileName = adj.nombre_original.ifBlank { "documento" },
+            fileName = adj.nombre_original.ifBlank { defaultName },
         )
     }
 
@@ -745,9 +798,7 @@ class EgresadoService(
         val p = e.procesoActivoOrNull() ?: return false
         if (p.fechaEnviadoDepartamentoAcademico != null) return false
         if (!esResidenciaProfesional(e) && p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null) {
-            val liberacionOk = p.fechaRecepcionRegistroLiberacionDeptoAcademico != null ||
-                (p.fechaRecepcionTrabajoDivisionEstudiosProf != null && p.fechaSolicitudRegistroLiberacionDeptoAcademico == null)
-            if (!liberacionOk) return false
+            if (p.fechaRecepcionRegistroLiberacionDeptoAcademico == null) return false
         }
         val ahora = Instant.now()
         val pEnviado = p.copy(fechaEnviadoDepartamentoAcademico = ahora, fecha_actualizacion = ahora)
@@ -798,13 +849,38 @@ class EgresadoService(
         return true
     }
 
+    /** Paso 1 (no residencia): DEP confirma entrega del egresado (anexo XXXI y anteproyecto). */
+    fun confirmarEntregaEgresadoDeptoNoResidencia(id: String): Boolean {
+        val e = cargarEgresadoPorId(id) ?: return false
+        if (esResidenciaProfesional(e)) return false
+        val p = e.procesoActivoOrNull() ?: return false
+        if (p.fechaConfirmacionEntregaEgresadoDepto != null) return false
+        val ahora = Instant.now()
+        egresadoRepository.save(
+            e.actualizarProcesoActivo(p.copy(fechaConfirmacionEntregaEgresadoDepto = ahora, fecha_actualizacion = ahora)),
+        )
+        return true
+    }
+
     fun solicitarRegistroAnteproyectoNoResidencia(id: String): Boolean {
         val e = cargarEgresadoPorId(id) ?: return false
         if (esResidenciaProfesional(e)) return false
         val p = e.procesoActivoOrNull() ?: return false
         if (p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null) return false
         val ahora = Instant.now()
-        egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico = ahora, fecha_actualizacion = ahora)))
+        val conEntrega = if (p.fechaConfirmacionEntregaEgresadoDepto == null) {
+            p.copy(fechaConfirmacionEntregaEgresadoDepto = ahora)
+        } else {
+            p
+        }
+        egresadoRepository.save(
+            e.actualizarProcesoActivo(
+                conEntrega.copy(
+                    fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico = ahora,
+                    fecha_actualizacion = ahora,
+                ),
+            ),
+        )
         return true
     }
 
@@ -838,8 +914,6 @@ class EgresadoService(
             e.actualizarProcesoActivo(
                 p.copy(
                     fechaRecepcionTrabajoDivisionEstudiosProf = ahora,
-                    fechaSolicitudRegistroLiberacionDeptoAcademico = ahora,
-                    fechaRecepcionRegistroLiberacionDeptoAcademico = ahora,
                     fecha_actualizacion = ahora,
                 ),
             ),
@@ -847,15 +921,47 @@ class EgresadoService(
         return true
     }
 
+    /**
+     * Paso 5 (no residencia): departamento académico sube la tesis y libera producto (anexo XXXIII).
+     * Registra [fechaSolicitudRegistroLiberacionDeptoAcademico] y el PDF en [tesisLiberacionAdjunto].
+     */
+    fun liberarProductoNoResidencia(id: String, archivo: MultipartFile): String? {
+        val e = cargarEgresadoPorId(id) ?: return "Registro no encontrado."
+        if (esResidenciaProfesional(e)) return "Solo aplica a modalidades distintas de residencia."
+        val p = e.procesoActivoOrNull() ?: return "No hay proceso activo."
+        if (p.fechaRecepcionTrabajoDivisionEstudiosProf == null) {
+            return "El egresado aún no ha concluido la fase de desarrollo del proyecto en la DEP."
+        }
+        if (p.fechaSolicitudRegistroLiberacionDeptoAcademico != null) return "La tesis ya fue liberada."
+        if (archivo.isEmpty) return "Selecciona un archivo PDF de la tesis."
+        if (!esPdfValido(archivo)) return "Solo se permiten archivos PDF."
+        val ahora = Instant.now()
+        val gridFsId = subirArchivo(archivo)
+        val adjunto = DocumentoAdjunto(
+            gridfs_id = gridFsId,
+            nombre_original = archivo.originalFilename ?: "tesis.pdf",
+            content_type = archivo.contentType ?: "application/pdf",
+            tamanio_bytes = archivo.size,
+            fecha_subida = ahora,
+        )
+        egresadoRepository.save(
+            e.actualizarProcesoActivo(
+                p.copy(
+                    fechaSolicitudRegistroLiberacionDeptoAcademico = ahora,
+                    tesisLiberacionAdjunto = adjunto,
+                    fecha_actualizacion = ahora,
+                ),
+            ),
+        )
+        return null
+    }
+
+    /** @deprecated Usar [liberarProductoNoResidencia]; conservado por compatibilidad de API. */
     fun solicitarRegistroLiberacionNoResidencia(id: String): Boolean {
         val e = cargarEgresadoPorId(id) ?: return false
         if (esResidenciaProfesional(e)) return false
         val p = e.procesoActivoOrNull() ?: return false
-        if (p.fechaRecepcionTrabajoDivisionEstudiosProf == null) return false
-        if (p.fechaSolicitudRegistroLiberacionDeptoAcademico != null) return false
-        val ahora = Instant.now()
-        egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaSolicitudRegistroLiberacionDeptoAcademico = ahora, fecha_actualizacion = ahora)))
-        return true
+        return p.fechaSolicitudRegistroLiberacionDeptoAcademico != null
     }
 
     fun confirmarRecepcionRegistroLiberacionNoResidencia(id: String): Boolean {
@@ -1220,6 +1326,7 @@ class EgresadoService(
         val pr = e.procesoActivoOrNull()
         val doc = pr?.documentos ?: Documentos()
         val formatter = DateTimeFormatter.ISO_INSTANT
+        val deptoCarrera = resolverDepartamentoPorCarrera(p.carrera)
         return EgresadoDetailDto(
             id = e.id?.toString() ?: "",
             numero_control = e.numero_control,
@@ -1285,8 +1392,12 @@ class EgresadoService(
                     )
                 }
             } else emptyList(),
+            fecha_confirmacion_entrega_egresado_depto = pr?.fechaConfirmacionEntregaEgresadoDepto?.let { formatter.format(it) },
             fecha_envio_solicitud_registro_anteproyecto_depto_academico = pr?.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico?.let { formatter.format(it) },
             fecha_registrado_departamento = pr?.fechaRegistradoDepartamento?.let { formatter.format(it) },
+            segmento_departamento_academico = deptoCarrera?.first,
+            nombre_departamento_academico = deptoCarrera?.second,
+            tiene_tesis_liberacion = pr?.tesisLiberacionAdjunto?.gridfs_id != null,
             fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii = pr?.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii?.let { formatter.format(it) },
             fecha_recepcion_trabajo_division_estudios_prof = pr?.fechaRecepcionTrabajoDivisionEstudiosProf?.let { formatter.format(it) },
             fecha_solicitud_registro_liberacion_depto_academico = pr?.fechaSolicitudRegistroLiberacionDeptoAcademico?.let { formatter.format(it) },

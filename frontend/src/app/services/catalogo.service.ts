@@ -241,11 +241,44 @@ export class CatalogoService {
    * Útil cuando el usuario tiene carreras_asignadas pero no slug almacenado.
    */
   inferirNombreDepartamentoPorCarreras(carreras: string[]): string | null {
-    const normalizadas = carreras.map(c => c.trim().toLowerCase()).filter(Boolean);
+    const normalizadas = carreras.map(c => this.normalizarCarreraKey(c)).filter(Boolean);
     if (!normalizadas.length) return null;
     for (const dep of this.departamentosCached) {
-      const set = new Set(dep.carreras.map(c => c.trim().toLowerCase()));
+      const set = new Set(dep.carreras.map(c => this.normalizarCarreraKey(c)));
       if (normalizadas.every(c => set.has(c))) return dep.nombre;
+    }
+    return null;
+  }
+
+  /** Clave normalizada para comparar carreras (sin acentos, espacios colapsados). */
+  normalizarCarreraKey(carrera: string): string {
+    return (carrera ?? '')
+      .trim()
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '')
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+  }
+
+  /** Slug del departamento académico al que pertenece la carrera (p. ej. economico_administrativo). */
+  slugPorCarreraSync(carrera: string): string | null {
+    const key = this.normalizarCarreraKey(carrera);
+    if (!key) return null;
+    for (const dep of this.departamentosCached) {
+      if (dep.carreras.some(c => this.normalizarCarreraKey(c) === key)) {
+        return dep.slug ?? null;
+      }
+    }
+    return null;
+  }
+
+  nombreDepartamentoPorCarreraSync(carrera: string): string | null {
+    const key = this.normalizarCarreraKey(carrera);
+    if (!key) return null;
+    for (const dep of this.departamentosCached) {
+      if (dep.carreras.some(c => this.normalizarCarreraKey(c) === key)) {
+        return dep.nombre;
+      }
     }
     return null;
   }
