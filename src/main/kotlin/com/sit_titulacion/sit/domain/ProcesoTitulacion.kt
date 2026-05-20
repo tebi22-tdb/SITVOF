@@ -19,7 +19,10 @@ data class ProcesoTitulacion(
     @Field("fecha_creacion") val fechaCreacion: Instant = Instant.now(),
     val fecha_actualizacion: Instant = Instant.now(),
 
-    // ── Flujo no residencia (16 pasos) ──────────────────────────────────────
+    // ── Flujo no residencia (tesis / no residencia) ─────────────────────────
+    /** Paso 1 DEP: el egresado entregó solicitud de inicio (anexo XXXI) y anteproyecto. */
+    @Field("fecha_confirmacion_entrega_egresado_depto")
+    val fechaConfirmacionEntregaEgresadoDepto: Instant? = null,
     @Field("fecha_envio_solicitud_registro_anteproyecto_depto_academico")
     val fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico: Instant? = null,
     /** Dashboard del departamento: marca que el registro fue acusado/procesado en la bandeja. Independiente del flujo de seguimiento. */
@@ -32,6 +35,9 @@ data class ProcesoTitulacion(
     val fechaRecepcionTrabajoDivisionEstudiosProf: Instant? = null,
     @Field("fecha_solicitud_registro_liberacion_depto_academico")
     val fechaSolicitudRegistroLiberacionDeptoAcademico: Instant? = null,
+    /** Tesis PDF subida por el departamento académico al liberar producto (paso 5). */
+    @Field("tesis_liberacion_adjunto")
+    val tesisLiberacionAdjunto: DocumentoAdjunto = DocumentoAdjunto(),
     @Field("fecha_recepcion_registro_liberacion_depto_academico")
     val fechaRecepcionRegistroLiberacionDeptoAcademico: Instant? = null,
     @Field("fecha_liberacion_documento_coordinacion_cat")

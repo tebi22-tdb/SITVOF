@@ -55,9 +55,13 @@ export interface EgresadoDetail {
   /** Resumen de procesos anteriores (vencidos o titulados). */
   procesos_anteriores?: ProcesoAnterior[];
   /** Fecha en que se marcó "Enviado al departamento académico" (paso 1.1). */
+  fecha_confirmacion_entrega_egresado_depto?: string;
   fecha_envio_solicitud_registro_anteproyecto_depto_academico?: string;
+  tiene_tesis_liberacion?: boolean;
   /** Marca del departamento académico (Anteproyecto registrado); habilita confirmación DEP paso 2 en no residencia. */
   fecha_registrado_departamento?: string;
+  segmento_departamento_academico?: string;
+  nombre_departamento_academico?: string;
   fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii?: string;
   fecha_recepcion_trabajo_division_estudios_prof?: string;
   fecha_solicitud_registro_liberacion_depto_academico?: string;
@@ -130,7 +134,12 @@ export interface ProcesoAnterior {
   fecha_recibido_registro_liberacion?: string;
   fecha_confirmacion_recibidos_anexo_xxxi_xxxii?: string;
   fecha_liberacion_documento_coordinacion_cat?: string;
+  fecha_confirmacion_entrega_egresado_depto?: string;
   fecha_envio_solicitud_registro_anteproyecto_depto_academico?: string;
+  tiene_tesis_liberacion?: boolean;
+  fecha_recepcion_trabajo_division_estudios_prof?: string;
+  fecha_solicitud_registro_liberacion_depto_academico?: string;
+  fecha_recepcion_registro_liberacion_depto_academico?: string;
   fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii?: string;
   fecha_creacion_anexo_9_1?: string;
   fecha_confirmacion_entrega_anexo_9_1?: string;
@@ -152,6 +161,7 @@ export interface DepartamentoListItem {
   id: string;
   nombre?: string;
   numero_control: string;
+  carrera?: string;
   modalidad: string;
   fecha_actualizacion?: string;
   fecha_enviado_departamento_academico?: string;
@@ -161,8 +171,9 @@ export interface DepartamentoListItem {
   fecha_solicitud_sinodales?: string;
   /** Pestaña Anteproyecto: fecha en que DEP envió anteproyecto + Anexo XXXI al departamento. */
   fecha_envio_anteproyecto_depto?: string;
-  /** Pestaña Anteproyecto: fecha en que se marcó como registrado en la bandeja del departamento. */
   fecha_registrado_departamento?: string;
+  /** Pestaña Liberación de producto: ya liberado. */
+  fecha_liberacion_producto?: string;
 }
 
 /** Revisión guardada (del backend). */
@@ -192,6 +203,8 @@ export interface DepartamentoCounts {
   anteproyecto?: number;
   /** Total de registros en la sección (pendientes + ya registrados). */
   total_anteproyecto?: number;
+  liberacion_producto?: number;
+  total_liberacion_producto?: number;
   total_sinodales?: number;
 }
 
@@ -307,8 +320,28 @@ export class EgresadoService {
     return this.http.post(`${API}/${id}/no-residencia/confirmar-recepcion-trabajo-division`, {});
   }
 
-  solicitarRegistroLiberacionNoResidencia(id: string): Observable<unknown> {
-    return this.http.post(`${API}/${id}/no-residencia/solicitar-registro-liberacion-depto`, {});
+  confirmarEntregaEgresadoDeptoNoResidencia(id: string): Observable<unknown> {
+    return this.http.post(`${API}/${id}/no-residencia/confirmar-entrega-egresado-depto`, {});
+  }
+
+  liberarProductoNoResidencia(id: string, archivo: File): Observable<unknown> {
+    const formData = new FormData();
+    formData.append('archivo', archivo, archivo.name);
+    return this.http.post(`${API}/${id}/no-residencia/liberar-producto`, formData);
+  }
+
+  getTesisLiberacion(id: string): Observable<{ blob: Blob; contentType: string; fileName: string }> {
+    return this.http
+      .get(`${API}/${id}/tesis-liberacion`, { responseType: 'blob', observe: 'response' })
+      .pipe(
+        map((res) => {
+          const ct = res.headers.get('Content-Type') || 'application/pdf';
+          const disp = res.headers.get('Content-Disposition') || '';
+          const match = disp.match(/filename[*]?=(?:UTF-8'')?"?([^";\n]+)"?/i);
+          const fileName = match ? match[1].trim() : 'tesis-liberacion.pdf';
+          return { blob: res.body!, contentType: ct, fileName };
+        }),
+      );
   }
 
   confirmarRecepcionRegistroLiberacionNoResidencia(id: string): Observable<unknown> {

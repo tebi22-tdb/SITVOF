@@ -25,6 +25,8 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
   documentoHrefSeguro: SafeUrl | null = null;
   documentoContentType = '';
   documentoFileName = '';
+  /** true = PDF de liberación de producto (tesis); false = documento del expediente. */
+  documentoEsTesisLiberacion = false;
 
   cargandoRevisiones = false;
   revisiones: RevisionApi[] = [];
@@ -77,16 +79,35 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
     this.documentoUrl = null;
     this.documentoUrlSeguro = null;
     this.documentoHrefSeguro = null;
+    this.documentoEsTesisLiberacion = false;
+    this.subs.add(
+      this.egresadoService.getTesisLiberacion(this.id).subscribe({
+        next: ({ blob, contentType, fileName }) => {
+          this.documentoEsTesisLiberacion = true;
+          this.mostrarDocumentoCargado(blob, contentType, fileName || 'tesis-liberacion.pdf');
+        },
+        error: (err: { status?: number }) => {
+          if (err?.status === 404) {
+            this.cargarDocumentoExpediente();
+            return;
+          }
+          this.cargandoDocumento = false;
+          const msg =
+            (err as { error?: { error?: string }; message?: string }).error?.error ??
+            (err as { message?: string }).message;
+          this.errorDocumento = msg ? `No se pudo cargar la tesis: ${msg}` : 'No se pudo cargar la tesis.';
+        },
+      }),
+    );
+  }
+
+  /** Documento adjunto del expediente (residencia o flujos sin liberación de producto). */
+  private cargarDocumentoExpediente(): void {
     this.subs.add(
       this.egresadoService.getDocumento(this.id).subscribe({
         next: ({ blob, contentType, fileName }) => {
-          this.cargandoDocumento = false;
-          this.documentoContentType = contentType || '';
-          this.documentoFileName = fileName || 'documento';
-          const url = URL.createObjectURL(blob);
-          this.documentoUrl = url;
-          this.documentoUrlSeguro = this.sanitizer.bypassSecurityTrustResourceUrl(url);
-          this.documentoHrefSeguro = this.sanitizer.bypassSecurityTrustUrl(url);
+          this.documentoEsTesisLiberacion = false;
+          this.mostrarDocumentoCargado(blob, contentType, fileName || 'documento');
         },
         error: (err) => {
           this.cargandoDocumento = false;
@@ -95,6 +116,16 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
         },
       }),
     );
+  }
+
+  private mostrarDocumentoCargado(blob: Blob, contentType: string, fileName: string): void {
+    this.cargandoDocumento = false;
+    this.documentoContentType = contentType || '';
+    this.documentoFileName = fileName;
+    const url = URL.createObjectURL(blob);
+    this.documentoUrl = url;
+    this.documentoUrlSeguro = this.sanitizer.bypassSecurityTrustResourceUrl(url);
+    this.documentoHrefSeguro = this.sanitizer.bypassSecurityTrustUrl(url);
   }
 
   /**

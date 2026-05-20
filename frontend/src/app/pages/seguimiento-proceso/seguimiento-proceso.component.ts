@@ -529,43 +529,98 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     return this.mapearDefsAUiPasos(steps);
   }
 
+  /** Paso 1 completado (retrocompat: expedientes previos al campo nuevo). */
+  entregaEgresadoDeptoCompleta(d: EgresadoDetail): boolean {
+    return !!(
+      d.fecha_confirmacion_entrega_egresado_depto?.trim() ||
+      d.fecha_envio_solicitud_registro_anteproyecto_depto_academico?.trim()
+    );
+  }
+
   private construirPasosSeguimientoNoResidencia16(): PasoProcesoUi[] {
     const defs: PasoTitulacionDef[] = [
       {
+        key: 'fecha_confirmacion_entrega_egresado_depto',
+        titulo:
+          'Entrega del egresado a la DEP: solicitud de inicio de proceso de titulación (anexo XXXI) y anteproyecto',
+        descripcion: 'La DEP confirma que recibió del egresado la solicitud de inicio y el anteproyecto.',
+      },
+      {
         key: 'fecha_envio_solicitud_registro_anteproyecto_depto_academico',
         titulo:
-          'Envío de solicitud de proceso de titulación (anexo XXXI), anteproyecto y solicitud del proyecto (anexo XXXII)',
-        descripcion: 'La DEP registra el envío al departamento académico (solicitud, anteproyecto y anexo XXXII).',
+          'La DEP envía al departamento académico el anteproyecto y solicita el registro de la tesis (anexo XXXII)',
+        descripcion:
+          'La DEP registra el envío al departamento académico; en la bandeja Anteproyecto quedará pendiente de marcar como registrado.',
       },
       {
         key: 'fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii',
         titulo:
-          'Recepción en la DEP del anexo XXXI, anteproyecto y anexo XXXII del trabajo de titulación a desarrollar',
-        descripcion: 'La DEP confirma que recibió del departamento académico los anexos y documentos indicados.',
+          'El departamento académico envía a la DEP el anexo XXXII (registro de la tesis)',
+        descripcion:
+          'La DEP confirma la recepción del registro una vez que el departamento académico marcó como registrado.',
       },
       {
         key: 'fecha_recepcion_trabajo_division_estudios_prof',
         titulo: 'Recepción del trabajo en división de estudios profesionales',
-        descripcion: 'División confirma la recepción del trabajo del egresado; concluye el plazo de desarrollo en curso.',
+        descripcion:
+          'Confirma cuando el egresado entregue su proyecto; desde aquí corre el plazo de desarrollo del proyecto.',
+      },
+      {
+        key: 'fecha_solicitud_registro_liberacion_depto_academico',
+        titulo: 'Liberación de producto en el departamento académico',
+        descripcion:
+          'El departamento académico sube la tesis y pulsa Liberar en la pestaña Liberación de producto (por carrera).',
+      },
+      {
+        key: 'fecha_recepcion_registro_liberacion_depto_academico',
+        titulo: 'La DEP recibe la liberación del anexo XXXIII y la tesis',
+        descripcion: 'La DEP confirma la recepción de la liberación y del documento de tesis.',
       },
       {
         key: 'fecha_enviado_departamento_academico',
         titulo: 'Envío a Departamento de Apoyo a la Titulación para revisión',
         descripcion: 'La DEP envía el expediente al Departamento de Apoyo a la Titulación (revisión académica).',
       },
-      {
-        key: 'fecha_liberacion_documento_coordinacion_cat',
-        titulo: 'El documento es liberado por Coordinación de apoyo a la titulación',
-        descripcion:
-          'Al aprobar la revisión en la interfaz de Coordinación de apoyo a la titulación se registra la liberación (y la confirmación de anexos cuando aplica).',
-      },
       ...this.pasosTitulacionCompartidosDef(),
       ...this.pasosDocumentacionEscaneadaDef(),
     ];
     const d = this.detalleSeleccionado!;
-    const modalidadTitulo = (d.datos_proyecto?.modalidad ?? '').trim() || 'titulación integral';
+    const modalidadTitulo = (d.datos_proyecto?.modalidad ?? '').trim() || 'Tesis';
     let todosPreviosCompletados = true;
     return defs.map((s, i) => {
+      if (s.key === 'fecha_confirmacion_entrega_egresado_depto') {
+        const fecha = d.fecha_confirmacion_entrega_egresado_depto;
+        const completado = this.entregaEgresadoDeptoCompleta(d);
+        const estado: EstadoPaso = completado ? 'completado' : todosPreviosCompletados ? 'en_curso' : 'pendiente';
+        if (!completado) todosPreviosCompletados = false;
+        return {
+          numero: i + 1,
+          key: s.key,
+          titulo: s.titulo,
+          descripcion: s.descripcion,
+          fecha: fecha || d.fecha_envio_solicitud_registro_anteproyecto_depto_academico,
+          estado,
+        };
+      }
+      if (s.key === 'fecha_envio_solicitud_registro_anteproyecto_depto_academico') {
+        const fecha = d.fecha_envio_solicitud_registro_anteproyecto_depto_academico;
+        const completado = !!fecha;
+        let estado: EstadoPaso;
+        if (completado) estado = 'completado';
+        else if (!this.entregaEgresadoDeptoCompleta(d) || !todosPreviosCompletados) estado = 'pendiente';
+        else estado = 'en_curso';
+        if (!completado) todosPreviosCompletados = false;
+        return { numero: i + 1, key: s.key, titulo: s.titulo, descripcion: s.descripcion, fecha, estado };
+      }
+      if (s.key === 'fecha_solicitud_registro_liberacion_depto_academico') {
+        const fecha = d.fecha_solicitud_registro_liberacion_depto_academico;
+        const completado = !!fecha;
+        const puede =
+          !!d.fecha_recepcion_trabajo_division_estudios_prof && todosPreviosCompletados;
+        const estado: EstadoPaso = completado ? 'completado' : puede ? 'en_curso' : 'pendiente';
+        if (!completado) todosPreviosCompletados = false;
+        return { numero: i + 1, key: s.key, titulo: s.titulo, descripcion: s.descripcion, fecha, estado };
+      }
       const esRecepcionDesarrollo = s.key === 'fecha_recepcion_trabajo_division_estudios_prof';
       /** Numeración 1…n en este panel (sin saltos). No forzar “3” aquí: el paso 1 del alumno no está en esta lista. */
       const numeroPaso = i + 1;
@@ -815,7 +870,12 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     this.egresadoService.solicitarRegistroAnteproyectoNoResidencia(this.detalleSeleccionado.id).subscribe({
       next: () => {
         this.procesandoPaso = false;
-        this.mensajeProceso = 'Envío de solicitud de titulación, anteproyecto y anexo XXXII registrado.';
+        const d = this.detalleSeleccionado;
+        const depto =
+          d?.nombre_departamento_academico?.trim() ||
+          this.catalogoService.nombreDepartamentoPorCarreraSync(d?.datos_personales?.carrera ?? '') ||
+          'el departamento académico de su carrera';
+        this.mensajeProceso = `Envío registrado. El egresado debe aparecer en Anteproyecto de «${depto}» para marcar como registrado.`;
         this.refrescarDetalle();
       },
       error: (err) => {
@@ -842,6 +902,23 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     });
   }
 
+  confirmarEntregaEgresadoDeptoNoResidencia(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService.confirmarEntregaEgresadoDeptoNoResidencia(this.detalleSeleccionado.id).subscribe({
+      next: () => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = 'Entrega del egresado confirmada.';
+        this.refrescarDetalle();
+      },
+      error: (err) => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar.';
+      },
+    });
+  }
+
   confirmarRecepcionTrabajoNoResidencia(): void {
     if (!this.detalleSeleccionado || this.procesandoPaso) return;
     this.procesandoPaso = true;
@@ -855,23 +932,6 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.procesandoPaso = false;
         this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar.';
-      },
-    });
-  }
-
-  solicitarRegistroLiberacionNoResidencia(): void {
-    if (!this.detalleSeleccionado || this.procesandoPaso) return;
-    this.procesandoPaso = true;
-    this.mensajeProceso = '';
-    this.egresadoService.solicitarRegistroLiberacionNoResidencia(this.detalleSeleccionado.id).subscribe({
-      next: () => {
-        this.procesandoPaso = false;
-        this.mensajeProceso = 'Solicitud de liberación al departamento académico registrada.';
-        this.refrescarDetalle();
-      },
-      error: (err) => {
-        this.procesandoPaso = false;
-        this.mensajeProceso = err?.error?.error ?? 'No se pudo registrar la solicitud.';
       },
     });
   }

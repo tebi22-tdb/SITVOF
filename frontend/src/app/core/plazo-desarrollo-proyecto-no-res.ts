@@ -1,10 +1,9 @@
 /**
- * No residencia, flujo 16:
- * - Hasta que división confirme la recepción del trabajo: plazo de desarrollo (12/18 meses)
- *   cuenta solo desde la confirmación en la DEP del paso 2 (anexo XXXI, anteproyecto y XXXII),
- *   no desde el envío al departamento académico.
- * - Tras confirmar recepción del trabajo en división: concluye el plazo de desarrollo; 6 meses
- *   calendario desde esa fecha para el proceso de titulación posterior.
+ * No residencia, flujo 7 pasos (tesis):
+ * - Plazo de desarrollo (12/18 meses): desde la confirmación DEP del paso 3 (recepción XXXI, anteproyecto y XXXII),
+ *   no desde el envío al departamento académico (paso 2).
+ * - Tras confirmar recepción del trabajo en división (paso 4): termina el plazo de desarrollo; 6 meses calendario
+ *   para el trámite de titulación posterior.
  * Semáforo respecto a la fecha límite con margen de rezago antes del vencimiento.
  */
 import { MARGEN_REZAGO_DIAS_NO_RES, MESES_PLAZO_TITULACION_NO_RES } from './plazos-titulacion-no-residencia';
@@ -203,7 +202,7 @@ export function calcularVistaPlazoDesarrolloRecepcionNoRes(
 
 /**
  * UI del cuadro verde bajo el paso de recepción: solo cuando ya corre el plazo de desarrollo
- * (confirmación DEP paso 2) y falta confirmar la recepción del trabajo en división.
+ * (confirmación DEP paso 3) y falta confirmar la recepción del trabajo en división (paso 4).
  * Tras confirmar recepción del trabajo, el sistema sigue contando 6 meses en {@link calcularVistaPlazoDesarrolloRecepcionNoRes} (bloqueos, badge).
  */
 export function construirPlazoDesarrolloRecepcionUi(d: EgresadoPlazoRecepcionInput): PlazoDesarrolloRecepcionUi | null {

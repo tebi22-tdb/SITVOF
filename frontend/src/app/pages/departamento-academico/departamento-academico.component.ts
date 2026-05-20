@@ -10,7 +10,7 @@ import { AuthService } from '../../services/auth.service';
 import { EgresadoService, DepartamentoListItem, DepartamentoCounts } from '../../services/egresado.service';
 import { CatalogoService } from '../../services/catalogo.service';
 
-type TabEstado = 'pendientes' | 'en_correccion' | 'aprobados' | 'sinodales' | 'todos' | 'anteproyecto';
+type TabEstado = 'pendientes' | 'en_correccion' | 'aprobados' | 'sinodales' | 'todos' | 'anteproyecto' | 'liberacion_producto';
 @Component({
   selector: 'app-departamento-academico',
   standalone: true,
@@ -24,7 +24,18 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   esModoRevision = false;
   /** Filtro por slug de departamento (solo coordinación; query `?segmento=`). */
   segmentoCoordinacion: string | null = null;
-  counts: DepartamentoCounts = { pendientes: 0, en_correccion: 0, aprobados: 0, todos: 0, sinodales_por_asignar: 0, anteproyecto: 0, total_anteproyecto: 0, total_sinodales: 0 };
+  counts: DepartamentoCounts = {
+    pendientes: 0,
+    en_correccion: 0,
+    aprobados: 0,
+    todos: 0,
+    sinodales_por_asignar: 0,
+    anteproyecto: 0,
+    total_anteproyecto: 0,
+    liberacion_producto: 0,
+    total_liberacion_producto: 0,
+    total_sinodales: 0,
+  };
   lista: DepartamentoListItem[] = [];
   cargando = true;
   error = '';
@@ -32,6 +43,9 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   liberandoId: string | null = null;
   /** ID del egresado mientras se confirma recepción Anexo XXXII (evita doble clic). */
   confirmandoXxxiiId: string | null = null;
+  /** PDF de tesis seleccionado en pestaña Liberación de producto. */
+  archivoTesisLiberacion: File | null = null;
+  mensajeLiberacionProducto = '';
   /** Número de control para buscar (pestañas Todos/Sinodales). */
   searchNumeroControl = '';
   /** Filtro aplicado al hacer clic en Buscar. */
@@ -135,7 +149,12 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     this.errorDocumento = '';
     this.documentoContentType = '';
     this.documentoFileName = '';
-    this.docSub = this.egresadoService.getDocumento(id).subscribe({
+    const yaLiberado = !!this.seleccionado?.fecha_liberacion_producto;
+    const doc$ =
+      this.tabActivo === 'liberacion_producto' && yaLiberado
+        ? this.egresadoService.getTesisLiberacion(id)
+        : this.egresadoService.getDocumento(id);
+    this.docSub = doc$.subscribe({
       next: ({ blob, contentType, fileName }) => {
         this.cargandoDocumento = false;
         this.documentoContentType = contentType || '';
@@ -210,6 +229,9 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     if (this.tabActivo === 'anteproyecto') {
       return 'No hay anteproyectos enviados al departamento pendientes de respuesta.';
     }
+    if (this.tabActivo === 'liberacion_producto') {
+      return 'No hay egresados pendientes de liberación de producto (tesis).';
+    }
     return 'No hay registros en esta sección.';
   }
 
@@ -227,6 +249,19 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
 
     this.querySub = this.route.queryParamMap.subscribe((q) => {
       const s = q.get('segmento')?.trim() || null;
+      const tabQ = q.get('tab')?.trim().toLowerCase() as TabEstado | undefined;
+      const tabsValidas: TabEstado[] = [
+        'pendientes',
+        'en_correccion',
+        'aprobados',
+        'sinodales',
+        'todos',
+        'anteproyecto',
+        'liberacion_producto',
+      ];
+      if (tabQ && tabsValidas.includes(tabQ)) {
+        this.tabActivo = tabQ;
+      }
       this.segmentoCoordinacion = this.authService.isAcademico() ? null : s;
       if (this.segmentoCoordinacion && (this.tabActivo === 'en_correccion' || this.tabActivo === 'aprobados')) {
         this.tabActivo = 'pendientes';
@@ -254,6 +289,8 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
           sinodales_por_asignar: c.sinodales_por_asignar ?? 0,
           anteproyecto: c.anteproyecto ?? 0,
           total_anteproyecto: c.total_anteproyecto ?? 0,
+          liberacion_producto: c.liberacion_producto ?? 0,
+          total_liberacion_producto: c.total_liberacion_producto ?? 0,
           total_sinodales: c.total_sinodales ?? 0,
         };
       },
@@ -301,8 +338,41 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     if (this.mostrarTabsRevisionCoordinacion && tab === 'sinodales') return;
     this.tabActivo = tab;
     this.filtroNumeroControl = '';
+    this.archivoTesisLiberacion = null;
+    this.mensajeLiberacionProducto = '';
     this.limpiarSeleccionDocumento();
     this.cargarLista();
+  }
+
+  onTesisLiberacionSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.archivoTesisLiberacion = input.files?.[0] ?? null;
+    this.mensajeLiberacionProducto = '';
+  }
+
+  liberarProductoNoRes(item: DepartamentoListItem, ev?: Event): void {
+    ev?.stopPropagation();
+    if (!this.archivoTesisLiberacion) {
+      this.mensajeLiberacionProducto = 'Selecciona el PDF de la tesis antes de liberar.';
+      return;
+    }
+    this.error = '';
+    this.mensajeLiberacionProducto = '';
+    this.liberandoId = item.id;
+    this.egresadoService.liberarProductoNoResidencia(item.id, this.archivoTesisLiberacion).subscribe({
+      next: () => {
+        this.liberandoId = null;
+        this.archivoTesisLiberacion = null;
+        this.mensajeLiberacionProducto = 'Tesis liberada correctamente.';
+        this.cargarCounts();
+        this.cargarLista();
+        this.limpiarSeleccionDocumento();
+      },
+      error: (err: { error?: { error?: string } }) => {
+        this.liberandoId = null;
+        this.mensajeLiberacionProducto = err?.error?.error ?? 'No se pudo liberar la tesis.';
+      },
+    });
   }
 
   volverInicio(): void {
@@ -361,6 +431,17 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   /** Fecha en que DEP envió anteproyecto + Anexo XXXI al departamento: DD/MM/YYYY. */
   fechaEnvioAnteproyecto(item: DepartamentoListItem): string {
     const iso = item.fecha_envio_anteproyecto_depto;
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    const dia = d.getDate().toString().padStart(2, '0');
+    const mes = (d.getMonth() + 1).toString().padStart(2, '0');
+    const anio = d.getFullYear();
+    return `${dia}/${mes}/${anio}`;
+  }
+
+  fechaLiberacionProducto(item: DepartamentoListItem): string {
+    const iso = item.fecha_liberacion_producto;
     if (!iso) return '—';
     const d = new Date(iso);
     if (isNaN(d.getTime())) return iso;

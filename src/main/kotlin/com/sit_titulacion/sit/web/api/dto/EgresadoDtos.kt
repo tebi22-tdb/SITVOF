@@ -69,6 +69,7 @@ data class DepartamentoListItemDto(
     val id: String,
     @JsonProperty("nombre") val nombre: String,
     @JsonProperty("numero_control") val numeroControl: String,
+    val carrera: String? = null,
     val modalidad: String,
     @JsonProperty("fecha_actualizacion") val fechaActualizacion: String?,
     @JsonProperty("fecha_enviado_departamento_academico") val fechaEnviadoDepartamento: String?,
@@ -82,6 +83,8 @@ data class DepartamentoListItemDto(
     @JsonProperty("fecha_envio_anteproyecto_depto") val fechaEnvioAnteproyectoDepto: String? = null,
     /** Pestaña Anteproyecto: fecha en que se marcó como registrado en la bandeja del departamento. */
     @JsonProperty("fecha_registrado_departamento") val fechaRegistradoDepartamento: String? = null,
+    /** Pestaña Liberación de producto: fecha en que el departamento liberó la tesis. */
+    @JsonProperty("fecha_liberacion_producto") val fechaLiberacionProducto: String? = null,
 )
 
 /** Cuerpo para asignar o actualizar sinodales (departamento académico). */
@@ -144,16 +147,22 @@ data class EgresadoDetailDto(
     @JsonProperty("total_procesos") val total_procesos: Int = 1,
     /** Resumen de procesos anteriores (todos excepto el activo). */
     @JsonProperty("procesos_anteriores") val procesos_anteriores: List<ProcesoAnteriorDto> = emptyList(),
+    @JsonProperty("fecha_confirmacion_entrega_egresado_depto")
+    val fecha_confirmacion_entrega_egresado_depto: String? = null,
     @JsonProperty("fecha_envio_solicitud_registro_anteproyecto_depto_academico")
     val fecha_envio_solicitud_registro_anteproyecto_depto_academico: String? = null,
     /** Marca del departamento académico (bandeja Anteproyecto); requisito para que la DEP confirme el paso 2 en no residencia. */
     @JsonProperty("fecha_registrado_departamento") val fecha_registrado_departamento: String? = null,
+    /** Slug del departamento académico (catálogo) según la carrera del egresado. */
+    @JsonProperty("segmento_departamento_academico") val segmento_departamento_academico: String? = null,
+    @JsonProperty("nombre_departamento_academico") val nombre_departamento_academico: String? = null,
     @JsonProperty("fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii")
     val fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii: String? = null,
     @JsonProperty("fecha_recepcion_trabajo_division_estudios_prof")
     val fecha_recepcion_trabajo_division_estudios_prof: String? = null,
     @JsonProperty("fecha_solicitud_registro_liberacion_depto_academico")
     val fecha_solicitud_registro_liberacion_depto_academico: String? = null,
+    @JsonProperty("tiene_tesis_liberacion") val tiene_tesis_liberacion: Boolean = false,
     @JsonProperty("fecha_recepcion_registro_liberacion_depto_academico")
     val fecha_recepcion_registro_liberacion_depto_academico: String? = null,
     @JsonProperty("fecha_liberacion_documento_coordinacion_cat")

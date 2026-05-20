@@ -224,6 +224,26 @@ class EgresadoController(
             .body(InputStreamResource(doc.inputStream))
     }
 
+    @GetMapping("/{id}/tesis-liberacion")
+    fun obtenerTesisLiberacion(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (principal == null || !puedeVerBandejaDepartamento(principal.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        }
+        respuestaSiNoAccesoEgresadoBandeja(id, principal)?.let { return it }
+        val doc = egresadoService.obtenerTesisLiberacionAdjunto(id) ?: return ResponseEntity.notFound().build<Void>()
+        val headers = HttpHeaders().apply {
+            set(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + doc.fileName.replace("\"", "%22") + "\"")
+        }
+        val mediaType = try { MediaType.parseMediaType(doc.contentType) } catch (_: Exception) { MediaType.APPLICATION_OCTET_STREAM }
+        return ResponseEntity.ok()
+            .headers(headers)
+            .contentType(mediaType)
+            .body(InputStreamResource(doc.inputStream))
+    }
+
     /**
      * Sustituye el PDF/Word adjunto al expediente. Académico o personal de coordinación.
      * Sin `consumes` estricto: algunos clientes envían `multipart/form-data` con parámetros extra en Content-Type
@@ -448,11 +468,19 @@ class EgresadoController(
         if (egresadoService.marcarRegistradoDepartamento(id)) ResponseEntity.ok().build<Void>()
         else ResponseEntity.badRequest().body(mapOf("error" to "No se pudo marcar como registrado."))
 
-    /** No residencia (16 pasos): envío solicitud registro y anteproyecto al departamento académico. */
+    /** No residencia paso 1: DEP confirma entrega del egresado (anexo XXXI y anteproyecto). */
+    @PostMapping("/{id}/no-residencia/confirmar-entrega-egresado-depto")
+    fun confirmarEntregaEgresadoDeptoNoResidencia(@PathVariable id: String): ResponseEntity<*> =
+        if (egresadoService.confirmarEntregaEgresadoDeptoNoResidencia(id)) ResponseEntity.ok().build<Void>()
+        else ResponseEntity.badRequest().body(
+            mapOf("error" to "No se pudo confirmar. Solo no residencia y debe estar pendiente el paso 1."),
+        )
+
+    /** No residencia paso 2: envío de anteproyecto y solicitud de registro (anexo XXXII) al departamento académico. */
     @PostMapping("/{id}/no-residencia/solicitar-registro-anteproyecto")
     fun solicitarRegistroAnteproyectoNoResidencia(@PathVariable id: String): ResponseEntity<*> =
         if (egresadoService.solicitarRegistroAnteproyectoNoResidencia(id)) ResponseEntity.ok().build<Void>()
-        else ResponseEntity.badRequest().body(mapOf("error" to "No se pudo registrar el envío (solo modalidades distintas a residencia)."))
+        else ResponseEntity.badRequest().body(mapOf("error" to "No se pudo registrar el envío. Confirma antes la entrega del egresado (paso 1)."))
 
     @PostMapping("/{id}/no-residencia/confirmar-recepcion-inicial-anexos-xxxi-xxxii")
     fun confirmarRecepcionInicialAnexosXxxiXxxiiNoResidencia(@PathVariable id: String): ResponseEntity<*> =
@@ -466,10 +494,21 @@ class EgresadoController(
         if (egresadoService.confirmarRecepcionTrabajoNoResidencia(id)) ResponseEntity.ok().build<Void>()
         else ResponseEntity.badRequest().body(mapOf("error" to "No se pudo confirmar. Confirma antes la recepción inicial de anexos XXXI/XXXII (flujo 16) o revisa que no sea residencia."))
 
-    @PostMapping("/{id}/no-residencia/solicitar-registro-liberacion-depto")
-    fun solicitarRegistroLiberacionNoResidencia(@PathVariable id: String): ResponseEntity<*> =
-        if (egresadoService.solicitarRegistroLiberacionNoResidencia(id)) ResponseEntity.ok().build<Void>()
-        else ResponseEntity.badRequest().body(mapOf("error" to "No se pudo registrar la solicitud de liberación al departamento académico."))
+    /** No residencia paso 5: departamento académico sube tesis y libera producto. */
+    @PostMapping(value = ["/{id}/no-residencia/liberar-producto"], consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun liberarProductoNoResidencia(
+        @PathVariable id: String,
+        @RequestParam("archivo") archivo: MultipartFile,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        if (archivo.isEmpty) {
+            return ResponseEntity.badRequest().body(mapOf("error" to "Selecciona el PDF de la tesis."))
+        }
+        val err = egresadoService.liberarProductoNoResidencia(id, archivo)
+        return if (err == null) ResponseEntity.ok().build<Void>()
+        else ResponseEntity.badRequest().body(mapOf("error" to err))
+    }
 
     @PostMapping("/{id}/no-residencia/confirmar-recepcion-registro-liberacion-depto")
     fun confirmarRecepcionRegistroLiberacionNoResidencia(@PathVariable id: String): ResponseEntity<*> =

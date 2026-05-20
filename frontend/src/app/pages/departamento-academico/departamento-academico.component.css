@@ -100,6 +100,24 @@
   color: #fff;
 }
 
+.departamento-tab--liberacion.activo {
+  background: #2b6cb0;
+  color: #fff;
+}
+
+.departamento-tesis-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.5rem 0;
+}
+
+.departamento-tesis-upload-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #4a5568;
+}
+
 .departamento-tab-badge {
   display: inline-flex;
   align-items: center;
