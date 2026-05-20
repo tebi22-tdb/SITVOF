@@ -57,6 +57,19 @@ export function esModalidadNoResidencia(modalidad: string | undefined | null): b
   return (modalidad ?? '').trim().toLowerCase() !== 'residencia profesional';
 }
 
+/** Residencia: día 1 del plazo = fecha de registro Anexo XXXI al alta; respaldo creación del trámite. */
+export function inicioPlazoIsoResidencia(opts: {
+  fecha_registro_anexo_xxxi?: string | null;
+  documentos?: { anexo_xxxi?: { fecha_registro?: string | null } };
+  fecha_creacion?: string | null;
+}): string | null {
+  const desdeLista = opts.fecha_registro_anexo_xxxi?.trim();
+  if (desdeLista) return desdeLista;
+  const desdeDetalle = opts.documentos?.anexo_xxxi?.fecha_registro?.trim();
+  if (desdeDetalle) return desdeDetalle;
+  return opts.fecha_creacion?.trim() || null;
+}
+
 /**
  * Peor estado entre fases activas (vencido > rezagado > en tiempo).
  */
