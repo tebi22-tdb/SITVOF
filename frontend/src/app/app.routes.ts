@@ -26,6 +26,12 @@ export const routes: Routes = [
     canActivate: [coordinadorGuard],
   },
   {
+    path: 'home/alta-docentes',
+    loadComponent: () =>
+      import('./pages/alta-docentes/alta-docentes.component').then((m) => m.AltaDocentesComponent),
+    canActivate: [coordinadorGuard],
+  },
+  {
     path: 'home/catalogos',
     loadComponent: () =>
       import('./pages/catalogos/catalogos.component').then((m) => m.CatalogosComponent),

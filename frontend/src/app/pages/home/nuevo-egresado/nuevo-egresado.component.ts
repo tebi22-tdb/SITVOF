@@ -384,6 +384,11 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
     if (file) this.quitarArchivoSeleccionado = false;
   }
 
+  /** Abre el picker nativo al hacer clic en cualquier parte del input de fecha. */
+  abrirPicker(el: HTMLInputElement): void {
+    try { el.showPicker(); } catch { /* navegadores sin soporte ignoran silenciosamente */ }
+  }
+
   /** Indica si el control está inválido y ya fue tocado (para marcar en rojo y mostrar "Campo obligatorio"). */
   campoInvalido(controlName: string): boolean {
     const c = this.form.get(controlName);

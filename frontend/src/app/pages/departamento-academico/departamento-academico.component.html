@@ -1,7 +1,7 @@
 <div class="departamento-page">
   <app-header
     [showNuevoButton]="false"
-    [showVolverInicioButton]="false"
+    [showVolverInicioButton]="mostrarBotonVolver"
     (volverInicioClick)="volverInicio()"
   ></app-header>
   <main
@@ -448,19 +448,35 @@
     <div *ngIf="!sinodalesCargando" class="departamento-modal-form">
       <label class="departamento-modal-label">
         Presidente
-        <input type="text" class="departamento-modal-input" [(ngModel)]="sinodalesPresidente" autocomplete="name" />
+        <select class="departamento-modal-input" [(ngModel)]="sinodalesPresidente">
+          <option value="">— Seleccionar —</option>
+          <option *ngIf="sinodalesPresidente && !docenteEnLista(sinodalesPresidente)" [value]="sinodalesPresidente">{{ sinodalesPresidente }}</option>
+          <option *ngFor="let d of docentesLista" [value]="d.nombreCompleto">{{ d.nombreCompleto }}</option>
+        </select>
       </label>
       <label class="departamento-modal-label">
         Secretario
-        <input type="text" class="departamento-modal-input" [(ngModel)]="sinodalesSecretario" autocomplete="off" />
+        <select class="departamento-modal-input" [(ngModel)]="sinodalesSecretario">
+          <option value="">— Seleccionar —</option>
+          <option *ngIf="sinodalesSecretario && !docenteEnLista(sinodalesSecretario)" [value]="sinodalesSecretario">{{ sinodalesSecretario }}</option>
+          <option *ngFor="let d of docentesLista" [value]="d.nombreCompleto">{{ d.nombreCompleto }}</option>
+        </select>
       </label>
       <label class="departamento-modal-label">
         Vocal
-        <input type="text" class="departamento-modal-input" [(ngModel)]="sinodalesVocal" autocomplete="off" />
+        <select class="departamento-modal-input" [(ngModel)]="sinodalesVocal">
+          <option value="">— Seleccionar —</option>
+          <option *ngIf="sinodalesVocal && !docenteEnLista(sinodalesVocal)" [value]="sinodalesVocal">{{ sinodalesVocal }}</option>
+          <option *ngFor="let d of docentesLista" [value]="d.nombreCompleto">{{ d.nombreCompleto }}</option>
+        </select>
       </label>
       <label class="departamento-modal-label">
         Vocal suplente
-        <input type="text" class="departamento-modal-input" [(ngModel)]="sinodalesVocalSuplente" autocomplete="off" />
+        <select class="departamento-modal-input" [(ngModel)]="sinodalesVocalSuplente">
+          <option value="">— Seleccionar —</option>
+          <option *ngIf="sinodalesVocalSuplente && !docenteEnLista(sinodalesVocalSuplente)" [value]="sinodalesVocalSuplente">{{ sinodalesVocalSuplente }}</option>
+          <option *ngFor="let d of docentesLista" [value]="d.nombreCompleto">{{ d.nombreCompleto }}</option>
+        </select>
       </label>
     </div>
     <div class="departamento-modal-acciones">
