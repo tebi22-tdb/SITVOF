@@ -899,7 +899,7 @@ class EgresadoController(
     ): ResponseEntity<*> {
         if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
         respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
-        val bytes = egresadoService.crearAnexo93(id)
+        val resultado = egresadoService.crearAnexo93(id)
             ?: return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                 mapOf("error" to "No se pudo generar el PDF del anexo 9.3 (plantilla HTML del sistema). Revisa los logs del servidor."),
             )
@@ -907,7 +907,8 @@ class EgresadoController(
         return ResponseEntity.ok()
             .contentType(MediaType.APPLICATION_PDF)
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"$fileName\"")
-            .body(bytes)
+            .header("X-Sinodales-Notificados", resultado.second.toString())
+            .body(resultado.first)
     }
 
     @PostMapping("/{id}/confirmar-entrega-anexo-9-3")

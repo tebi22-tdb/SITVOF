@@ -20,6 +20,7 @@ import com.sit_titulacion.sit.domain.ProcesoTitulacion
 import com.sit_titulacion.sit.domain.SinodalesTribunal
 import com.sit_titulacion.sit.repository.CatalogoRepository
 import com.sit_titulacion.sit.repository.DocumentacionEscaneadaRepository
+import com.sit_titulacion.sit.repository.DocenteRepository
 import com.sit_titulacion.sit.repository.EgresadoRepository
 import com.sit_titulacion.sit.repository.UsuarioRepository
 import com.sit_titulacion.sit.web.api.dto.AnexoDto
@@ -98,6 +99,8 @@ class EgresadoService(
     private val documentacionEscaneadaRepository: DocumentacionEscaneadaRepository,
     private val catalogoRepository: CatalogoRepository,
     private val usuarioRepository: UsuarioRepository,
+    private val docenteRepository: DocenteRepository,
+    private val emailService: EmailService,
     private val gridFsTemplate: GridFsTemplate,
     private val env: Environment,
     private val htmlAnexoPdfService: HtmlAnexoPdfService,
@@ -1102,12 +1105,13 @@ class EgresadoService(
         return true
     }
 
-    fun crearAnexo93(id: String): ByteArray? {
+    fun crearAnexo93(id: String): Pair<ByteArray, Int>? {
         val e = cargarEgresadoPorId(id) ?: return null
         val p = e.procesoActivoOrNull() ?: return null
         if (p.fechaAgendaActo93 == null) return null
+        val esNuevaGeneracion = p.fechaCreacionAnexo93 == null
         val ahora = Instant.now()
-        if (p.fechaCreacionAnexo93 == null) {
+        if (esNuevaGeneracion) {
             egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaCreacionAnexo93 = ahora, fecha_actualizacion = ahora)))
         }
         val zona = zonaActo93
@@ -1133,7 +1137,44 @@ class EgresadoService(
             "JEFE_DIVISION_NOMBRE" to jefeDivisionNombre,
             "QR_CODE" to qrDataUri,
         ))
-        return htmlAnexoPdfService.generarDesdeClasspath("templates/html/anexo-9-3.html", valores)
+        val bytes = htmlAnexoPdfService.generarDesdeClasspath("templates/html/anexo-9-3.html", valores)
+            ?: return null
+
+        var emailsEnviados = 0
+        if (esNuevaGeneracion) {
+            val nombres = listOfNotNull(
+                p.sinodalesTribunal?.presidente,
+                p.sinodalesTribunal?.secretario,
+                p.sinodalesTribunal?.vocal,
+                p.sinodalesTribunal?.vocal_suplente,
+            ).map { it.trim() }.filter { it.isNotBlank() }
+
+            if (nombres.isNotEmpty()) {
+                val emailPorNombre = docenteRepository.findByActivoTrue()
+                    .filter { it.correo.isNotBlank() }
+                    .associateBy { it.nombreCompleto.trim() }
+                val destinatarios = nombres.mapNotNull { emailPorNombre[it]?.correo }
+                if (destinatarios.isNotEmpty()) {
+                    val nombreEgresado = listOf(
+                        e.datos_personales.nombre,
+                        e.datos_personales.apellido_paterno,
+                        e.datos_personales.apellido_materno,
+                    ).filter { it.isNotBlank() }.joinToString(" ")
+                    emailsEnviados = emailService.enviarAnexo93Sinodales(
+                        destinatarios = destinatarios,
+                        nombreEgresado = nombreEgresado,
+                        numeroControl = e.numero_control,
+                        fechaActo = actoLegible,
+                        pdfBytes = bytes,
+                        fileName = "Anexo-9.3-${e.numero_control}.pdf",
+                    )
+                } else {
+                    log.warn("Anexo 9.3: ningún sinodal tiene correo registrado en la colección de docentes (egresado {})", e.numero_control)
+                }
+            }
+        }
+
+        return Pair(bytes, emailsEnviados)
     }
 
     fun confirmarEntregaAnexo93(id: String): Boolean {

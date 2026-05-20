@@ -1,6 +1,6 @@
 // Lo que uso de Angular para hacer las peticiones al backend
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 // URL del backend: en producción vacío (mismo servidor); en desarrollo localhost:8081
@@ -506,8 +506,8 @@ export class EgresadoService {
     return this.http.get<AgendaActo93OcupadosResponse>(`${API}/agenda-acto-9-3/ocupados`);
   }
 
-  descargarAnexo93(id: string): Observable<Blob> {
-    return this.http.get(`${API}/${id}/anexo-9-3`, { responseType: 'blob' });
+  descargarAnexo93(id: string): Observable<HttpResponse<Blob>> {
+    return this.http.get(`${API}/${id}/anexo-9-3`, { responseType: 'blob', observe: 'response' });
   }
 
   confirmarEntregaAnexo93(id: string): Observable<unknown> {

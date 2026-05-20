@@ -1140,10 +1140,13 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     this.mensajeProceso = '';
     const nc = this.detalleSeleccionado.numero_control;
     this.egresadoService.descargarAnexo93(this.detalleSeleccionado.id).subscribe({
-      next: (blob) => {
+      next: (response) => {
         this.procesandoPaso = false;
-        this.descargarBlob(blob, `Anexo-9.3-${nc}.pdf`);
-        this.mensajeProceso = 'Anexo 9.3 generado.';
+        this.descargarBlob(response.body!, `Anexo-9.3-${nc}.pdf`);
+        const notificados = Number(response.headers.get('X-Sinodales-Notificados') ?? '0');
+        this.mensajeProceso = notificados > 0
+          ? `Anexo 9.3 generado. Correo enviado a ${notificados} sinodal(es).`
+          : 'Anexo 9.3 generado.';
         this.refrescarDetalle();
       },
       error: (err) => {
