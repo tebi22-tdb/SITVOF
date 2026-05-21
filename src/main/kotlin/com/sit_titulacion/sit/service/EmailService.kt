@@ -214,4 +214,130 @@ class EmailService(
         }
         return enviados
     }
+
+    /**
+     * Avisos de plazo (solo residencia): 2 meses, 4 meses, 3 días antes del límite, o cierre del proceso.
+     */
+    fun enviarAvisoPlazoResidencia(
+        correoDestino: String,
+        nombreEgresado: String,
+        numeroControl: String,
+        tipoAviso: String,
+        diasRestantes: Int,
+        fechaLimiteTexto: String,
+        pasoNumero: Int,
+        pasoTitulo: String,
+    ): Boolean {
+        if (correoDestino.isBlank() || mailSender == null || fromEmail.isBlank()) {
+            log.warn("Aviso plazo residencia no enviado (SMTP o correo vacío), control={}", numeroControl)
+            return false
+        }
+        val (subject, cuerpo) = plantillaAvisoPlazoResidencia(
+            nombreEgresado = nombreEgresado,
+            tipoAviso = tipoAviso,
+            diasRestantes = diasRestantes,
+            fechaLimiteTexto = fechaLimiteTexto,
+            pasoNumero = pasoNumero,
+            pasoTitulo = pasoTitulo,
+        )
+        val mensaje = SimpleMailMessage().apply {
+            setFrom(fromEmail)
+            setTo(correoDestino.trim())
+            this.subject = subject
+            text = cuerpo
+        }
+        return try {
+            mailSender.send(mensaje)
+            log.info("Aviso plazo residencia ({}) enviado a {} control={}", tipoAviso, correoDestino, numeroControl)
+            true
+        } catch (e: Exception) {
+            log.error("Error aviso plazo residencia a {}: {}", correoDestino, e.message)
+            false
+        }
+    }
+
+    private fun plantillaAvisoPlazoResidencia(
+        nombreEgresado: String,
+        tipoAviso: String,
+        diasRestantes: Int,
+        fechaLimiteTexto: String,
+        pasoNumero: Int,
+        pasoTitulo: String,
+    ): Pair<String, String> {
+        val firma = "Saludos,\nDivisión de Estudios Profesionales"
+        val pasoLinea = "Paso actual: $pasoNumero — $pasoTitulo."
+        val tiempoLinea = when {
+            diasRestantes < 0 ->
+                "El plazo de 6 meses (desde la fecha de registro del Anexo XXXI) venció hace ${-diasRestantes} día(s). La fecha límite era $fechaLimiteTexto."
+            diasRestantes == 0 ->
+                "Hoy ($fechaLimiteTexto) es el último día de tu plazo de 6 meses contado desde el Anexo XXXI."
+            else ->
+                "Te faltan $diasRestantes día(s) para la fecha límite del proceso ($fechaLimiteTexto), contados desde el Anexo XXXI."
+        }
+        return when (tipoAviso) {
+            "aviso_2_meses" -> "SITVO – Aviso de plazo (2 meses)" to """
+                Hola $nombreEgresado,
+
+                Han transcurrido 2 meses desde la fecha de registro de tu Anexo XXXI.
+
+                $tiempoLinea
+                $pasoLinea
+
+                Continúa tu trámite en el SITVO y ante la División de Estudios Profesionales según corresponda.
+
+                $firma
+            """.trimIndent()
+
+            "aviso_4_meses" -> "SITVO – Aviso de plazo (4 meses)" to """
+                Hola $nombreEgresado,
+
+                Han transcurrido 4 meses desde la fecha de registro de tu Anexo XXXI.
+
+                $tiempoLinea
+                $pasoLinea
+
+                Te recomendamos avanzar con los pasos pendientes antes del vencimiento del plazo total de 6 meses.
+
+                $firma
+            """.trimIndent()
+
+            "aviso_3_dias" -> "SITVO – Último aviso: plazo por vencer (3 días)" to """
+                Hola $nombreEgresado,
+
+                Tu plazo de 6 meses para concluir el proceso de Residencia Profesional (desde el Anexo XXXI) está por terminar.
+
+                $tiempoLinea
+                $pasoLinea
+
+                Si aún tienes trámites pendientes, atiéndelos de inmediato.
+
+                $firma
+            """.trimIndent()
+
+            "final_concluido" -> "SITVO – Tu proceso de titulación concluyó" to """
+                Hola $nombreEgresado,
+
+                Tu proceso de titulación por Residencia Profesional quedó concluido en el sistema.
+
+                $pasoLinea
+
+                Ya no recibirás avisos automáticos de plazo por este trámite.
+
+                $firma
+            """.trimIndent()
+
+            else -> "SITVO – Plazo de titulación vencido" to """
+                Hola $nombreEgresado,
+
+                Tu proceso de titulación por Residencia Profesional se marcó como vencido: se superó el plazo de 6 meses desde la fecha de registro del Anexo XXXI.
+
+                La fecha límite era $fechaLimiteTexto.
+                $pasoLinea
+
+                Comunícate con la División de Estudios Profesionales para conocer las opciones disponibles.
+
+                $firma
+            """.trimIndent()
+        }
+    }
 }

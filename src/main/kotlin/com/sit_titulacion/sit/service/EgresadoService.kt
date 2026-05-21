@@ -101,6 +101,7 @@ class EgresadoService(
     private val usuarioRepository: UsuarioRepository,
     private val docenteRepository: DocenteRepository,
     private val emailService: EmailService,
+    private val residenciaPlazoNotificacionService: ResidenciaPlazoNotificacionService,
     private val gridFsTemplate: GridFsTemplate,
     private val env: Environment,
     private val htmlAnexoPdfService: HtmlAnexoPdfService,
@@ -168,6 +169,7 @@ class EgresadoService(
         )
         val guardado = egresadoRepository.save(egresado)
         log.info("Egresado guardado: id={}, numero_control={}", guardado.id, guardado.numero_control)
+        notificarPlazoResidenciaSiAplica(guardado)
         return guardado
     }
 
@@ -213,13 +215,14 @@ class EgresadoService(
             fechaCreacion = ahora,
             fecha_actualizacion = ahora,
         )
-        egresadoRepository.save(
+        val guardado = egresadoRepository.save(
             existente.copy(
                 procesos = existente.procesos + nuevoProceso,
                 fecha_actualizacion = ahora,
             )
         )
         log.info("Nuevo proceso activado para egresado id={}, modalidad={}", id, datos.modalidad)
+        notificarPlazoResidenciaSiAplica(guardado)
         return null
     }
 
@@ -1205,7 +1208,10 @@ class EgresadoService(
         if (p.fechaEnvioDocumentacionEscaneadaEgresado == null) return false
         if (p.fechaConfirmacionDocumentacionEscaneadaRecibida != null) return false
         val ahora = Instant.now()
-        egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaConfirmacionDocumentacionEscaneadaRecibida = ahora, fecha_actualizacion = ahora)))
+        val guardado = egresadoRepository.save(
+            e.actualizarProcesoActivo(p.copy(fechaConfirmacionDocumentacionEscaneadaRecibida = ahora, fecha_actualizacion = ahora)),
+        )
+        notificarPlazoResidenciaSiAplica(guardado)
         return true
     }
 
@@ -1478,7 +1484,7 @@ class EgresadoService(
         if (p.estado_general == "titulado") return false
         val ahora = Instant.now()
         val gridFsId = subirArchivo(archivo)
-        egresadoRepository.save(e.actualizarProcesoActivo(p.copy(
+        val guardado = egresadoRepository.save(e.actualizarProcesoActivo(p.copy(
             gridfsIdDocFinal = gridFsId,
             fechaSubidaDocFinal = ahora,
             fechaTitulacion = ahora,
@@ -1489,6 +1495,7 @@ class EgresadoService(
             ),
         )))
         log.info("Egresado numero_control={} marcado como titulado", numeroControl)
+        notificarPlazoResidenciaSiAplica(guardado)
         return true
     }
 
@@ -1543,11 +1550,20 @@ class EgresadoService(
                 ),
             )
             val vencido = e.actualizarProcesoActivo(pVencido)
-            egresadoRepository.save(vencido)
+            val guardado = egresadoRepository.save(vencido)
             log.info("Egresado id={} marcado como vencido (plazo {} meses expirado)", e.id, meses)
-            return vencido
+            notificarPlazoResidenciaSiAplica(guardado)
+            return guardado
         }
         return e
+    }
+
+    private fun notificarPlazoResidenciaSiAplica(egresado: Egresado) {
+        try {
+            residenciaPlazoNotificacionService.procesarPorId(egresado.id)
+        } catch (ex: Exception) {
+            log.warn("No se pudo procesar notificación de plazo residencia id={}: {}", egresado.id, ex.message)
+        }
     }
 
     private fun mesesPorModalidadFallback(modalidad: String): Long? {
