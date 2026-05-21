@@ -104,4 +104,10 @@ data class ProcesoTitulacion(
     val fechaSolicitudReenvioDocumentacionEscaneada: Instant? = null,
     @Field("observaciones_reenvio_documentacion_escaneada")
     val observacionesReenvioDocumentacionEscaneada: String? = null,
+
+    /** Residencia: avisos de plazo (6 meses desde fecha registro Anexo XXXI) enviados por correo. */
+    @Field("notif_plazo_res_2m") val notifPlazoRes2m: Instant? = null,
+    @Field("notif_plazo_res_4m") val notifPlazoRes4m: Instant? = null,
+    @Field("notif_plazo_res_3d") val notifPlazoRes3d: Instant? = null,
+    @Field("notif_plazo_res_final") val notifPlazoResFinal: Instant? = null,
 )
