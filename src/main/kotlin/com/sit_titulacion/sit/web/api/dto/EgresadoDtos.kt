@@ -55,6 +55,12 @@ data class EgresadoListItemDto(
     @JsonProperty("fecha_creacion") val fecha_creacion: String?,
     /** Residencia: inicio del plazo de vigencia (6 meses) — fecha capturada al alta en Anexo XXXI. */
     @JsonProperty("fecha_registro_anexo_xxxi") val fecha_registro_anexo_xxxi: String? = null,
+    @JsonProperty("fecha_envio_solicitud_registro_anteproyecto_depto_academico")
+    val fecha_envio_solicitud_registro_anteproyecto_depto_academico: String? = null,
+    @JsonProperty("fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii")
+    val fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii: String? = null,
+    @JsonProperty("fecha_solicitud_registro_liberacion_depto_academico")
+    val fecha_solicitud_registro_liberacion_depto_academico: String? = null,
     @JsonProperty("fecha_enviado_departamento_academico") val fecha_enviado_departamento_academico: String?,
     @JsonProperty("fecha_recibido_registro_liberacion") val fecha_recibido_registro_liberacion: String? = null,
     @JsonProperty("fecha_confirmacion_recibidos_anexo_xxxi_xxxii") val fecha_confirmacion_recibidos_anexo_xxxi_xxxii: String? = null,

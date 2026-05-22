@@ -340,4 +340,184 @@ class EmailService(
             """.trimIndent()
         }
     }
+
+    /**
+     * Avisos de plazo tesis/monografía (flujo 7): desarrollo (12/18 meses desde paso 3) y trámite (6 meses tras liberación).
+     */
+    fun enviarAvisoPlazoNoResidencia(
+        correoDestino: String,
+        nombreEgresado: String,
+        tipoAviso: String,
+        fase: String,
+        mesesPlazoTotal: Long,
+        mesesTranscurridos: Long?,
+        etiquetaModalidad: String,
+        diasRestantes: Int,
+        fechaLimiteTexto: String,
+        pasoNumero: Int,
+        pasoTitulo: String,
+    ): Boolean {
+        if (correoDestino.isBlank() || mailSender == null || fromEmail.isBlank()) {
+            log.warn("Aviso plazo no residencia no enviado (SMTP o correo vacío), tipo={}", tipoAviso)
+            return false
+        }
+        val (subject, cuerpo) = plantillaAvisoPlazoNoResidencia(
+            nombreEgresado = nombreEgresado,
+            tipoAviso = tipoAviso,
+            fase = fase,
+            mesesPlazoTotal = mesesPlazoTotal,
+            mesesTranscurridos = mesesTranscurridos,
+            etiquetaModalidad = etiquetaModalidad,
+            diasRestantes = diasRestantes,
+            fechaLimiteTexto = fechaLimiteTexto,
+            pasoNumero = pasoNumero,
+            pasoTitulo = pasoTitulo,
+        )
+        val mensaje = SimpleMailMessage().apply {
+            setFrom(fromEmail)
+            setTo(correoDestino.trim())
+            this.subject = subject
+            text = cuerpo
+        }
+        return try {
+            mailSender.send(mensaje)
+            log.info("Aviso plazo no residencia ({}) enviado a {}", tipoAviso, correoDestino)
+            true
+        } catch (e: Exception) {
+            log.error("Error aviso plazo no residencia a {}: {}", correoDestino, e.message)
+            false
+        }
+    }
+
+    private fun plantillaAvisoPlazoNoResidencia(
+        nombreEgresado: String,
+        tipoAviso: String,
+        fase: String,
+        mesesPlazoTotal: Long,
+        mesesTranscurridos: Long?,
+        etiquetaModalidad: String,
+        diasRestantes: Int,
+        fechaLimiteTexto: String,
+        pasoNumero: Int,
+        pasoTitulo: String,
+    ): Pair<String, String> {
+        val firma = "Saludos,\nDivisión de Estudios Profesionales"
+        val pasoLinea = "Paso actual: $pasoNumero — $pasoTitulo."
+        val origenDesarrollo =
+            "desde la confirmación de la DEP del registro de tu $etiquetaModalidad (paso 3 del proceso)"
+        val origenTramite = "desde la liberación de producto en tu departamento académico"
+        val origen = if (fase == "tramite") origenTramite else origenDesarrollo
+        val tiempoLinea = when {
+            tipoAviso.startsWith("final_") -> ""
+            diasRestantes < 0 ->
+                "El plazo de $mesesPlazoTotal meses ($origen) venció hace ${-diasRestantes} día(s). La fecha límite era $fechaLimiteTexto."
+            diasRestantes == 0 ->
+                "Hoy ($fechaLimiteTexto) es el último día de tu plazo de $mesesPlazoTotal meses ($origen)."
+            else ->
+                "Te faltan $diasRestantes día(s) para la fecha límite ($fechaLimiteTexto), dentro del plazo de $mesesPlazoTotal meses ($origen)."
+        }
+        val bloqueTiempo = if (tiempoLinea.isNotBlank()) "$tiempoLinea\n" else ""
+
+        return when (tipoAviso) {
+            "aviso_inicio_tramite" -> "SITVO – Inicio del plazo de trámite (6 meses)" to """
+                Hola $nombreEgresado,
+
+                Tu $etiquetaModalidad fue liberada en el departamento académico. Comenzó el plazo de 6 meses calendario para concluir el trámite de titulación posterior a la liberación.
+
+                $bloqueTiempo$pasoLinea
+
+                Continúa tu trámite en el SITVO y con la División de Estudios Profesionales según corresponda.
+
+                $firma
+            """.trimIndent()
+
+            "aviso_dev_3_meses", "aviso_dev_6_meses", "aviso_dev_9_meses",
+            "aviso_dev_12_meses", "aviso_dev_15_meses" -> {
+                val m = mesesTranscurridos ?: 0
+                "SITVO – Aviso de plazo de desarrollo ($m meses)" to """
+                    Hola $nombreEgresado,
+
+                    Han transcurrido $m meses $origenDesarrollo.
+
+                    $bloqueTiempo$pasoLinea
+
+                    Continúa el desarrollo de tu $etiquetaModalidad y los trámites pendientes antes del vencimiento del plazo total de $mesesPlazoTotal meses.
+
+                    $firma
+                """.trimIndent()
+            }
+
+            "aviso_dev_3_dias" -> "SITVO – Último aviso: plazo de desarrollo por vencer (3 días)" to """
+                Hola $nombreEgresado,
+
+                Tu plazo de $mesesPlazoTotal meses para el desarrollo de tu $etiquetaModalidad ($origenDesarrollo) está por terminar.
+
+                $bloqueTiempo$pasoLinea
+
+                Si aún debes liberar producto o completar trámites, atiéndelos de inmediato.
+
+                $firma
+            """.trimIndent()
+
+            "aviso_tram_2_meses" -> "SITVO – Aviso de plazo de trámite (2 meses)" to """
+                Hola $nombreEgresado,
+
+                Han transcurrido 2 meses $origenTramite.
+
+                $bloqueTiempo$pasoLinea
+
+                Continúa con los pasos pendientes antes del vencimiento del plazo total de 6 meses.
+
+                $firma
+            """.trimIndent()
+
+            "aviso_tram_4_meses" -> "SITVO – Aviso de plazo de trámite (4 meses)" to """
+                Hola $nombreEgresado,
+
+                Han transcurrido 4 meses $origenTramite.
+
+                $bloqueTiempo$pasoLinea
+
+                Te recomendamos avanzar con los pasos pendientes antes del vencimiento del plazo de 6 meses.
+
+                $firma
+            """.trimIndent()
+
+            "aviso_tram_3_dias" -> "SITVO – Último aviso: plazo de trámite por vencer (3 días)" to """
+                Hola $nombreEgresado,
+
+                Tu plazo de 6 meses para concluir el trámite tras la liberación de tu $etiquetaModalidad está por terminar.
+
+                $bloqueTiempo$pasoLinea
+
+                Si aún tienes trámites pendientes, atiéndelos de inmediato.
+
+                $firma
+            """.trimIndent()
+
+            "final_concluido" -> "SITVO – Tu proceso de titulación concluyó" to """
+                Hola $nombreEgresado,
+
+                Tu proceso de titulación por $etiquetaModalidad quedó concluido en el sistema.
+
+                $pasoLinea
+
+                Ya no recibirás avisos automáticos de plazo por este trámite.
+
+                $firma
+            """.trimIndent()
+
+            else -> "SITVO – Plazo de titulación vencido" to """
+                Hola $nombreEgresado,
+
+                Tu proceso de titulación por $etiquetaModalidad se marcó como vencido: se superó el plazo vigente del trámite.
+
+                $pasoLinea
+
+                Comunícate con la División de Estudios Profesionales para conocer las opciones disponibles.
+
+                $firma
+            """.trimIndent()
+        }
+    }
 }

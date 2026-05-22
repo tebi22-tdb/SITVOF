@@ -11,7 +11,10 @@ import { HeaderComponent } from '../../layout/header/header.component';
 import { mensajeErrorApiConBlob } from '../../core/http-blob-error';
 import { EgresadoService, EgresadoDetail, EgresadoItem } from '../../services/egresado.service';
 import { CatalogoService } from '../../services/catalogo.service';
-import { calcularVistaPlazosNoResidencia, inicioPlazoIsoResidencia } from '../../core/plazos-titulacion-no-residencia';
+import {
+  calcularVistaPlazosNoResidencia,
+  calcularVistaPlazosResidencia,
+} from '../../core/plazos-titulacion-no-residencia';
 import {
   calcularVistaPlazoDesarrolloRecepcionNoRes,
   construirPlazoDesarrolloRecepcionUi,
@@ -1296,7 +1299,14 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     if (!esRes) {
       const plazos = calcularVistaPlazosNoResidencia(
         {
+          modalidad,
           fecha_creacion: e.fecha_creacion,
+          fecha_envio_solicitud_registro_anteproyecto_depto_academico:
+            e.fecha_envio_solicitud_registro_anteproyecto_depto_academico,
+          fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii:
+            e.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii,
+          fecha_solicitud_registro_liberacion_depto_academico:
+            e.fecha_solicitud_registro_liberacion_depto_academico,
           fecha_enviado_departamento_academico: e.fecha_enviado_departamento_academico,
           fecha_confirmacion_recibidos_anexo_xxxi_xxxii: e.fecha_confirmacion_recibidos_anexo_xxxi_xxxii,
           fecha_confirmacion_documentacion_escaneada_recibida: e.fecha_confirmacion_documentacion_escaneada_recibida,
@@ -1322,49 +1332,20 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       };
     }
 
-    const isoInicio = inicioPlazoIsoResidencia(e);
-    const inicio = isoInicio ? new Date(isoInicio) : hoy;
-    if (isNaN(inicio.getTime())) {
-      return {
-        id: e.id,
-        alumno: e.nombre || '—',
-        noControl: e.numero_control || '—',
-        modalidad,
-        carrera: e.carrera || '—',
-        estado: 'en_tiempo',
-        documentoFaltante: 'En curso',
-        ultimoMovimiento,
-        fechaLimite: '—',
-      };
-    }
-
-    const meses = this.catalogoService.mesesVigencia(modalidad);
-
-    if (meses === null) {
-      return {
-        id: e.id,
-        alumno: e.nombre || '—',
-        noControl: e.numero_control || '—',
-        modalidad,
-        carrera: e.carrera || '—',
-        estado: 'en_tiempo',
-        documentoFaltante: 'En curso',
-        ultimoMovimiento,
-        fechaLimite: 'Sin plazo',
-      };
-    }
-
-    const fechaLimiteDate = sumarMesesCalendario(inicio, meses);
-    const diasRestantes = diffDiasCalendario(fechaLimiteDate, hoy);
-
-    let estado: SeguimientoItem['estado'];
-    if (diasRestantes < 0) estado = 'vencido';
-    else if (diasRestantes <= MARGEN_REZAGO_DIAS) estado = 'rezagado';
-    else estado = 'en_tiempo';
-
+    const plazos = calcularVistaPlazosResidencia(
+      {
+        fecha_registro_anexo_xxxi: e.fecha_registro_anexo_xxxi,
+        fecha_creacion: e.fecha_creacion,
+        fecha_confirmacion_documentacion_escaneada_recibida: e.fecha_confirmacion_documentacion_escaneada_recibida,
+      },
+      hoy,
+    );
+    const estado = plazos.estadoGlobal;
+    const fechaLimite = plazos.fechaLimiteMasCercana
+      ? this.formatoFecha(plazos.fechaLimiteMasCercana)
+      : '—';
     const documentoFaltante =
       estado === 'vencido' ? 'Plazo vencido' : estado === 'rezagado' ? 'En curso (cerca del límite)' : 'En curso';
-
     return {
       id: e.id,
       alumno: e.nombre || '—',
@@ -1374,7 +1355,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       estado,
       documentoFaltante,
       ultimoMovimiento,
-      fechaLimite: this.formatoFecha(fechaLimiteDate),
+      fechaLimite,
     };
   }
 
