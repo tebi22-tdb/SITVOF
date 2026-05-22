@@ -110,4 +110,16 @@ data class ProcesoTitulacion(
     @Field("notif_plazo_res_4m") val notifPlazoRes4m: Instant? = null,
     @Field("notif_plazo_res_3d") val notifPlazoRes3d: Instant? = null,
     @Field("notif_plazo_res_final") val notifPlazoResFinal: Instant? = null,
+
+    /** No residencia (tesis/monografía flujo 7): desarrollo (12/18 meses desde paso 3). */
+    @Field("notif_plazo_nr_dev_3m") val notifPlazoNrDev3m: Instant? = null,
+    @Field("notif_plazo_nr_dev_6m") val notifPlazoNrDev6m: Instant? = null,
+    @Field("notif_plazo_nr_dev_9m") val notifPlazoNrDev9m: Instant? = null,
+    @Field("notif_plazo_nr_dev_3d") val notifPlazoNrDev3d: Instant? = null,
+    /** Trámite tras liberación (6 meses). */
+    @Field("notif_plazo_nr_inicio_tram") val notifPlazoNrInicioTram: Instant? = null,
+    @Field("notif_plazo_nr_tram_2m") val notifPlazoNrTram2m: Instant? = null,
+    @Field("notif_plazo_nr_tram_4m") val notifPlazoNrTram4m: Instant? = null,
+    @Field("notif_plazo_nr_tram_3d") val notifPlazoNrTram3d: Instant? = null,
+    @Field("notif_plazo_nr_final") val notifPlazoNrFinal: Instant? = null,
 )

@@ -5,8 +5,8 @@ import { EgresadoService, EgresadoDetail, RevisionApi } from '../../services/egr
 import { CatalogoService } from '../../services/catalogo.service';
 import {
   calcularVistaPlazosNoResidencia,
+  calcularVistaPlazosResidencia,
   MESES_PLAZO_TITULACION_NO_RES,
-  inicioPlazoIsoResidencia,
 } from '../../core/plazos-titulacion-no-residencia';
 import {
   calcularVistaPlazoDesarrolloRecepcionNoRes,
@@ -760,19 +760,28 @@ export class SeguimientoComponent implements OnInit {
     const d = this.datosVista;
     if (!d || this.esResidenciaProfesional) return null;
     return calcularVistaPlazosNoResidencia({
+      modalidad: d.datos_proyecto?.modalidad,
       fecha_creacion: d.fecha_creacion,
+      fecha_envio_solicitud_registro_anteproyecto_depto_academico:
+        d.fecha_envio_solicitud_registro_anteproyecto_depto_academico,
+      fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii:
+        d.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii,
+      fecha_solicitud_registro_liberacion_depto_academico:
+        d.fecha_solicitud_registro_liberacion_depto_academico,
       fecha_enviado_departamento_academico: d.fecha_enviado_departamento_academico,
       fecha_confirmacion_recibidos_anexo_xxxi_xxxii: d.fecha_confirmacion_recibidos_anexo_xxxi_xxxii,
       fecha_confirmacion_documentacion_escaneada_recibida: d.fecha_confirmacion_documentacion_escaneada_recibida,
     });
   }
 
-  private inicioPlazoResidenciaIso(): string | null {
+  private plazosResidenciaAlumno() {
     const d = this.datosVista;
     if (!d) return null;
-    return inicioPlazoIsoResidencia({
+    return calcularVistaPlazosResidencia({
+      fecha_registro_anexo_xxxi: undefined,
       documentos: d.documentos,
       fecha_creacion: d.fecha_creacion,
+      fecha_confirmacion_documentacion_escaneada_recibida: d.fecha_confirmacion_documentacion_escaneada_recibida,
     });
   }
 
@@ -780,22 +789,9 @@ export class SeguimientoComponent implements OnInit {
     const d = this.datosVista;
     if (!d) return 'en_tiempo';
     if (!this.esResidenciaProfesional) {
-      if (!d.fecha_creacion) return 'en_tiempo';
       return this.avisoPlazosNoResAlumno?.estadoGlobal ?? 'en_tiempo';
     }
-    const isoInicio = this.inicioPlazoResidenciaIso();
-    if (!isoInicio) return 'en_tiempo';
-    const inicio = new Date(isoInicio);
-    if (isNaN(inicio.getTime())) return 'en_tiempo';
-    const modalidad = d.datos_proyecto?.modalidad?.trim() ?? '';
-    const meses = this.catalogoService.mesesVigencia(modalidad);
-    if (meses === null) return 'en_tiempo';
-    const fechaLimite = sumarMesesCalendario(inicio, meses);
-    const hoy = new Date();
-    const diasRestantes = diffDiasCalendario(fechaLimite, hoy);
-    if (diasRestantes < 0) return 'vencido';
-    if (diasRestantes <= MARGEN_REZAGO_DIAS) return 'rezagado';
-    return 'en_tiempo';
+    return this.plazosResidenciaAlumno()?.estadoGlobal ?? 'en_tiempo';
   }
 
   get estadoAvanceLabel(): string {
@@ -807,59 +803,28 @@ export class SeguimientoComponent implements OnInit {
   get fechaLimiteTexto(): string {
     const d = this.datosVista;
     if (!d) return '—';
-    if (!this.esResidenciaProfesional) {
-      if (!d.fecha_creacion) return '—';
-      const lim = this.avisoPlazosNoResAlumno?.fechaLimiteMasCercana;
-      if (!lim) return '—';
-      const dia = lim.getDate().toString().padStart(2, '0');
-      const mes = (lim.getMonth() + 1).toString().padStart(2, '0');
-      const anio = lim.getFullYear();
-      return `${dia}/${mes}/${anio}`;
-    }
-    const isoInicio = this.inicioPlazoResidenciaIso();
-    if (!isoInicio) return '—';
-    const inicio = new Date(isoInicio);
-    if (isNaN(inicio.getTime())) return '—';
-    const modalidad = d.datos_proyecto?.modalidad?.trim() ?? '';
-    const meses = this.catalogoService.mesesVigencia(modalidad);
-    if (meses === null) return 'Sin plazo';
-    const fechaLimite = sumarMesesCalendario(inicio, meses);
-    const dia = fechaLimite.getDate().toString().padStart(2, '0');
-    const mes = (fechaLimite.getMonth() + 1).toString().padStart(2, '0');
-    const anio = fechaLimite.getFullYear();
+    const plazos = this.esResidenciaProfesional ? this.plazosResidenciaAlumno() : this.avisoPlazosNoResAlumno;
+    const lim = plazos?.fechaLimiteMasCercana;
+    if (!lim) return '—';
+    const dia = lim.getDate().toString().padStart(2, '0');
+    const mes = (lim.getMonth() + 1).toString().padStart(2, '0');
+    const anio = lim.getFullYear();
     return `${dia}/${mes}/${anio}`;
   }
 
   get detalleEstadoAvance(): string {
     const d = this.datosVista;
     if (!d) return '—';
-    if (!this.esResidenciaProfesional) {
-      if (!d.fecha_creacion) return 'Aún sin fecha de inicio registrada.';
-      const p = this.avisoPlazosNoResAlumno;
-      if (!p) return '—';
-      const dias = p.diasHastaLimiteMasCercano;
-      if (dias == null) {
-        return `${p.lineaProyecto} ${p.lineaTitulacion}`;
-      }
-      if (dias < 0) {
-        return `La fecha límite más próxima venció hace ${Math.abs(dias)} día(s). ${p.lineaProyecto} ${p.lineaTitulacion}`;
-      }
-      return `Faltan ${dias} día(s) para la fecha límite más próxima. ${p.lineaProyecto} ${p.lineaTitulacion}`;
+    const p = this.esResidenciaProfesional ? this.plazosResidenciaAlumno() : this.avisoPlazosNoResAlumno;
+    if (!p) return '—';
+    const dias = p.diasHastaLimiteMasCercano;
+    if (dias == null) {
+      return p.lineaProyecto + (p.lineaTitulacion ? ` ${p.lineaTitulacion}` : '');
     }
-    const isoInicio = this.inicioPlazoResidenciaIso();
-    if (!isoInicio) return 'Aún no hay fecha de registro del Anexo XXXI.';
-    const inicio = new Date(isoInicio);
-    if (isNaN(inicio.getTime())) return 'No se pudo calcular el plazo.';
-    const modalidad = d.datos_proyecto?.modalidad?.trim() ?? '';
-    const meses = this.catalogoService.mesesVigencia(modalidad);
-    if (meses === null) return 'Esta modalidad no tiene fecha límite de proceso.';
-    const fechaLimite = sumarMesesCalendario(inicio, meses);
-    const hoy = new Date();
-    const diasRestantes = diffDiasCalendario(fechaLimite, hoy);
-    if (diasRestantes < 0) {
-      return `Tienes ${Math.abs(diasRestantes)} día(s) de atraso contra la fecha límite.`;
+    if (dias < 0) {
+      return `La fecha límite venció hace ${Math.abs(dias)} día(s). ${p.lineaProyecto}`;
     }
-    return `Faltan ${diasRestantes} día(s) para la fecha límite.`;
+    return `Faltan ${dias} día(s) para la fecha límite. ${p.lineaProyecto}`;
   }
 
   get nombreCompletoEgresado(): string {

@@ -102,6 +102,7 @@ class EgresadoService(
     private val docenteRepository: DocenteRepository,
     private val emailService: EmailService,
     private val residenciaPlazoNotificacionService: ResidenciaPlazoNotificacionService,
+    private val noResidenciaPlazoNotificacionService: NoResidenciaPlazoNotificacionService,
     private val gridFsTemplate: GridFsTemplate,
     private val env: Environment,
     private val htmlAnexoPdfService: HtmlAnexoPdfService,
@@ -322,6 +323,12 @@ class EgresadoService(
                 modalidad = pr?.datos_proyecto?.modalidad?.ifBlank { "—" } ?: "—",
                 fecha_creacion = formatter.format(e.fechaCreacion),
                 fecha_registro_anexo_xxxi = pr?.documentos?.anexo_xxxi?.fecha_registro?.let { formatter.format(it) },
+                fecha_envio_solicitud_registro_anteproyecto_depto_academico =
+                    pr?.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico?.let { formatter.format(it) },
+                fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii =
+                    pr?.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii?.let { formatter.format(it) },
+                fecha_solicitud_registro_liberacion_depto_academico =
+                    pr?.fechaSolicitudRegistroLiberacionDeptoAcademico?.let { formatter.format(it) },
                 fecha_enviado_departamento_academico = pr?.fechaEnviadoDepartamentoAcademico?.let { formatter.format(it) },
                 fecha_recibido_registro_liberacion = pr?.fechaRecibidoRegistroLiberacion?.let { formatter.format(it) },
                 fecha_confirmacion_recibidos_anexo_xxxi_xxxii = pr?.fechaConfirmacionRecibidosAnexoXxxiXxxii?.let { formatter.format(it) },
@@ -1526,21 +1533,68 @@ class EgresadoService(
         return "pendiente"
     }
 
-    private fun verificarYMarcarVencido(e: Egresado): Egresado {
-        val p = e.procesoActivoOrNull() ?: return e
-        if (p.estado_general == "titulado" || p.estado_general == "vencido") return e
+    /** Límite del plazo activo (residencia 6 m desde Anexo XXXI; tesis 12/18 m paso 3 o 6 m tras liberación). */
+    private fun limitePlazoProcesoActivoLocal(e: Egresado): LocalDate? {
+        val p = e.procesoActivoOrNull() ?: return null
+        if (p.estado_general.equals("titulado", ignoreCase = true) ||
+            p.estado_general.equals("vencido", ignoreCase = true)
+        ) {
+            return null
+        }
+        if (p.fechaConfirmacionDocumentacionEscaneadaRecibida != null) return null
+        val zone = ZoneId.systemDefault()
+        if (esResidenciaProfesional(e)) {
+            val inicio = p.documentos.anexo_xxxi.fecha_registro ?: p.fechaCreacion
+            return inicio.atZone(zone).toLocalDate().plusMonths(6)
+        }
+        if (p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii != null ||
+            p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null
+        ) {
+            if (p.fechaEnviadoDepartamentoAcademico != null) return null
+            val inicio = p.fechaSolicitudRegistroLiberacionDeptoAcademico
+                ?: p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii
+                ?: return null
+            val meses = if (p.fechaSolicitudRegistroLiberacionDeptoAcademico != null) {
+                6L
+            } else {
+                mesesDesarrolloProyectoNoRes(p.datos_proyecto.modalidad)
+            }
+            return inicio.atZone(zone).toLocalDate().plusMonths(meses)
+        }
         val modalidad = p.datos_proyecto.modalidad
         val meses = catalogoRepository.findByTipoAndActivoTrue("modalidad")
             .find { it.nombre.trim().equals(modalidad.trim(), ignoreCase = true) }
             ?.mesesVigencia?.toLong() ?: mesesPorModalidadFallback(modalidad)
-            ?: return e
-        val fechaInicio = if (esResidenciaProfesional(e)) {
-            p.documentos.anexo_xxxi.fecha_registro ?: p.fechaCreacion
-        } else {
-            p.fechaEnviadoDepartamentoAcademico ?: p.fechaCreacion
+            ?: return null
+        val inicio = p.fechaEnviadoDepartamentoAcademico ?: p.fechaCreacion
+        return inicio.atZone(zone).toLocalDate().plusMonths(meses)
+    }
+
+    private fun mesesDesarrolloProyectoNoRes(modalidad: String): Long {
+        val m = modalidad.trim().lowercase()
+        return when {
+            m.contains("monograf") -> 18L
+            else -> 12L
         }
-        val limiteLocal = fechaInicio.atZone(ZoneId.systemDefault()).toLocalDate().plusMonths(meses)
+    }
+
+    private fun verificarYMarcarVencido(e: Egresado): Egresado {
+        val p = e.procesoActivoOrNull() ?: return e
+        if (p.estado_general == "titulado" || p.estado_general == "vencido") return e
+        val limiteLocal = limitePlazoProcesoActivoLocal(e) ?: return e
         if (LocalDate.now(ZoneId.systemDefault()) > limiteLocal) {
+            val meses = when {
+                esResidenciaProfesional(e) -> 6L
+                p.fechaSolicitudRegistroLiberacionDeptoAcademico != null -> 6L
+                p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii != null ->
+                    mesesDesarrolloProyectoNoRes(p.datos_proyecto.modalidad)
+                else ->
+                    catalogoRepository.findByTipoAndActivoTrue("modalidad")
+                        .find { it.nombre.trim().equals(p.datos_proyecto.modalidad.trim(), ignoreCase = true) }
+                        ?.mesesVigencia?.toLong()
+                        ?: mesesPorModalidadFallback(p.datos_proyecto.modalidad)
+                        ?: 12L
+            }
             val ahora = Instant.now()
             val pVencido = p.copy(
                 estado_general = "vencido",
@@ -1563,6 +1617,11 @@ class EgresadoService(
             residenciaPlazoNotificacionService.procesarPorId(egresado.id)
         } catch (ex: Exception) {
             log.warn("No se pudo procesar notificación de plazo residencia id={}: {}", egresado.id, ex.message)
+        }
+        try {
+            noResidenciaPlazoNotificacionService.procesarPorId(egresado.id)
+        } catch (ex: Exception) {
+            log.warn("No se pudo procesar notificación de plazo no residencia id={}: {}", egresado.id, ex.message)
         }
     }
 
