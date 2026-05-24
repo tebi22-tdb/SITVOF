@@ -1077,7 +1077,12 @@ class EgresadoService(
     fun solicitarSinodales(id: String): Boolean {
         val e = cargarEgresadoPorId(id) ?: return false
         val p = e.procesoActivoOrNull() ?: return false
-        if (p.fechaConfirmacionRecibidoAnexo92 == null) return false
+        val prerequisitoOk = if (esCeneval(e)) {
+            p.fechaConfirmacionEntregaEgresadoDepto != null
+        } else {
+            p.fechaConfirmacionRecibidoAnexo92 != null
+        }
+        if (!prerequisitoOk) return false
         if (p.fechaSolicitudSinodales != null) return false
         val ahora = Instant.now()
         egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaSolicitudSinodales = ahora, fecha_actualizacion = ahora)))
@@ -1285,7 +1290,7 @@ class EgresadoService(
 
     private fun cumplePrerequisitoDocumentacionEscaneada(e: Egresado, p: ProcesoTitulacion): Boolean {
         if (p.fechaCreacionAnexo93 == null) return false
-        if (esResidenciaProfesional(e)) return p.fechaConfirmacionEntregaAnexo93 != null
+        if (esResidenciaProfesional(e) || esCeneval(e)) return p.fechaConfirmacionEntregaAnexo93 != null
         return true
     }
 
@@ -1513,6 +1518,14 @@ class EgresadoService(
         return cat?.esResidencia ?: nombre.equals("Residencia Profesional", ignoreCase = true)
     }
 
+    private fun esCeneval(e: Egresado): Boolean {
+        val nombre = e.procesoActivoOrNull()?.datos_proyecto?.modalidad?.trim() ?: return false
+        if (nombre.contains("ceneval", ignoreCase = true)) return true
+        val cat = catalogoRepository.findByTipoAndActivoTrue("modalidad")
+            .find { it.nombre.trim().equals(nombre, ignoreCase = true) }
+        return cat?.nombre?.contains("ceneval", ignoreCase = true) == true
+    }
+
     private fun liberacionRevisionCompletada(e: Egresado): Boolean {
         val p = e.procesoActivoOrNull() ?: return false
         return p.fechaRecibidoRegistroLiberacion != null || p.fechaLiberacionDocumentoCoordinacionCat != null
@@ -1543,6 +1556,7 @@ class EgresadoService(
         }
         if (p.fechaConfirmacionDocumentacionEscaneadaRecibida != null) return null
         val zone = ZoneId.systemDefault()
+        if (esCeneval(e)) return null
         if (esResidenciaProfesional(e)) {
             val inicio = p.documentos.anexo_xxxi.fecha_registro ?: p.fechaCreacion
             return inicio.atZone(zone).toLocalDate().plusMonths(6)

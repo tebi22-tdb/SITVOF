@@ -164,9 +164,14 @@ export class SeguimientoComponent implements OnInit {
     return this.catalogoService.esResidencia(m);
   }
 
+  get esCenevalProfesional(): boolean {
+    const m = this.datosVista?.datos_proyecto?.modalidad?.trim() ?? '';
+    return this.catalogoService.esCeneval(m);
+  }
+
   get noResidenciaFlujoLegacy(): boolean {
     const d = this.datosVista;
-    if (!d || this.esResidenciaProfesional) return false;
+    if (!d || this.esResidenciaProfesional || this.esCenevalProfesional) return false;
     return !!d.fecha_enviado_departamento_academico && !d.fecha_envio_solicitud_registro_anteproyecto_depto_academico;
   }
 
@@ -176,7 +181,7 @@ export class SeguimientoComponent implements OnInit {
     if (!d) return false;
     if (d.estado_general === 'titulado') return false;
     if (d.estado_general === 'vencido') return true;
-    if (this.esResidenciaProfesional || this.noResidenciaFlujoLegacy) return false;
+    if (this.esResidenciaProfesional || this.noResidenciaFlujoLegacy || this.esCenevalProfesional) return false;
     const raw = calcularVistaPlazoDesarrolloRecepcionNoRes(d);
     return raw?.estado === 'vencido';
   }
@@ -211,6 +216,7 @@ export class SeguimientoComponent implements OnInit {
     const d = this.datosVista;
     if (!d) return [];
     if (this.esResidenciaProfesional) return this.construirPasosAlumnoResidencia();
+    if (this.esCenevalProfesional) return this.construirPasosAlumnoCeneval();
     if (this.noResidenciaFlujoLegacy) return this.construirPasosAlumnoLegacyNoRes();
     return this.construirPasosAlumnoNoRes16();
   }
@@ -377,6 +383,109 @@ export class SeguimientoComponent implements OnInit {
               : undefined,
         ),
         completado: c12r,
+      },
+    ];
+    return this.aplicarActivoPasos(raw);
+  }
+
+  private construirPasosAlumnoCeneval(): PasoAlumnoVista[] {
+    const d = this.datosVista!;
+    const fh = (iso?: string | null): string => (iso ? this.formatearFechaHora(iso) : '—');
+    const modalidad = (d.datos_proyecto?.modalidad ?? '').trim() || 'CENEVAL';
+    const c1 = !!d.fecha_creacion;
+    const c2 = !!d.fecha_confirmacion_entrega_egresado_depto;
+    const c3 = !!d.fecha_solicitud_sinodales;
+    const c4 = !!d.fecha_confirmacion_sinodales_recibidos;
+    const c5 = !!d.fecha_agenda_acto_9_3;
+    const c6 = !!d.fecha_creacion_anexo_9_3;
+    const c7s = !!d.fecha_solicitud_documentacion_escaneada;
+    const c7e = !!d.fecha_envio_documentacion_escaneada_egresado;
+    const c7r = !!d.fecha_confirmacion_documentacion_escaneada_recibida;
+    const raw: Omit<PasoAlumnoVista, 'activo'>[] = [
+      {
+        numero: 1,
+        titulo: 'Registro de tu solicitud',
+        detalle: `Se registró tu solicitud para iniciar el trámite del proceso de titulación por la opción: ${modalidad}.`,
+        fecha: fh(d.fecha_creacion),
+        completado: c1,
+      },
+      {
+        numero: 2,
+        titulo: 'Entrega de solicitud de inicio en la DEP',
+        detalle:
+          'La DEP confirmó la recepción de tu solicitud de inicio de proceso de titulación por examen CENEVAL.',
+        fecha: fh(d.fecha_confirmacion_entrega_egresado_depto),
+        completado: c2,
+      },
+      {
+        numero: 3,
+        titulo: 'Solicitud de sinodales',
+        detalle: 'La DEP solicitó al departamento académico la asignación de sinodales.',
+        fecha: fh(d.fecha_solicitud_sinodales),
+        completado: c3,
+      },
+      {
+        numero: 4,
+        titulo: 'Oficio de sinodales recibido',
+        detalle: 'Quedó confirmada la recepción del oficio de sinodales que el departamento académico entregó a la DEP.',
+        fecha: fh(d.fecha_confirmacion_sinodales_recibidos),
+        completado: c4,
+      },
+      {
+        numero: 5,
+        titulo: 'Acto protocolario agendado',
+        detalle: this.detalleTextoPasoActo93AgendadoAlumno(d),
+        fechaDetalleResaltada: d.fecha_agenda_acto_9_3 ? fh(d.fecha_agenda_acto_9_3) : undefined,
+        fecha: fh(d.fecha_agenda_acto_9_3),
+        completado: c5,
+      },
+      {
+        numero: 6,
+        titulo: 'Anexo 9.3 generado',
+        detalle:
+          'La DEP generó el anexo 9.3 (aviso de realización de acto protocolario de titulación integral). Favor de pasar a División de Estudios Profesionales para recoger y firmar.',
+        fecha: fh(d.fecha_creacion_anexo_9_3),
+        completado: c6,
+      },
+      {
+        numero: 7,
+        clave: 'doc_escaneada_subir',
+        titulo: 'La división de estudios profesionales solicita que subas al SITVO la documentación escaneada.',
+        detalle: c7e
+          ? 'Quedó registrado el envío de tu archivo PDF.'
+          : c7s
+            ? d.observaciones_reenvio_documentacion_escaneada?.trim()
+              ? `La DEP solicitó corrección. Observaciones: ${d.observaciones_reenvio_documentacion_escaneada}`
+              : ''
+            : 'Cuando la división de estudios solicite la documentación, aquí podrás subirla.',
+        fecha: fh(
+          c7e
+            ? d.fecha_envio_documentacion_escaneada_egresado
+            : c7s
+              ? d.fecha_solicitud_documentacion_escaneada
+              : undefined,
+        ),
+        completado: c7e,
+      },
+      {
+        numero: 8,
+        clave: 'doc_escaneada_espera',
+        titulo: 'Tu proceso por esta opción quedó concluida.',
+        detalle: c7r
+          ? 'La DEP confirmó la recepción de documentación escaneada.'
+          : c7e
+            ? 'La DEP confirmará la recepción de documentación escaneada en cuanto revise tu archivo.'
+            : d.observaciones_reenvio_documentacion_escaneada?.trim()
+              ? `Pendiente de nuevo envío del egresado. Observaciones: ${d.observaciones_reenvio_documentacion_escaneada}`
+              : 'Cuando envíes tu archivo PDF, este paso se activará para la confirmación de la DEP.',
+        fecha: fh(
+          c7r
+            ? d.fecha_confirmacion_documentacion_escaneada_recibida
+            : c7e
+              ? d.fecha_envio_documentacion_escaneada_egresado
+              : undefined,
+        ),
+        completado: c7r,
       },
     ];
     return this.aplicarActivoPasos(raw);
@@ -758,7 +867,7 @@ export class SeguimientoComponent implements OnInit {
 
   get avisoPlazosNoResAlumno(): ReturnType<typeof calcularVistaPlazosNoResidencia> | null {
     const d = this.datosVista;
-    if (!d || this.esResidenciaProfesional) return null;
+    if (!d || this.esResidenciaProfesional || this.esCenevalProfesional) return null;
     return calcularVistaPlazosNoResidencia({
       modalidad: d.datos_proyecto?.modalidad,
       fecha_creacion: d.fecha_creacion,
@@ -788,9 +897,10 @@ export class SeguimientoComponent implements OnInit {
   get estadoAvance(): EstadoAvance {
     const d = this.datosVista;
     if (!d) return 'en_tiempo';
-    if (!this.esResidenciaProfesional) {
+    if (!this.esResidenciaProfesional && !this.esCenevalProfesional) {
       return this.avisoPlazosNoResAlumno?.estadoGlobal ?? 'en_tiempo';
     }
+    if (this.esCenevalProfesional) return 'en_tiempo';
     return this.plazosResidenciaAlumno()?.estadoGlobal ?? 'en_tiempo';
   }
 
@@ -803,7 +913,11 @@ export class SeguimientoComponent implements OnInit {
   get fechaLimiteTexto(): string {
     const d = this.datosVista;
     if (!d) return '—';
-    const plazos = this.esResidenciaProfesional ? this.plazosResidenciaAlumno() : this.avisoPlazosNoResAlumno;
+    const plazos = this.esResidenciaProfesional
+      ? this.plazosResidenciaAlumno()
+      : this.esCenevalProfesional
+        ? null
+        : this.avisoPlazosNoResAlumno;
     const lim = plazos?.fechaLimiteMasCercana;
     if (!lim) return '—';
     const dia = lim.getDate().toString().padStart(2, '0');
@@ -815,7 +929,11 @@ export class SeguimientoComponent implements OnInit {
   get detalleEstadoAvance(): string {
     const d = this.datosVista;
     if (!d) return '—';
-    const p = this.esResidenciaProfesional ? this.plazosResidenciaAlumno() : this.avisoPlazosNoResAlumno;
+    const p = this.esResidenciaProfesional
+      ? this.plazosResidenciaAlumno()
+      : this.esCenevalProfesional
+        ? null
+        : this.avisoPlazosNoResAlumno;
     if (!p) return '—';
     const dias = p.diasHastaLimiteMasCercano;
     if (dias == null) {

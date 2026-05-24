@@ -184,6 +184,15 @@ export class CatalogoService {
     return m?.esResidencia ?? nombreModalidad.trim().toLowerCase().includes('residencia');
   }
 
+  /** Modalidad CENEVAL: flujo propio (sin anteproyecto ni anexos 9.1/9.2). */
+  esCeneval(nombreModalidad: string): boolean {
+    const m = this.modalidadesCached.find(
+      x => x.nombre.trim().toLowerCase() === nombreModalidad.trim().toLowerCase()
+    );
+    if (m !== undefined) return m.nombre.trim().toLowerCase().includes('ceneval');
+    return nombreModalidad.trim().toLowerCase().includes('ceneval');
+  }
+
   /**
    * Devuelve el tipo de mentores para una modalidad:
    * "residencia" → asesor interno + externo
