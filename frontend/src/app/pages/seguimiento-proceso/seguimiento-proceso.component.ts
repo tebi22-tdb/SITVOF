@@ -227,6 +227,23 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     return this.catalogoService.esResidencia(m);
   }
 
+  get esCenevalSeguimiento(): boolean {
+    const m = (this.detalleSeleccionado?.datos_proyecto?.modalidad ?? '').trim();
+    return this.catalogoService.esCeneval(m);
+  }
+
+  /** Residencia y CENEVAL exigen confirmar entrega del 9.3 antes de solicitar documentación escaneada. */
+  get requiereEntregaAnexo93AntesDocEscaneada(): boolean {
+    return this.esResidenciaProfesionalSeguimiento || this.esCenevalSeguimiento;
+  }
+
+  prerequisitoSinodalesCumplido(d: EgresadoDetail): boolean {
+    if (this.esCenevalSeguimiento) {
+      return !!d.fecha_confirmacion_entrega_egresado_depto?.trim();
+    }
+    return !!d.fecha_confirmacion_recibido_anexo_9_2?.trim();
+  }
+
   seleccionarEgresado(item: SeguimientoItem): void {
     if (this.procesandoPaso) {
       this.mensajeProceso = 'Espera a que termine la acción en curso (por ejemplo agendar o crear anexo).';
@@ -289,7 +306,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
   /** Expedientes con envío a CAT previo a la versión de 16 pasos (sin fecha de solicitud de anteproyecto). */
   get noResidenciaFlujoLegacy(): boolean {
     const d = this.detalleSeleccionado;
-    if (!d || this.esResidenciaProfesionalSeguimiento) return false;
+    if (!d || this.esResidenciaProfesionalSeguimiento || this.esCenevalSeguimiento) return false;
     return !!d.fecha_enviado_departamento_academico && !d.fecha_envio_solicitud_registro_anteproyecto_depto_academico;
   }
 
@@ -311,7 +328,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     if (this.procesoConcluido) return false;
     if (d.estado_general === 'titulado') return false;
     if (d.estado_general === 'vencido') return true;
-    if (this.esResidenciaProfesionalSeguimiento || this.noResidenciaFlujoLegacy) return false;
+    if (this.esResidenciaProfesionalSeguimiento || this.noResidenciaFlujoLegacy || this.esCenevalSeguimiento) return false;
     const raw = calcularVistaPlazoDesarrolloRecepcionNoRes(d);
     return raw?.estado === 'vencido';
   }
@@ -325,7 +342,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     if (this.procesoConcluido) return 'CONCLUIDO';
     if (d.estado_general === 'titulado') return '';
     if (d.estado_general === 'vencido') return 'VENCIDO';
-    if (!this.esResidenciaProfesionalSeguimiento && !this.noResidenciaFlujoLegacy) {
+    if (!this.esResidenciaProfesionalSeguimiento && !this.noResidenciaFlujoLegacy && !this.esCenevalSeguimiento) {
       const raw = calcularVistaPlazoDesarrolloRecepcionNoRes(d);
       if (raw) {
         if (raw.estado === 'vencido') return 'VENCIDO';
@@ -364,6 +381,11 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     }
     if (this.esResidenciaProfesionalSeguimiento) {
       this.pasosProcesoTitulacionCache = this.construirPasosSeguimientoResidencia();
+      if (scroll) this.programarScrollAlPasoActual();
+      return;
+    }
+    if (this.esCenevalSeguimiento) {
+      this.pasosProcesoTitulacionCache = this.construirPasosSeguimientoCeneval();
       if (scroll) this.programarScrollAlPasoActual();
       return;
     }
@@ -510,6 +532,43 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       },
     ];
     const steps = [...pasosInicio, ...this.pasosTitulacionCompartidosDef(), ...pasoEntrega93, ...this.pasosDocumentacionEscaneadaDef()];
+    return this.mapearDefsAUiPasos(steps);
+  }
+
+  private pasosSinodalesDef(): PasoTitulacionDef[] {
+    return this.pasosTitulacionCompartidosDef().filter(
+      (s) => s.key === 'fecha_solicitud_sinodales' || s.key === 'fecha_confirmacion_sinodales_recibidos',
+    );
+  }
+
+  private pasosPostSinodalesResidenciaDef(): PasoTitulacionDef[] {
+    return this.pasosTitulacionCompartidosDef().filter(
+      (s) => s.key === 'fecha_agenda_acto_9_3' || s.key === 'fecha_creacion_anexo_9_3',
+    );
+  }
+
+  private construirPasosSeguimientoCeneval(): PasoProcesoUi[] {
+    const pasosInicio: PasoTitulacionDef[] = [
+      {
+        key: 'fecha_confirmacion_entrega_egresado_depto',
+        titulo: 'Entrega del egresado a la DEP: solicitud de inicio de proceso de titulación',
+        descripcion: 'La DEP confirma que recibió del egresado la solicitud de inicio del proceso de titulación.',
+      },
+    ];
+    const pasoEntrega93: PasoTitulacionDef[] = [
+      {
+        key: 'fecha_confirmacion_entrega_anexo_9_3',
+        titulo: 'Entrega de anexo 9.3 a sinodales y sustentante',
+        descripcion: 'La DEP confirma la entrega del aviso al jurado y al sustentante.',
+      },
+    ];
+    const steps = [
+      ...pasosInicio,
+      ...this.pasosSinodalesDef(),
+      ...this.pasosPostSinodalesResidenciaDef(),
+      ...pasoEntrega93,
+      ...this.pasosDocumentacionEscaneadaDef(),
+    ];
     return this.mapearDefsAUiPasos(steps);
   }
 
@@ -1282,6 +1341,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     const ultimoMovimiento = isoUltimo ? this.formatoFecha(new Date(isoUltimo)) : '—';
 
     const esRes = this.catalogoService.esResidencia(modalidad.trim());
+    const esCeneval = this.catalogoService.esCeneval(modalidad.trim());
     if (e.fecha_confirmacion_documentacion_escaneada_recibida) {
       return {
         id: e.id,
@@ -1293,6 +1353,20 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         documentoFaltante: 'Proceso concluido',
         ultimoMovimiento,
         fechaLimite: 'Finalizado',
+      };
+    }
+
+    if (esCeneval) {
+      return {
+        id: e.id,
+        alumno: e.nombre || '—',
+        noControl: e.numero_control || '—',
+        modalidad,
+        carrera: e.carrera || '—',
+        estado: 'en_tiempo',
+        documentoFaltante: 'En curso',
+        ultimoMovimiento,
+        fechaLimite: '—',
       };
     }
 
