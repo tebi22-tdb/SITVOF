@@ -18,4 +18,4 @@ if ($LASTEXITCODE -ne 0) { exit 1 }
 Write-Host "`n=== 3. Reiniciar el backend en el servidor ===" -ForegroundColor Green
 Write-Host "Ejecuta por SSH: ssh ${SERVER} 'sudo systemctl restart sit'" -ForegroundColor Yellow
 Write-Host "O conectate y ejecuta: sudo systemctl restart sit" -ForegroundColor Yellow
-Write-Host "`nLuego abre: http://77.37.74.122 (deberias ver primero el login)" -ForegroundColor Cyan
+Write-Host "`nLuego abre: https://sitvo.net (deberias ver primero el login)" -ForegroundColor Cyan
