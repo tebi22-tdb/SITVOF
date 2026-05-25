@@ -257,7 +257,7 @@
               >
                 Confirmar
               </button>
-              <button *ngIf="paso.key === 'fecha_creacion_anexo_9_1' && detalleSeleccionado.fecha_confirmacion_recibidos_anexo_xxxi_xxxii" type="button" class="seg-btn" [disabled]="accionesProcesoBloqueadas" (click)="crearDescargar91()">
+              <button *ngIf="paso.key === 'fecha_creacion_anexo_9_1' && prerequisitoCrearAnexo91(detalleSeleccionado)" type="button" class="seg-btn" [disabled]="accionesProcesoBloqueadas" (click)="crearDescargar91()">
                 {{ detalleSeleccionado.fecha_creacion_anexo_9_1 ? 'Regenerar 9.1' : 'Crear 9.1' }}
               </button>
               <button *ngIf="paso.key === 'fecha_confirmacion_entrega_anexo_9_1' && detalleSeleccionado.fecha_creacion_anexo_9_1 && !detalleSeleccionado.fecha_confirmacion_entrega_anexo_9_1" type="button" class="seg-btn" [disabled]="accionesProcesoBloqueadas" (click)="confirmarEntrega91()">Confirmar entrega</button>

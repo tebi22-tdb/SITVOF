@@ -238,10 +238,15 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
   }
 
   prerequisitoSinodalesCumplido(d: EgresadoDetail): boolean {
+    return !!d.fecha_confirmacion_recibido_anexo_9_2?.trim();
+  }
+
+  /** Paso 2 CENEVAL / residencia (anexos): paso 1 CENEVAL confirmado. */
+  prerequisitoCrearAnexo91(d: EgresadoDetail): boolean {
     if (this.esCenevalSeguimiento) {
       return !!d.fecha_confirmacion_entrega_egresado_depto?.trim();
     }
-    return !!d.fecha_confirmacion_recibido_anexo_9_2?.trim();
+    return !!d.fecha_confirmacion_recibidos_anexo_xxxi_xxxii?.trim();
   }
 
   seleccionarEgresado(item: SeguimientoItem): void {
@@ -444,7 +449,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       },
       {
         key: 'fecha_confirmacion_sinodales_recibidos',
-        titulo: 'Entrega oficio de asignación de sinodales el departamento académico a DEP',
+        titulo: 'Entrega oficio de asignación de sinodales el departamento académico a la DEP',
         descripcion:
           'El departamento académico registra la asignación; la DEP confirma con «Confirmar» la recepción del oficio.',
       },
@@ -551,8 +556,8 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     const pasosInicio: PasoTitulacionDef[] = [
       {
         key: 'fecha_confirmacion_entrega_egresado_depto',
-        titulo: 'Entrega del egresado a la DEP: solicitud de inicio de proceso de titulación',
-        descripcion: 'La DEP confirma que recibió del egresado la solicitud de inicio del proceso de titulación.',
+        titulo: 'Recibimos solicitud y copia del testimonio por la opción de examen CENEVAL',
+        descripcion: 'La DEP confirma la recepción de la solicitud y la copia del testimonio.',
       },
     ];
     const pasoEntrega93: PasoTitulacionDef[] = [
@@ -564,8 +569,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     ];
     const steps = [
       ...pasosInicio,
-      ...this.pasosSinodalesDef(),
-      ...this.pasosPostSinodalesResidenciaDef(),
+      ...this.pasosTitulacionCompartidosDef(),
       ...pasoEntrega93,
       ...this.pasosDocumentacionEscaneadaDef(),
     ];
@@ -617,7 +621,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       {
         key: 'fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii',
         titulo:
-          'El departamento académico envía a la DEP el anexo XXXII (registro de la tesis)',
+          'La DEP recibe el registro de la tesis (Anexo XXXII) por parte del departamento académico',
         descripcion:
           'La DEP confirma la recepción del registro una vez que el departamento académico marcó como registrado.',
       },
@@ -634,13 +638,15 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       },
       {
         key: 'fecha_recepcion_registro_liberacion_depto_academico',
-        titulo: 'La DEP recibe la liberación del anexo XXXIII y la tesis',
-        descripcion: 'La DEP confirma la recepción de la liberación y del documento de tesis.',
+        titulo: 'La DEP recibe la liberación de la tesis (Anexo XXXIII)',
+        descripcion: 'La DEP confirma la recepción de la liberación de la tesis.',
       },
       {
         key: 'fecha_enviado_departamento_academico',
-        titulo: 'Envío a Departamento de Apoyo a la Titulación para revisión',
-        descripcion: 'La DEP envía el expediente al Departamento de Apoyo a la Titulación (revisión académica).',
+        titulo:
+          'Envío a Coordinación de Apoyo a la Titulación para la revisión de acuerdo a las normas de presentación para trabajos profesionales',
+        descripcion:
+          'La DEP envía la tesis a Coordinación de Apoyo a la Titulación para la revisión según las normas de presentación para trabajos profesionales.',
       },
       ...this.pasosTitulacionCompartidosDef(),
       ...this.pasosDocumentacionEscaneadaDef(),

@@ -1008,7 +1008,12 @@ class EgresadoService(
     fun crearAnexo91(id: String): ByteArray? {
         val e = cargarEgresadoPorId(id) ?: return null
         val p = e.procesoActivoOrNull() ?: return null
-        if (p.fechaConfirmacionRecibidosAnexoXxxiXxxii == null) return null
+        val prerequisito91 = if (esCeneval(e)) {
+            p.fechaConfirmacionEntregaEgresadoDepto != null
+        } else {
+            p.fechaConfirmacionRecibidosAnexoXxxiXxxii != null
+        }
+        if (!prerequisito91) return null
         val destinatarioServicios = env.getProperty("sit.anexo91.destinatario-servicios-escolares")?.trim().orEmpty()
         val destinatarioServiciosFinal = if (destinatarioServicios.isNotEmpty()) destinatarioServicios else "ROMEO ALBERTO ANGELES PEREZ"
         val ahora = Instant.now()
@@ -1077,12 +1082,7 @@ class EgresadoService(
     fun solicitarSinodales(id: String): Boolean {
         val e = cargarEgresadoPorId(id) ?: return false
         val p = e.procesoActivoOrNull() ?: return false
-        val prerequisitoOk = if (esCeneval(e)) {
-            p.fechaConfirmacionEntregaEgresadoDepto != null
-        } else {
-            p.fechaConfirmacionRecibidoAnexo92 != null
-        }
-        if (!prerequisitoOk) return false
+        if (p.fechaConfirmacionRecibidoAnexo92 == null) return false
         if (p.fechaSolicitudSinodales != null) return false
         val ahora = Instant.now()
         egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaSolicitudSinodales = ahora, fecha_actualizacion = ahora)))
