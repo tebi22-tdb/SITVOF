@@ -49,7 +49,7 @@ import { AuthService } from '../../services/auth.service';
           </button>
           <button type="button" class="card" (click)="irSeguimientoProceso()">
             <div class="card-texto">
-              <h2>Seguimiento del proceso</h2>
+              <h2>Seguimiento del proceso de titulación</h2>
               <p>Envíos a académicos, anexos 9.1 / 9.3, sinodales y acto protocolario.</p>
             </div>
             <div class="card-icono" aria-hidden="true">
@@ -75,7 +75,7 @@ import { AuthService } from '../../services/auth.service';
           </button>
           <button type="button" class="card" (click)="irRevisiones()">
             <div class="card-texto">
-              <h2>Coordinación de apoyo a la titulación</h2>
+              <h2>Revisiones de documentos profesionales</h2>
               <p>Consulta el estado de la revisión académica.</p>
             </div>
             <div class="card-icono" aria-hidden="true">
@@ -119,8 +119,8 @@ import { AuthService } from '../../services/auth.service';
           </button>
           <button *ngIf="puedeVerRepositorio" type="button" class="card" (click)="irRepositorio()">
             <div class="card-texto">
-              <h2>Repositorio de titulados</h2>
-              <p>Consulta los egresados titulados con su documento final certificado.</p>
+              <h2>Repositorio de documentos profesionales</h2>
+              <p>Consulta los proyectos de los egresados de las diferentes carreras y modalidades.</p>
             </div>
             <div class="card-icono" aria-hidden="true">
               <svg viewBox="0 0 24 24" class="card-icono-svg">
@@ -236,14 +236,14 @@ export class CoordinadorInicioComponent {
 
   get tituloCardAlta(): string {
     return this.auth.puedeAdministrarUsuariosStaff()
-      ? 'Alta de egresados y usuarios'
-      : 'Alta de egresados';
+      ? 'Inicio del proceso de titulación'
+      : 'Inicio del proceso de titulación';
   }
 
   get descripcionCardAlta(): string {
     return this.auth.puedeAdministrarUsuariosStaff()
-      ? 'Registro de alumnos, documentos y usuarios del personal.'
-      : 'Registro de alumnos y documentos de titulación.';
+      ? 'Registro de egresados al proceso de titulacion por las diferentes modalidades y alta de roles'
+      : 'Registro de egresados al proceso de titulacion por las diferentes modalidades y alta de roles';
   }
 
   irDepartamentoAcademicoMenu(): void {
