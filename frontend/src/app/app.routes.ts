@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, academicoGuard, coordinadorGuard, egresadoGuard, repositorioGuard } from './guards/auth.guard';
+import { authGuard, academicoGuard, coordinadorGuard, egresadoGuard } from './guards/auth.guard';
 
 /**
  * Enrutado SITVO (titulación / residencia profesional y otras modalidades).
@@ -93,7 +93,6 @@ export const routes: Routes = [
     path: 'repositorio',
     loadComponent: () =>
       import('./pages/repositorio/repositorio.component').then((m) => m.RepositorioComponent),
-    canActivate: [repositorioGuard],
   },
   {
     path: 'verificar/:uuid',
