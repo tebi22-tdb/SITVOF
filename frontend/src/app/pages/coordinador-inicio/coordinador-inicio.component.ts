@@ -117,7 +117,7 @@ import { AuthService } from '../../services/auth.service';
               </svg>
             </div>
           </button>
-          <button *ngIf="puedeVerRepositorio" type="button" class="card" (click)="irRepositorio()">
+          <button type="button" class="card" (click)="irRepositorio()">
             <div class="card-texto">
               <h2>Repositorio de documentos profesionales</h2>
               <p>Consulta los proyectos de los egresados de las diferentes carreras y modalidades.</p>
