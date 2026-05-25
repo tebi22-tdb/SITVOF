@@ -394,13 +394,17 @@ export class SeguimientoComponent implements OnInit {
     const modalidad = (d.datos_proyecto?.modalidad ?? '').trim() || 'CENEVAL';
     const c1 = !!d.fecha_creacion;
     const c2 = !!d.fecha_confirmacion_entrega_egresado_depto;
-    const c3 = !!d.fecha_solicitud_sinodales;
-    const c4 = !!d.fecha_confirmacion_sinodales_recibidos;
-    const c5 = !!d.fecha_agenda_acto_9_3;
-    const c6 = !!d.fecha_creacion_anexo_9_3;
-    const c7s = !!d.fecha_solicitud_documentacion_escaneada;
-    const c7e = !!d.fecha_envio_documentacion_escaneada_egresado;
-    const c7r = !!d.fecha_confirmacion_documentacion_escaneada_recibida;
+    const c3 = !!d.fecha_creacion_anexo_9_1;
+    const c4 = !!d.fecha_confirmacion_entrega_anexo_9_1;
+    const c5 = !!d.fecha_solicitud_anexo_9_2;
+    const c6 = !!d.fecha_confirmacion_recibido_anexo_9_2;
+    const c7 = !!d.fecha_solicitud_sinodales;
+    const c8 = !!d.fecha_confirmacion_sinodales_recibidos;
+    const c9 = !!d.fecha_agenda_acto_9_3;
+    const c10 = !!d.fecha_creacion_anexo_9_3;
+    const c11s = !!d.fecha_solicitud_documentacion_escaneada;
+    const c11e = !!d.fecha_envio_documentacion_escaneada_egresado;
+    const c11r = !!d.fecha_confirmacion_documentacion_escaneada_recibida;
     const raw: Omit<PasoAlumnoVista, 'activo'>[] = [
       {
         numero: 1,
@@ -411,81 +415,113 @@ export class SeguimientoComponent implements OnInit {
       },
       {
         numero: 2,
-        titulo: 'Entrega de solicitud de inicio en la DEP',
+        titulo: 'Recepción de solicitud y testimonio en la DEP',
         detalle:
-          'La DEP confirmó la recepción de tu solicitud de inicio de proceso de titulación por examen CENEVAL.',
+          'La DEP confirmó la recepción de tu solicitud y la copia del testimonio por la opción de examen CENEVAL.',
         fecha: fh(d.fecha_confirmacion_entrega_egresado_depto),
         completado: c2,
       },
       {
         numero: 3,
-        titulo: 'Solicitud de sinodales',
-        detalle: 'La DEP solicitó al departamento académico la asignación de sinodales.',
-        fecha: fh(d.fecha_solicitud_sinodales),
+        titulo: 'Recoger y firmar anexo 9.1',
+        detalle:
+          'Acude a la división de estudios profesionales para recoger y firmar tu anexo 9.1 (formato de solicitud de acto de recepción profesional).',
+        fecha: fh(d.fecha_creacion_anexo_9_1),
         completado: c3,
       },
       {
         numero: 4,
-        titulo: 'Oficio de sinodales recibido',
-        detalle: 'Quedó confirmada la recepción del oficio de sinodales que el departamento académico entregó a la DEP.',
-        fecha: fh(d.fecha_confirmacion_sinodales_recibidos),
+        titulo: 'Confirmación de anexo 9.1 firmado',
+        detalle:
+          'La DEP te entregó el anexo 9.1 (formato de solicitud de acto de recepción profesional).',
+        fecha: fh(d.fecha_confirmacion_entrega_anexo_9_1),
         completado: c4,
       },
       {
         numero: 5,
-        titulo: 'Acto protocolario agendado',
-        detalle: this.detalleTextoPasoActo93AgendadoAlumno(d),
-        fechaDetalleResaltada: d.fecha_agenda_acto_9_3 ? fh(d.fecha_agenda_acto_9_3) : undefined,
-        fecha: fh(d.fecha_agenda_acto_9_3),
+        titulo: 'Solicitud del anexo 9.2',
+        detalle:
+          'Solicita en el Departamento de Servicios Escolares el anexo 9.2 (constancia de no inconveniencia para acto de recepción profesional) y posteriormente entrégalo en la DEP para continuar con tu trámite.',
+        fecha: fh(d.fecha_solicitud_anexo_9_2),
         completado: c5,
       },
       {
         numero: 6,
-        titulo: 'Anexo 9.3 generado',
+        titulo: 'Constancia 9.2 recibida',
         detalle:
-          'La DEP generó el anexo 9.3 (aviso de realización de acto protocolario de titulación integral). Favor de pasar a División de Estudios Profesionales para recoger y firmar.',
-        fecha: fh(d.fecha_creacion_anexo_9_3),
+          'Quedó registrada la recepción de la constancia 9.2 (constancia de no inconveniencia para acto de recepción profesional) en división de estudios profesionales.',
+        fecha: fh(d.fecha_confirmacion_recibido_anexo_9_2),
         completado: c6,
       },
       {
         numero: 7,
+        titulo: 'Solicitud de sinodales',
+        detalle: 'La DEP solicitó al departamento académico la asignación de sinodales.',
+        fecha: fh(d.fecha_solicitud_sinodales),
+        completado: c7,
+      },
+      {
+        numero: 8,
+        titulo: 'Oficio de sinodales recibido',
+        detalle: 'Quedó confirmada la recepción del oficio de sinodales que el departamento académico entregó a la DEP.',
+        fecha: fh(d.fecha_confirmacion_sinodales_recibidos),
+        completado: c8,
+      },
+      {
+        numero: 9,
+        titulo: 'Acto protocolario agendado',
+        detalle: this.detalleTextoPasoActo93AgendadoAlumno(d),
+        fechaDetalleResaltada: d.fecha_agenda_acto_9_3 ? fh(d.fecha_agenda_acto_9_3) : undefined,
+        fecha: fh(d.fecha_agenda_acto_9_3),
+        completado: c9,
+      },
+      {
+        numero: 10,
+        titulo: 'Anexo 9.3 generado',
+        detalle:
+          'La DEP generó el anexo 9.3 (aviso de realización de acto protocolario de titulación integral). Favor de pasar a División de Estudios Profesionales para recoger y firmar.',
+        fecha: fh(d.fecha_creacion_anexo_9_3),
+        completado: c10,
+      },
+      {
+        numero: 11,
         clave: 'doc_escaneada_subir',
         titulo: 'La división de estudios profesionales solicita que subas al SITVO la documentación escaneada.',
-        detalle: c7e
+        detalle: c11e
           ? 'Quedó registrado el envío de tu archivo PDF.'
-          : c7s
+          : c11s
             ? d.observaciones_reenvio_documentacion_escaneada?.trim()
               ? `La DEP solicitó corrección. Observaciones: ${d.observaciones_reenvio_documentacion_escaneada}`
               : ''
             : 'Cuando la división de estudios solicite la documentación, aquí podrás subirla.',
         fecha: fh(
-          c7e
+          c11e
             ? d.fecha_envio_documentacion_escaneada_egresado
-            : c7s
+            : c11s
               ? d.fecha_solicitud_documentacion_escaneada
               : undefined,
         ),
-        completado: c7e,
+        completado: c11e,
       },
       {
-        numero: 8,
+        numero: 12,
         clave: 'doc_escaneada_espera',
         titulo: 'Tu proceso por esta opción quedó concluida.',
-        detalle: c7r
+        detalle: c11r
           ? 'La DEP confirmó la recepción de documentación escaneada.'
-          : c7e
+          : c11e
             ? 'La DEP confirmará la recepción de documentación escaneada en cuanto revise tu archivo.'
             : d.observaciones_reenvio_documentacion_escaneada?.trim()
               ? `Pendiente de nuevo envío del egresado. Observaciones: ${d.observaciones_reenvio_documentacion_escaneada}`
               : 'Cuando envíes tu archivo PDF, este paso se activará para la confirmación de la DEP.',
         fecha: fh(
-          c7r
+          c11r
             ? d.fecha_confirmacion_documentacion_escaneada_recibida
-            : c7e
+            : c11e
               ? d.fecha_envio_documentacion_escaneada_egresado
               : undefined,
         ),
-        completado: c7r,
+        completado: c11r,
       },
     ];
     return this.aplicarActivoPasos(raw);
@@ -734,9 +770,9 @@ export class SeguimientoComponent implements OnInit {
       },
       {
         numero: 8,
-        titulo: 'Envío a Departamento de Apoyo a la Titulación',
+        titulo: 'Envío a coordinación de Apoyo a la Titulación',
         detalle:
-          'Tu expediente fue enviado al Departamento de Apoyo a la Titulación para la revisión académica de tu proyecto.',
+          'Tu tesis fue enviada a la coordinación de apoyo a la titulación para la revisión de acuerdo a las normas de presentación para trabajos profesionales.',
         fecha: fh(d.fecha_enviado_departamento_academico),
         completado: c7,
       },

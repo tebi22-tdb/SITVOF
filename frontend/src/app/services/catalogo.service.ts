@@ -184,7 +184,7 @@ export class CatalogoService {
     return m?.esResidencia ?? nombreModalidad.trim().toLowerCase().includes('residencia');
   }
 
-  /** Modalidad CENEVAL: flujo propio (sin anteproyecto ni anexos 9.1/9.2). */
+  /** Modalidad CENEVAL: recepción solicitud/testimonio y flujo compartido desde 9.1 (como residencia). */
   esCeneval(nombreModalidad: string): boolean {
     const m = this.modalidadesCached.find(
       x => x.nombre.trim().toLowerCase() === nombreModalidad.trim().toLowerCase()
