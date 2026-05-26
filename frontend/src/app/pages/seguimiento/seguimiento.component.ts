@@ -402,6 +402,7 @@ export class SeguimientoComponent implements OnInit {
     const c8 = !!d.fecha_confirmacion_sinodales_recibidos;
     const c9 = !!d.fecha_agenda_acto_9_3;
     const c10 = !!d.fecha_creacion_anexo_9_3;
+    const c10b = !!d.fecha_confirmacion_entrega_anexo_9_3;
     const c11s = !!d.fecha_solicitud_documentacion_escaneada;
     const c11e = !!d.fecha_envio_documentacion_escaneada_egresado;
     const c11r = !!d.fecha_confirmacion_documentacion_escaneada_recibida;
@@ -415,9 +416,9 @@ export class SeguimientoComponent implements OnInit {
       },
       {
         numero: 2,
-        titulo: 'Recepción de solicitud y testimonio en la DEP',
+        titulo: 'Recibimos solicitud y copia del testimonio por la opción de examen CENEVAL',
         detalle:
-          'La DEP confirmó la recepción de tu solicitud y la copia del testimonio por la opción de examen CENEVAL.',
+          'La división de estudios profesionales confirmó la recepción de tu solicitud y la copia del testimonio para el trámite por examen CENEVAL.',
         fecha: fh(d.fecha_confirmacion_entrega_egresado_depto),
         completado: c2,
       },
@@ -485,6 +486,15 @@ export class SeguimientoComponent implements OnInit {
       },
       {
         numero: 11,
+        titulo: 'Recoger y firmar anexo 9.3',
+        detalle: c10b
+          ? 'Quedó registrada la entrega de tu anexo 9.3 en división de estudios profesionales.'
+          : 'Acude a división de estudios profesionales para recoger y firmar tu anexo 9.3 antes de continuar con la documentación escaneada.',
+        fecha: fh(d.fecha_confirmacion_entrega_anexo_9_3),
+        completado: c10b,
+      },
+      {
+        numero: 12,
         clave: 'doc_escaneada_subir',
         titulo: 'La división de estudios profesionales solicita que subas al SITVO la documentación escaneada.',
         detalle: c11e
@@ -504,7 +514,7 @@ export class SeguimientoComponent implements OnInit {
         completado: c11e,
       },
       {
-        numero: 12,
+        numero: 13,
         clave: 'doc_escaneada_espera',
         titulo: 'Tu proceso por esta opción quedó concluida.',
         detalle: c11r
@@ -965,11 +975,10 @@ export class SeguimientoComponent implements OnInit {
   get detalleEstadoAvance(): string {
     const d = this.datosVista;
     if (!d) return '—';
-    const p = this.esResidenciaProfesional
-      ? this.plazosResidenciaAlumno()
-      : this.esCenevalProfesional
-        ? null
-        : this.avisoPlazosNoResAlumno;
+    if (this.esCenevalProfesional) {
+      return 'Modalidad por examen CENEVAL: sin plazo de desarrollo de proyecto; avanza según los pasos del trámite.';
+    }
+    const p = this.esResidenciaProfesional ? this.plazosResidenciaAlumno() : this.avisoPlazosNoResAlumno;
     if (!p) return '—';
     const dias = p.diasHastaLimiteMasCercano;
     if (dias == null) {

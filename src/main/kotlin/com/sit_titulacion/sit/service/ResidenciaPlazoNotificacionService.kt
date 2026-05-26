@@ -91,7 +91,7 @@ class ResidenciaPlazoNotificacionService(
             return
         }
 
-        val paso = pasoActualResidencia(p0)
+        val paso = pasoActualResidencia(p0, incluirCierre = false)
         val limiteTexto = formatearFecha(limite)
 
         if (p0.notifPlazoRes2m == null && !hoy.isBefore(inicioLocal.plusMonths(2))) {
@@ -120,8 +120,8 @@ class ResidenciaPlazoNotificacionService(
                 tipoAviso = "aviso_4_meses",
                 diasRestantes = dias,
                 fechaLimiteTexto = limiteTexto,
-                pasoNumero = pasoActualResidencia(p1).numero,
-                pasoTitulo = pasoActualResidencia(p1).titulo,
+                pasoNumero = pasoActualResidencia(p1, incluirCierre = false).numero,
+                pasoTitulo = pasoActualResidencia(p1, incluirCierre = false).titulo,
             )
             if (enviado) guardarMarca(egresado, p1) { it.copy(notifPlazoRes4m = Instant.now()) }
         }
@@ -139,8 +139,8 @@ class ResidenciaPlazoNotificacionService(
                 tipoAviso = "aviso_3_dias",
                 diasRestantes = dias,
                 fechaLimiteTexto = limiteTexto,
-                pasoNumero = pasoActualResidencia(p2).numero,
-                pasoTitulo = pasoActualResidencia(p2).titulo,
+                pasoNumero = pasoActualResidencia(p2, incluirCierre = false).numero,
+                pasoTitulo = pasoActualResidencia(p2, incluirCierre = false).titulo,
             )
             if (enviado) guardarMarca(egresado, p2) { it.copy(notifPlazoRes3d = Instant.now()) }
         }
@@ -156,7 +156,7 @@ class ResidenciaPlazoNotificacionService(
         diasRestantes: Int,
     ) {
         if (p.notifPlazoResFinal != null) return
-        val paso = pasoActualResidencia(p)
+        val paso = pasoActualResidencia(p, incluirCierre = true)
         val vencido = p.estado_general.trim().equals("vencido", ignoreCase = true)
         val tipo = if (vencido) "final_vencido" else "final_concluido"
         val enviado = emailService.enviarAvisoPlazoResidencia(
@@ -195,7 +195,14 @@ class ResidenciaPlazoNotificacionService(
 
     data class PasoResidenciaVista(val numero: Int, val titulo: String)
 
-    fun pasoActualResidencia(p: ProcesoTitulacion): PasoResidenciaVista {
+    fun pasoActualResidencia(p: ProcesoTitulacion, incluirCierre: Boolean = false): PasoResidenciaVista {
+        if (incluirCierre && procesoCerrado(p)) {
+            val vencido = p.estado_general.trim().equals("vencido", ignoreCase = true)
+            return PasoResidenciaVista(
+                numero = 13,
+                titulo = if (vencido) "Proceso vencido" else "Proceso concluido",
+            )
+        }
         val pasos: List<Pair<String, Boolean>> = listOf(
             "Registro de tu solicitud" to true,
             "Envío de solicitud al departamento académico" to (p.fechaEnviadoDepartamentoAcademico != null),
@@ -208,9 +215,13 @@ class ResidenciaPlazoNotificacionService(
             "Oficio de sinodales recibido" to (p.fechaConfirmacionSinodalesRecibidos != null),
             "Acto protocolario agendado" to (p.fechaAgendaActo93 != null),
             "Anexo 9.3 generado" to (p.fechaCreacionAnexo93 != null),
-            "Documentación escaneada" to (p.fechaEnvioDocumentacionEscaneadaEgresado != null),
-            "Proceso concluido" to (p.fechaConfirmacionDocumentacionEscaneadaRecibida != null),
+            "Documentación escaneada enviada" to (p.fechaEnvioDocumentacionEscaneadaEgresado != null),
+            "Confirmación de documentación escaneada" to (p.fechaConfirmacionDocumentacionEscaneadaRecibida != null),
         )
+        return primerPasoPendienteResidencia(pasos)
+    }
+
+    private fun primerPasoPendienteResidencia(pasos: List<Pair<String, Boolean>>): PasoResidenciaVista {
         val pendiente = pasos.indexOfFirst { !it.second }
         val idx = if (pendiente < 0) pasos.lastIndex else pendiente
         return PasoResidenciaVista(numero = idx + 1, titulo = pasos[idx].first)
