@@ -198,7 +198,7 @@
               <dt>Modalidad</dt>
               <dd>{{ datos.datos_proyecto.modalidad || '—' }}</dd>
             </div>
-            <div class="perfil-row">
+            <div class="perfil-row" *ngIf="!esCenevalProfesional">
               <dt>Proyecto</dt>
               <dd>{{ datos.datos_proyecto.nombre_proyecto || '—' }}</dd>
             </div>

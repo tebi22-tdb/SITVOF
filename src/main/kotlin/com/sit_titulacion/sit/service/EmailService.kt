@@ -265,7 +265,11 @@ class EmailService(
         pasoTitulo: String,
     ): Pair<String, String> {
         val firma = "Saludos,\nDivisión de Estudios Profesionales"
-        val pasoLinea = "Paso actual: $pasoNumero — $pasoTitulo."
+        val pasoLinea = when (tipoAviso) {
+            "final_concluido" -> "Estado: tu proceso quedó concluido en el sistema."
+            "final_vencido" -> "Estado: tu proceso se encuentra marcado como vencido."
+            else -> "Paso actual: $pasoNumero — $pasoTitulo."
+        }
         val tiempoLinea = when {
             diasRestantes < 0 ->
                 "El plazo de 6 meses (desde la fecha de registro del Anexo XXXI) venció hace ${-diasRestantes} día(s). La fecha límite era $fechaLimiteTexto."
@@ -402,7 +406,11 @@ class EmailService(
         pasoTitulo: String,
     ): Pair<String, String> {
         val firma = "Saludos,\nDivisión de Estudios Profesionales"
-        val pasoLinea = "Paso actual: $pasoNumero — $pasoTitulo."
+        val pasoLinea = when (tipoAviso) {
+            "final_concluido" -> "Estado: tu proceso quedó concluido en el sistema."
+            "final_vencido" -> "Estado: tu proceso se encuentra marcado como vencido."
+            else -> "Paso actual: $pasoNumero — $pasoTitulo."
+        }
         val origenDesarrollo =
             "desde la confirmación de la DEP del registro de tu $etiquetaModalidad (paso 3 del proceso)"
         val origenTramite = "desde la liberación de producto en tu departamento académico"

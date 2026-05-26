@@ -80,20 +80,19 @@ class NoResidenciaPlazoNotificacionService(
         }
 
         val nombre = nombreCompleto(egresado)
-        val paso = pasoActualNoResFlujo7(p0)
 
         if (procesoCerrado(p0)) {
-            enviarFinalSiCorresponde(egresado, p0, correo, nombre, paso)
+            enviarFinalSiCorresponde(egresado, p0, correo, nombre)
             return
         }
 
-        if (p0.fechaEnviadoDepartamentoAcademico != null) {
+        if (esFlujoLegacyMonografia(p0) && p0.fechaEnviadoDepartamentoAcademico != null) {
             return
         }
 
         val liberacion = p0.fechaSolicitudRegistroLiberacionDeptoAcademico
         if (liberacion != null) {
-            procesarFaseTramite(egresado, p0, correo, nombre, liberacion, paso)
+            procesarFaseTramite(egresado, p0, correo, nombre, liberacion)
             return
         }
 
@@ -129,7 +128,7 @@ class NoResidenciaPlazoNotificacionService(
             if (marca != null) continue
             if (hoy.isBefore(inicioLocal.plusMonths(mesesTranscurridos))) continue
             val dias = ChronoUnit.DAYS.between(hoy, limite).toInt()
-            val pasoActual = pasoActualNoResFlujo7(proceso)
+            val pasoActual = pasoActualNoResidencia(proceso)
             val enviado = emailService.enviarAvisoPlazoNoResidencia(
                 correoDestino = correo,
                 nombreEgresado = nombre,
@@ -156,7 +155,7 @@ class NoResidenciaPlazoNotificacionService(
         val tresDiasAntes = limite.minusDays(3)
         if (pAct.notifPlazoNrDev3d == null && !hoy.isBefore(tresDiasAntes)) {
             val dias = ChronoUnit.DAYS.between(hoy, limite).toInt()
-            val pasoActual = pasoActualNoResFlujo7(pAct)
+            val pasoActual = pasoActualNoResidencia(pAct)
             val enviado = emailService.enviarAvisoPlazoNoResidencia(
                 correoDestino = correo,
                 nombreEgresado = nombre,
@@ -180,7 +179,6 @@ class NoResidenciaPlazoNotificacionService(
         correo: String,
         nombre: String,
         inicio: Instant,
-        paso: PasoNoResVista,
     ) {
         val hoy = LocalDate.now(zonaPlazo)
         val inicioLocal = inicio.atZone(zonaPlazo).toLocalDate()
@@ -189,6 +187,7 @@ class NoResidenciaPlazoNotificacionService(
         val etiquetaModalidad = etiquetaModalidad(p.datos_proyecto.modalidad)
 
         if (p.notifPlazoNrInicioTram == null) {
+            val paso = pasoActualNoResidencia(p)
             val dias = ChronoUnit.DAYS.between(hoy, limite).toInt()
             val enviado = emailService.enviarAvisoPlazoNoResidencia(
                 correoDestino = correo,
@@ -208,13 +207,13 @@ class NoResidenciaPlazoNotificacionService(
 
         var proceso = egresadoRepository.findById(egresado.id!!).orElse(egresado).procesoActivoOrNull() ?: return
         if (procesoCerrado(proceso)) {
-            enviarFinalSiCorresponde(egresado, proceso, correo, nombre, pasoActualNoResFlujo7(proceso))
+            enviarFinalSiCorresponde(egresado, proceso, correo, nombre)
             return
         }
 
         if (proceso.notifPlazoNrTram2m == null && !hoy.isBefore(inicioLocal.plusMonths(2))) {
             val dias = ChronoUnit.DAYS.between(hoy, limite).toInt()
-            val pasoActual = pasoActualNoResFlujo7(proceso)
+            val pasoActual = pasoActualNoResidencia(proceso)
             val enviado = emailService.enviarAvisoPlazoNoResidencia(
                 correoDestino = correo,
                 nombreEgresado = nombre,
@@ -235,13 +234,13 @@ class NoResidenciaPlazoNotificacionService(
         }
 
         if (procesoCerrado(proceso)) {
-            enviarFinalSiCorresponde(egresado, proceso, correo, nombre, pasoActualNoResFlujo7(proceso))
+            enviarFinalSiCorresponde(egresado, proceso, correo, nombre)
             return
         }
 
         if (proceso.notifPlazoNrTram4m == null && !hoy.isBefore(inicioLocal.plusMonths(4))) {
             val dias = ChronoUnit.DAYS.between(hoy, limite).toInt()
-            val pasoActual = pasoActualNoResFlujo7(proceso)
+            val pasoActual = pasoActualNoResidencia(proceso)
             val enviado = emailService.enviarAvisoPlazoNoResidencia(
                 correoDestino = correo,
                 nombreEgresado = nombre,
@@ -262,14 +261,14 @@ class NoResidenciaPlazoNotificacionService(
         }
 
         if (procesoCerrado(proceso)) {
-            enviarFinalSiCorresponde(egresado, proceso, correo, nombre, pasoActualNoResFlujo7(proceso))
+            enviarFinalSiCorresponde(egresado, proceso, correo, nombre)
             return
         }
 
         val tresDiasAntes = limite.minusDays(3)
         if (proceso.notifPlazoNrTram3d == null && !hoy.isBefore(tresDiasAntes)) {
             val dias = ChronoUnit.DAYS.between(hoy, limite).toInt()
-            val pasoActual = pasoActualNoResFlujo7(proceso)
+            val pasoActual = pasoActualNoResidencia(proceso)
             val enviado = emailService.enviarAvisoPlazoNoResidencia(
                 correoDestino = correo,
                 nombreEgresado = nombre,
@@ -292,9 +291,9 @@ class NoResidenciaPlazoNotificacionService(
         p: ProcesoTitulacion,
         correo: String,
         nombre: String,
-        paso: PasoNoResVista,
     ) {
         if (p.notifPlazoNrFinal != null) return
+        val paso = pasoActualNoResidencia(p, incluirCierre = true)
         val vencido = p.estado_general.trim().equals("vencido", ignoreCase = true)
         val tipo = if (vencido) "final_vencido" else "final_concluido"
         val enviado = emailService.enviarAvisoPlazoNoResidencia(
@@ -362,29 +361,82 @@ class NoResidenciaPlazoNotificacionService(
 
     data class PasoNoResVista(val numero: Int, val titulo: String)
 
-    fun pasoActualNoResFlujo7(p: ProcesoTitulacion): PasoNoResVista {
-        val pasos: List<Pair<String, Boolean>> = listOf(
-            "Entrega en la DEP (solicitud y anteproyecto)" to (
-                p.fechaConfirmacionEntregaEgresadoDepto != null ||
-                    p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null
-                ),
-            "Envío de anteproyecto al departamento académico" to (
-                p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null
-                ),
-            "Confirmación de registro de tesis (paso 3)" to (
-                p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii != null
-                ),
-            "Desarrollo del proyecto" to (p.fechaRecepcionTrabajoDivisionEstudiosProf != null),
-            "Liberación de producto en departamento" to (
-                p.fechaSolicitudRegistroLiberacionDeptoAcademico != null
-                ),
-            "Recepción de liberación en la DEP" to (p.fechaRecepcionRegistroLiberacionDeptoAcademico != null),
-            "Envío a Apoyo a Titulación (CAT)" to (p.fechaEnviadoDepartamentoAcademico != null),
-        )
+    /** Paso actual alineado con el seguimiento del egresado (flujo 16 o legacy). */
+    fun pasoActualNoResidencia(p: ProcesoTitulacion, incluirCierre: Boolean = false): PasoNoResVista {
+        val pasos = pasosSeguimientoNoResidencia(p)
+        if (incluirCierre && procesoCerrado(p)) {
+            val vencido = p.estado_general.trim().equals("vencido", ignoreCase = true)
+            return PasoNoResVista(
+                numero = pasos.size,
+                titulo = if (vencido) "Proceso vencido" else "Proceso concluido",
+            )
+        }
+        return primerPasoPendienteNoRes(pasos)
+    }
+
+    private fun primerPasoPendienteNoRes(pasos: List<Pair<String, Boolean>>): PasoNoResVista {
         val pendiente = pasos.indexOfFirst { !it.second }
         val idx = if (pendiente < 0) pasos.lastIndex else pendiente
         return PasoNoResVista(numero = idx + 1, titulo = pasos[idx].first)
     }
+
+    private fun esFlujoLegacyMonografia(p: ProcesoTitulacion): Boolean =
+        p.fechaEnviadoDepartamentoAcademico != null &&
+            p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico == null &&
+            p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii == null
+
+    private fun pasosSeguimientoNoResidencia(p: ProcesoTitulacion): List<Pair<String, Boolean>> =
+        if (esFlujoLegacyMonografia(p)) pasosLegacyNoRes(p) else pasosFlujo16NoRes(p)
+
+    private fun pasosFlujo16NoRes(p: ProcesoTitulacion): List<Pair<String, Boolean>> {
+        val entregaDepto = p.fechaConfirmacionEntregaEgresadoDepto != null ||
+            p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null
+        val liberacionDepto = p.fechaSolicitudRegistroLiberacionDeptoAcademico != null
+        val revisionCat = p.fechaLiberacionDocumentoCoordinacionCat != null ||
+            p.fechaConfirmacionRecibidosAnexoXxxiXxxii != null
+        return listOf(
+            "Registro de solicitud" to true,
+            "Entrega en la DEP (solicitud y anteproyecto)" to entregaDepto,
+            "Envío al departamento académico" to (p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null),
+            "Registro de tesis (Anexo XXXII)" to (p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii != null),
+            "Desarrollo del proyecto" to liberacionDepto,
+            "Liberación de producto en departamento académico" to liberacionDepto,
+            "Recepción en la DEP de la liberación" to (p.fechaRecepcionRegistroLiberacionDeptoAcademico != null),
+            "Envío a Coordinación de Apoyo a la Titulación" to (p.fechaEnviadoDepartamentoAcademico != null),
+            "Revisión y liberación del documento (CAT)" to revisionCat,
+            "Recoger y firmar anexo 9.1" to (p.fechaCreacionAnexo91 != null),
+            "Confirmación de anexo 9.1 firmado" to (p.fechaConfirmacionEntregaAnexo91 != null),
+            "Solicitud del anexo 9.2" to (p.fechaSolicitudAnexo92 != null),
+            "Constancia 9.2 recibida" to (p.fechaConfirmacionRecibidoAnexo92 != null),
+            "Solicitud de sinodales" to (p.fechaSolicitudSinodales != null),
+            "Oficio de sinodales recibido" to (p.fechaConfirmacionSinodalesRecibidos != null),
+            "Acto protocolario agendado" to (p.fechaAgendaActo93 != null),
+            "Anexo 9.3 generado" to (p.fechaCreacionAnexo93 != null),
+            "Recoger y firmar anexo 9.3" to (p.fechaConfirmacionEntregaAnexo93 != null),
+            "Documentación escaneada enviada" to (p.fechaEnvioDocumentacionEscaneadaEgresado != null),
+            "Proceso concluido" to (p.fechaConfirmacionDocumentacionEscaneadaRecibida != null),
+        )
+    }
+
+    private fun pasosLegacyNoRes(p: ProcesoTitulacion): List<Pair<String, Boolean>> =
+        listOf(
+            "Registro de solicitud" to true,
+            "Envío a Coordinación de Apoyo a la Titulación" to (p.fechaEnviadoDepartamentoAcademico != null),
+            "Recepción de anexos XXXII y XXXIII" to (p.fechaConfirmacionRecibidosAnexoXxxiXxxii != null),
+            "Recoger y firmar anexo 9.1" to (p.fechaCreacionAnexo91 != null),
+            "Confirmación de anexo 9.1 firmado" to (p.fechaConfirmacionEntregaAnexo91 != null),
+            "Solicitud del anexo 9.2" to (p.fechaSolicitudAnexo92 != null),
+            "Constancia 9.2 recibida" to (p.fechaConfirmacionRecibidoAnexo92 != null),
+            "Solicitud de sinodales" to (p.fechaSolicitudSinodales != null),
+            "Oficio de sinodales recibido" to (p.fechaConfirmacionSinodalesRecibidos != null),
+            "Acto protocolario agendado" to (p.fechaAgendaActo93 != null),
+            "Anexo 9.3 generado" to (p.fechaCreacionAnexo93 != null),
+            "Documentación escaneada enviada" to (p.fechaEnvioDocumentacionEscaneadaEgresado != null),
+            "Proceso concluido" to (p.fechaConfirmacionDocumentacionEscaneadaRecibida != null),
+        )
+
+    /** Usado por ResidenciaPlazoNotificacionService para el panel de seguimiento DEP. */
+    fun pasoActualNoResFlujo7(p: ProcesoTitulacion): PasoNoResVista = pasoActualNoResidencia(p)
 
     private fun formatearFecha(d: LocalDate): String =
         d.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
