@@ -48,6 +48,8 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
   quitarArchivoSeleccionado = false;
   /** True cuando intentaron guardar sin adjuntar archivo (para marcar el campo en rojo). */
   archivoRequeridoError = false;
+  /** Constancia: fecha de expedición posterior al registro del Anexo XXXI. */
+  errorFechaConstanciaPosterior = false;
   form: FormGroup;
 
   originalidadEstado: 'LIBRE' | 'ADVERTENCIA' | 'BLOQUEADO' | 'comprobando' | null = null;
@@ -95,8 +97,24 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       fecha_expedicion_constancia: ['', Validators.required],
       observaciones: [''], // único opcional (notas)
     });
-    this.actualizarValidadoresAsesores();
-    this.form.get('modalidad')?.valueChanges.subscribe(() => this.actualizarValidadoresAsesores());
+    this.actualizarValidadoresPorModalidad();
+    this.form.get('modalidad')?.valueChanges.subscribe(() => this.actualizarValidadoresPorModalidad());
+    this.form.get('fecha_registro_anexo')?.valueChanges.subscribe(() => this.revisarFechasDocumentos());
+    this.form.get('fecha_expedicion_constancia')?.valueChanges.subscribe(() => this.revisarFechasDocumentos());
+  }
+
+  private revisarFechasDocumentos(): void {
+    if (this.esCenevalModalidad) {
+      this.errorFechaConstanciaPosterior = false;
+      return;
+    }
+    const reg = (this.form.get('fecha_registro_anexo')?.value as string) || '';
+    const exp = (this.form.get('fecha_expedicion_constancia')?.value as string) || '';
+    this.errorFechaConstanciaPosterior = !!(reg && exp && exp > reg);
+  }
+
+  get esCenevalModalidad(): boolean {
+    return this.catalogoService.esCeneval((this.form.get('modalidad')?.value as string) || '');
   }
 
   /** Lista del `<select>` de modalidad: catálogo completo o solo curso de titulación. */
@@ -244,7 +262,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
         fecha_expedicion_constancia: isoToDate(d.documentos?.constancia_no_inconveniencia?.fecha_expedicion),
         observaciones: '',
       });
-      this.actualizarValidadoresAsesores();
+      this.actualizarValidadoresPorModalidad();
       this.quitarArchivoSeleccionado = false;
     }
   }
@@ -342,12 +360,13 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
     if (cur && !opts.includes(cur)) {
       this.form.patchValue({ modalidad: '' });
     }
-    this.actualizarValidadoresAsesores();
+    this.actualizarValidadoresPorModalidad();
   }
 
-  /** Según tipoMentores de la modalidad, exige los campos correspondientes. */
-  private actualizarValidadoresAsesores(): void {
-    const modalidad = this.form.get('modalidad')?.value;
+  /** Según modalidad: mentores, fechas de documentos (CENEVAL solo archivo). */
+  private actualizarValidadoresPorModalidad(): void {
+    const modalidad = this.form.get('modalidad')?.value as string;
+    const esCeneval = this.catalogoService.esCeneval(modalidad ?? '');
     const tipo = this.catalogoService.tipoMentoresPorNombre(modalidad ?? '');
     const required = Validators.required;
     if (tipo === 'residencia') {
@@ -356,12 +375,13 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       this.form.get('director')?.clearValidators();
       this.form.get('asesor_1')?.clearValidators();
       this.form.get('asesor_2')?.clearValidators();
-    } else if (tipo === 'ninguno') {
+    } else if (tipo === 'ninguno' || esCeneval) {
       this.form.get('asesor_interno')?.clearValidators();
       this.form.get('asesor_externo')?.clearValidators();
       this.form.get('director')?.clearValidators();
       this.form.get('asesor_1')?.clearValidators();
       this.form.get('asesor_2')?.clearValidators();
+      this.form.patchValue({ director: '', asesor_1: '', asesor_2: '', asesor_interno: '', asesor_externo: '' }, { emitEvent: false });
     } else {
       this.form.get('asesor_interno')?.clearValidators();
       this.form.get('asesor_externo')?.clearValidators();
@@ -369,11 +389,39 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       this.form.get('asesor_1')?.setValidators(required);
       this.form.get('asesor_2')?.setValidators(required);
     }
-    this.form.get('asesor_interno')?.updateValueAndValidity();
-    this.form.get('asesor_externo')?.updateValueAndValidity();
-    this.form.get('director')?.updateValueAndValidity();
-    this.form.get('asesor_1')?.updateValueAndValidity();
-    this.form.get('asesor_2')?.updateValueAndValidity();
+    if (esCeneval) {
+      this.form.get('nombre_proyecto')?.clearValidators();
+      this.form.get('fecha_registro_anexo')?.clearValidators();
+      this.form.get('fecha_expedicion_constancia')?.clearValidators();
+      this.form.patchValue(
+        {
+          nombre_proyecto: 'EXAMEN CENEVAL',
+          curso_titulacion: false,
+          fecha_registro_anexo: '',
+          fecha_expedicion_constancia: '',
+        },
+        { emitEvent: false },
+      );
+      this.originalidadEstado = null;
+      this.originalidadTituloSimilar = null;
+    } else {
+      this.form.get('nombre_proyecto')?.setValidators(required);
+      this.form.get('fecha_registro_anexo')?.setValidators(required);
+      this.form.get('fecha_expedicion_constancia')?.setValidators(required);
+    }
+    for (const c of [
+      'nombre_proyecto',
+      'asesor_interno',
+      'asesor_externo',
+      'director',
+      'asesor_1',
+      'asesor_2',
+      'fecha_registro_anexo',
+      'fecha_expedicion_constancia',
+    ]) {
+      this.form.get(c)?.updateValueAndValidity({ emitEvent: false });
+    }
+    this.revisarFechasDocumentos();
   }
 
   onFileSelected(event: Event): void {
@@ -413,11 +461,12 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
   onSubmit(): void {
     if (this.guardando) return;
     this.archivoRequeridoError = false;
-    if (this.form.invalid) {
+    this.revisarFechasDocumentos();
+    if (this.form.invalid || this.errorFechaConstanciaPosterior) {
       this.form.markAllAsTouched();
       return;
     }
-    if (this.originalidadEstado === 'BLOQUEADO' || this.originalidadEstado === 'ADVERTENCIA') return;
+    if (!this.esCenevalModalidad && (this.originalidadEstado === 'BLOQUEADO' || this.originalidadEstado === 'ADVERTENCIA')) return;
     if (this.controlAltaEstado === 'BLOQUEADO') return;
     if (!this.editando && !this.archivoSeleccionado) {
       this.archivoRequeridoError = true;

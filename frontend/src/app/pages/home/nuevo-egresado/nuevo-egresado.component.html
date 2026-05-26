@@ -83,23 +83,6 @@
 
   <div class="form-seccion">
     <h3 class="form-seccion-titulo">Datos del proyecto</h3>
-    <div class="form-campo" [class.form-campo-error]="campoInvalido('nombre_proyecto') || originalidadEstado === 'BLOQUEADO' || originalidadEstado === 'ADVERTENCIA'">
-      <label for="nombre_proyecto">Nombre del proyecto <span class="form-obligatorio">*</span></label>
-      <input id="nombre_proyecto" type="text" formControlName="nombre_proyecto" />
-      <span class="form-error-msg" *ngIf="campoInvalido('nombre_proyecto')">Campo obligatorio</span>
-      <div class="originalidad-indicador" *ngIf="originalidadEstado">
-        <span *ngIf="originalidadEstado === 'comprobando'" class="orig-comprobando">Verificando...</span>
-        <span *ngIf="originalidadEstado === 'LIBRE'" class="orig-libre">Nombre disponible</span>
-        <span *ngIf="originalidadEstado === 'ADVERTENCIA'" class="orig-advertencia">Debe usar un título distinto; es demasiado similar a: {{ originalidadTituloSimilar }}</span>
-        <span *ngIf="originalidadEstado === 'BLOQUEADO'" class="orig-bloqueado">{{ mensajeBloqueoNombreProyecto }}</span>
-      </div>
-    </div>
-    <div class="form-campo form-campo-checkbox">
-      <label class="form-label-checkbox">
-        <input type="checkbox" formControlName="curso_titulacion" />
-        <span>Curso de titulación</span>
-      </label>
-    </div>
     <div class="form-campo" [class.form-campo-error]="campoInvalido('modalidad')">
       <label for="modalidad">Modalidad <span class="form-obligatorio">*</span></label>
       <select id="modalidad" formControlName="modalidad">
@@ -112,6 +95,25 @@
       </select>
       <span class="form-error-msg" *ngIf="campoInvalido('modalidad')">Campo obligatorio</span>
     </div>
+    <ng-container *ngIf="!esCenevalModalidad">
+      <div class="form-campo" [class.form-campo-error]="campoInvalido('nombre_proyecto') || originalidadEstado === 'BLOQUEADO' || originalidadEstado === 'ADVERTENCIA'">
+        <label for="nombre_proyecto">Nombre del proyecto <span class="form-obligatorio">*</span></label>
+        <input id="nombre_proyecto" type="text" formControlName="nombre_proyecto" />
+        <span class="form-error-msg" *ngIf="campoInvalido('nombre_proyecto')">Campo obligatorio</span>
+        <div class="originalidad-indicador" *ngIf="originalidadEstado">
+          <span *ngIf="originalidadEstado === 'comprobando'" class="orig-comprobando">Verificando...</span>
+          <span *ngIf="originalidadEstado === 'LIBRE'" class="orig-libre">Nombre disponible</span>
+          <span *ngIf="originalidadEstado === 'ADVERTENCIA'" class="orig-advertencia">Debe usar un título distinto; es demasiado similar a: {{ originalidadTituloSimilar }}</span>
+          <span *ngIf="originalidadEstado === 'BLOQUEADO'" class="orig-bloqueado">{{ mensajeBloqueoNombreProyecto }}</span>
+        </div>
+      </div>
+      <div class="form-campo form-campo-checkbox">
+        <label class="form-label-checkbox">
+          <input type="checkbox" formControlName="curso_titulacion" />
+          <span>Curso de titulación</span>
+        </label>
+      </div>
+    </ng-container>
     <ng-container *ngIf="catalogoService.tipoMentoresPorNombre(form.get('modalidad')?.value || '') === 'residencia'">
       <div class="form-fila form-fila-2">
         <div class="form-campo" [class.form-campo-error]="campoInvalido('asesor_interno')">
@@ -126,7 +128,7 @@
         </div>
       </div>
     </ng-container>
-    <ng-container *ngIf="catalogoService.tipoMentoresPorNombre(form.get('modalidad')?.value || '') === 'estandar'">
+    <ng-container *ngIf="!esCenevalModalidad && catalogoService.tipoMentoresPorNombre(form.get('modalidad')?.value || '') === 'estandar'">
       <div class="form-campo" [class.form-campo-error]="campoInvalido('director')">
         <label for="director">Director <span class="form-obligatorio">*</span></label>
         <input id="director" type="text" formControlName="director" />
@@ -149,22 +151,27 @@
 
   <div class="form-seccion">
     <h3 class="form-seccion-titulo">Documentos</h3>
-    <div class="form-subseccion">
-      <h4>Anexo XXXI</h4>
-      <div class="form-campo" [class.form-campo-error]="campoInvalido('fecha_registro_anexo')">
-        <label for="fecha_registro_anexo">Fecha de registro <span class="form-obligatorio">*</span></label>
-        <input #fechaAnexo id="fecha_registro_anexo" type="date" formControlName="fecha_registro_anexo" (click)="abrirPicker(fechaAnexo)" />
-        <span class="form-error-msg" *ngIf="campoInvalido('fecha_registro_anexo')">Campo obligatorio</span>
+    <ng-container *ngIf="!esCenevalModalidad">
+      <div class="form-subseccion">
+        <h4>Anexo XXXI</h4>
+        <div class="form-campo" [class.form-campo-error]="campoInvalido('fecha_registro_anexo')">
+          <label for="fecha_registro_anexo">Fecha de registro <span class="form-obligatorio">*</span></label>
+          <input #fechaAnexo id="fecha_registro_anexo" type="date" formControlName="fecha_registro_anexo" (click)="abrirPicker(fechaAnexo)" />
+          <span class="form-error-msg" *ngIf="campoInvalido('fecha_registro_anexo')">Campo obligatorio</span>
+        </div>
       </div>
-    </div>
-    <div class="form-subseccion">
-      <h4>Constancia no inconveniencia</h4>
-      <div class="form-campo" [class.form-campo-error]="campoInvalido('fecha_expedicion_constancia')">
-        <label for="fecha_expedicion_constancia">Fecha de expedición <span class="form-obligatorio">*</span></label>
-        <input #fechaConstancia id="fecha_expedicion_constancia" type="date" formControlName="fecha_expedicion_constancia" (click)="abrirPicker(fechaConstancia)" />
-        <span class="form-error-msg" *ngIf="campoInvalido('fecha_expedicion_constancia')">Campo obligatorio</span>
+      <div class="form-subseccion">
+        <h4>Constancia no inconveniencia</h4>
+        <div class="form-campo" [class.form-campo-error]="campoInvalido('fecha_expedicion_constancia') || errorFechaConstanciaPosterior">
+          <label for="fecha_expedicion_constancia">Fecha de expedición <span class="form-obligatorio">*</span></label>
+          <input #fechaConstancia id="fecha_expedicion_constancia" type="date" formControlName="fecha_expedicion_constancia" (click)="abrirPicker(fechaConstancia)" />
+          <span class="form-error-msg" *ngIf="campoInvalido('fecha_expedicion_constancia')">Campo obligatorio</span>
+          <span class="form-error-msg" *ngIf="errorFechaConstanciaPosterior">
+            La fecha de expedición no puede ser posterior a la fecha de registro del Anexo XXXI.
+          </span>
+        </div>
       </div>
-    </div>
+    </ng-container>
     <div class="form-subseccion">
       <h4>Documento adjunto (PDF o Word)</h4>
       <div class="form-campo" [class.form-campo-error]="archivoRequeridoError">
@@ -210,8 +217,9 @@
       class="btn btn-agregar"
       [disabled]="
         guardando ||
-        originalidadEstado === 'BLOQUEADO' ||
-        originalidadEstado === 'ADVERTENCIA' ||
+        (!esCenevalModalidad && originalidadEstado === 'BLOQUEADO') ||
+        (!esCenevalModalidad && originalidadEstado === 'ADVERTENCIA') ||
+        errorFechaConstanciaPosterior ||
         originalidadEstado === 'comprobando' ||
         controlAltaEstado === 'BLOQUEADO' ||
         controlAltaEstado === 'comprobando'
