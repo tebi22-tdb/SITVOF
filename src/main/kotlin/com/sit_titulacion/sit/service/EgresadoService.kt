@@ -605,6 +605,12 @@ class EgresadoService(
         return estado == "titulado" || estado == "vencido" || tieneUltimoPasoSeguimientoCompletado(p)
     }
 
+    private fun esExpedienteConclusoDefinitivo(e: Egresado): Boolean {
+        val p = e.procesoActivoOrNull() ?: return false
+        val estado = p.estado_general.trim().lowercase()
+        return estado == "titulado" || tieneUltimoPasoSeguimientoCompletado(p)
+    }
+
     private fun normalizarModalidadAlta(modalidad: String?): String =
         modalidad?.trim()?.lowercase()?.replace("\\s+".toRegex(), " ").orEmpty()
 
@@ -631,23 +637,20 @@ class EgresadoService(
         val abierto = expedientes.firstOrNull { !esExpedienteCerrado(it) }
         if (abierto != null) return VerificacionDuplicadoAlta("BLOQUEADO", "en_proceso")
 
+        val concluso = expedientes.firstOrNull { esExpedienteConclusoDefinitivo(it) }
+        if (concluso != null) return VerificacionDuplicadoAlta("BLOQUEADO", "titulado", concluso.id?.toString())
+
         val modalidadNueva = normalizarModalidadAlta(modalidad)
         if (modalidadNueva.isBlank()) {
             val primero = expedientes.firstOrNull()
-            val estadoCerrado = when (primero?.procesoActivoOrNull()?.estado_general?.trim()?.lowercase()) {
-                "vencido" -> "vencido"
-                else -> "titulado"
-            }
-            return VerificacionDuplicadoAlta("BLOQUEADO", estadoCerrado, primero?.id?.toString())
+            return VerificacionDuplicadoAlta("BLOQUEADO", "vencido", primero?.id?.toString())
         }
 
         val repetida = expedientes.firstOrNull {
             normalizarModalidadAlta(it.procesoActivoOrNull()?.datos_proyecto?.modalidad) == modalidadNueva
         }
-        if (repetida != null) {
-            val estado = if (repetida.procesoActivoOrNull()?.estado_general?.trim().equals("vencido", ignoreCase = true)) "vencido" else "titulado"
-            return VerificacionDuplicadoAlta("BLOQUEADO", estado, repetida.id?.toString())
-        }
+        if (repetida != null) return VerificacionDuplicadoAlta("BLOQUEADO", "vencido", repetida.id?.toString())
+
         return VerificacionDuplicadoAlta("LIBRE", null)
     }
 
@@ -656,8 +659,8 @@ class EgresadoService(
         if (verificacion.estado != "BLOQUEADO") return null
         return when (verificacion.expedienteEstado?.trim()) {
             "en_proceso" -> "Este número de control ya tiene un expediente en proceso."
-            "vencido", "titulado" ->
-                "Este número de control ya tuvo un expediente ${verificacion.expedienteEstado}; para darlo de alta nuevamente debes elegir una modalidad distinta."
+            "titulado" -> "Este número de control ya concluyó su proceso de titulación. No es posible darlo de alta nuevamente."
+            "vencido" -> "Este número de control ya tuvo un expediente vencido; para darlo de alta nuevamente debes elegir una modalidad distinta."
             else -> "No se puede registrar este número de control."
         }
     }
