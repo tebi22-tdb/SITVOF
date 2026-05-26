@@ -280,7 +280,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       return 'Este número de control ya tuvo un expediente vencido. Para registrarlo nuevamente debes elegir una modalidad distinta.';
     }
     if (this.controlAltaExpedienteEstado === 'titulado') {
-      return 'Este número de control ya fue usado en un expediente titulado. Para registrarlo nuevamente debes elegir una modalidad distinta.';
+      return 'Este número de control ya concluyó su proceso de titulación. No es posible darlo de alta nuevamente.';
     }
     return 'Este número de control ya está registrado; el expediente se encuentra en proceso.';
   }
