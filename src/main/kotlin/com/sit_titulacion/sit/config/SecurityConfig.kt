@@ -52,7 +52,7 @@ class SecurityConfig(
                     .requestMatchers(HttpMethod.POST, "/api/auth/recuperar-password").permitAll()
                     .requestMatchers("/api/auth/hash").permitAll()
                     .requestMatchers("/api/verificar/**").permitAll()
-                    .requestMatchers("/api/repositorio/**").authenticated()
+                    .requestMatchers("/api/repositorio/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/catalogos/carreras").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/catalogos/niveles").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/catalogos/modalidades").permitAll()
@@ -86,6 +86,8 @@ class SecurityConfig(
             allowedOrigins = listOf(
                 "http://localhost:4200",
                 "http://77.37.74.122",
+                "https://sitvo.net",
+                "https://www.sitvo.net",
             )
             allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
             allowedHeaders = listOf("Content-Type", "Authorization")
