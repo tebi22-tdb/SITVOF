@@ -39,7 +39,7 @@ class VerificacionController(
                     "titulo_proyecto" to (proceso?.datos_proyecto?.nombre_proyecto ?: ""),
                     "modalidad" to (proceso?.datos_proyecto?.modalidad ?: ""),
                     "carrera" to p.carrera,
-                    "institucion" to "TECNM Campus Oaxaca",
+                    "institucion" to "TECNM Campus Valle de Oaxaca (ITVO)",
                     "fecha_certificacion" to proceso?.fechaCertificacion?.let { formatter.format(it) },
                     "estatus" to estatus,
                 ),
