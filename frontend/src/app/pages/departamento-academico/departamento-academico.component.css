@@ -971,3 +971,18 @@
     padding: 0.65rem 0.8rem;
   }
 }
+
+@media (max-width: 600px) {
+  .departamento-page {
+    padding: 0.5rem 0.65rem 1rem;
+  }
+
+  .departamento-tabla-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .departamento-tabla {
+    min-width: 640px;
+  }
+}
