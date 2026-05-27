@@ -218,9 +218,23 @@ import { AuthService } from '../../services/auth.service';
       .cards { grid-template-columns: 1fr; max-width: 760px; gap: 0.75rem; }
       .card { min-height: 128px; padding: 0.88rem 0.92rem; }
       .card-texto h2 { font-size: 1.4rem; min-height: auto; }
-      .card-texto p { min-height: auto; }
+      .card-texto p { min-height: auto; max-width: none; }
       .card-icono { width: 78px; height: 78px; }
       .card-icono-svg { width: 40px; height: 40px; }
+    }
+    @media (max-width: 480px) {
+      .titulo { font-size: 1.45rem; }
+      .card {
+        flex-direction: column;
+        align-items: flex-start;
+        min-height: auto;
+      }
+      .card-icono {
+        width: 64px;
+        height: 64px;
+      }
+      .card-texto h2 { font-size: 1.15rem; }
+      .card-texto p { font-size: 0.85rem; }
     }
   `],
 })
