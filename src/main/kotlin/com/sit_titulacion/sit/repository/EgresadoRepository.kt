@@ -64,4 +64,9 @@ interface EgresadoRepository : MongoRepository<Egresado, ObjectId> {
     @Meta(maxExecutionTimeMs = 5000)
     @Query("{ 'procesos.fecha_confirmacion_documentacion_escaneada_recibida' : { \$exists: true, \$ne: null } }")
     fun findConDocumentacionConfirmada(): List<Egresado>
+
+    /** Candidatos bandeja servicios escolares (solicitud 9.2 por DEP; filtrar proceso activo en servicio). */
+    @Meta(maxExecutionTimeMs = 10000)
+    @Query("{ 'procesos.fecha_solicitud_anexo_9_2' : { \$exists: true, \$ne: null } }")
+    fun findCandidatosBandejaServiciosEscolares(): List<Egresado>
 }

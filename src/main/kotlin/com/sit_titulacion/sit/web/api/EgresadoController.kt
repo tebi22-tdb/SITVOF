@@ -631,7 +631,10 @@ class EgresadoController(
             ResponseEntity.ok().build<Void>()
         } else {
             ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                mapOf("error" to "No se pudo confirmar: falta la solicitud de división para la 9.2 o ya estaba confirmado."),
+                mapOf(
+                    "error" to
+                        "No se pudo confirmar: servicios escolares debe atender primero la solicitud 9.2, o ya estaba registrada la recepción.",
+                ),
             )
         }
     }
