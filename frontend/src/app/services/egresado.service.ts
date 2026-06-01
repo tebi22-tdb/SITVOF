@@ -81,6 +81,7 @@ export interface EgresadoDetail {
   /** Cuando división solicita al egresado tramitar la constancia 9.2. */
   fecha_solicitud_anexo_9_2?: string;
   fecha_creacion_anexo_9_2?: string;
+  fecha_aceptacion_servicios_escolares_anexo_9_2?: string;
   fecha_confirmacion_recibido_anexo_9_2?: string;
   fecha_solicitud_sinodales?: string;
   fecha_asignacion_sinodales?: string;
