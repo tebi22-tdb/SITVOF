@@ -182,6 +182,8 @@ data class EgresadoDetailDto(
     @JsonProperty("fecha_confirmacion_entrega_anexo_9_1") val fecha_confirmacion_entrega_anexo_9_1: String? = null,
     @JsonProperty("fecha_solicitud_anexo_9_2") val fecha_solicitud_anexo_9_2: String? = null,
     @JsonProperty("fecha_creacion_anexo_9_2") val fecha_creacion_anexo_9_2: String? = null,
+    @JsonProperty("fecha_aceptacion_servicios_escolares_anexo_9_2")
+    val fecha_aceptacion_servicios_escolares_anexo_9_2: String? = null,
     @JsonProperty("fecha_confirmacion_recibido_anexo_9_2") val fecha_confirmacion_recibido_anexo_9_2: String? = null,
     @JsonProperty("fecha_solicitud_sinodales") val fecha_solicitud_sinodales: String? = null,
     /** Cuando el departamento académico guardó Presidente/Secretario/Vocal/Vocal suplente (habilita confirmar recibidos). */

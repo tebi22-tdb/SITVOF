@@ -1,0 +1,131 @@
+<div class="se-page">
+  <app-header [showNuevoButton]="false" [showAgregarUsuarioButton]="false" [showVolverInicioButton]="false"></app-header>
+
+  <main class="se-main">
+    <header class="se-cabecera">
+      <h1 class="se-titulo">Servicios escolares — Constancia 9.2</h1>
+    </header>
+
+    <nav class="se-tabs" aria-label="Estado de constancias">
+      <button
+        type="button"
+        class="se-tab"
+        [class.activo]="tabActivo === 'pendientes'"
+        (click)="cambiarTab('pendientes')"
+      >
+        Pendientes
+        <span *ngIf="totalPendientes > 0" class="se-tab-badge">{{ totalPendientes }}</span>
+      </button>
+      <button
+        type="button"
+        class="se-tab"
+        [class.activo]="tabActivo === 'atendidos'"
+        (click)="cambiarTab('atendidos')"
+      >
+        Atendidos
+        <span *ngIf="totalAtendidos > 0" class="se-tab-badge se-tab-badge--muted">{{ totalAtendidos }}</span>
+      </button>
+    </nav>
+
+    <section class="se-buscar">
+      <label class="se-buscar-label" for="se-buscar-control">Buscar (número de control):</label>
+      <div class="se-buscar-fila">
+        <input
+          id="se-buscar-control"
+          type="text"
+          class="se-buscar-input"
+          [(ngModel)]="buscarControl"
+          placeholder="Ej. 20160412"
+          (keyup.enter)="buscar()"
+        />
+        <button type="button" class="se-btn se-btn--primario" (click)="buscar()">Buscar</button>
+        <button type="button" class="se-btn se-btn--sec" (click)="limpiarBusqueda()">Limpiar</button>
+      </div>
+    </section>
+
+    <div *ngIf="error" class="se-alerta se-alerta--error" role="alert">{{ error }}</div>
+
+    <section class="se-layout" *ngIf="!error">
+      <div class="se-lista-panel">
+        <div *ngIf="cargandoLista" class="se-estado">Cargando bandeja…</div>
+        <ul *ngIf="!cargandoLista" class="se-lista" role="list">
+          <li
+            *ngFor="let item of items"
+            class="se-lista-item"
+            [class.activo]="detalle?.id === item.id"
+            (click)="seleccionar(item)"
+            role="button"
+            tabindex="0"
+            (keyup.enter)="seleccionar(item)"
+          >
+            <span class="se-lista-control">{{ item.numero_control }}</span>
+            <span class="se-lista-nombre">{{ item.nombre_completo }}</span>
+            <span class="se-lista-meta">{{ formatearFecha(item.fecha_solicitud_anexo_9_2) }}</span>
+          </li>
+          <li *ngIf="items.length === 0" class="se-lista-vacio">
+            {{
+              tabActivo === 'pendientes'
+                ? 'No hay solicitudes de anexo 9.2 pendientes de atención.'
+                : 'Aún no hay constancias marcadas como atendidas.'
+            }}
+          </li>
+        </ul>
+      </div>
+
+      <aside class="se-detalle-panel">
+        <div *ngIf="!detalle && !cargandoDetalle" class="se-detalle-placeholder">
+          <p>Selecciona un alumno de la lista para ver su información.</p>
+        </div>
+        <div *ngIf="cargandoDetalle" class="se-estado">Cargando detalle…</div>
+        <p *ngIf="mensajeDetalle" class="se-alerta se-alerta--error">{{ mensajeDetalle }}</p>
+
+        <article *ngIf="detalle && !cargandoDetalle" class="se-ficha">
+          <div class="se-ficha-aviso" role="status">
+            <strong>Solicitud de anexo 9.2 (constancia de no inconveniencia)</strong>
+            <span class="se-ficha-aviso-fecha">Registro {{ formatearFecha(detalle.fecha_solicitud_anexo_9_2) }}</span>
+          </div>
+
+          <dl class="se-datos">
+            <div class="se-dato">
+              <dt>Alumno</dt>
+              <dd>{{ detalle.nombre_completo }}</dd>
+            </div>
+            <div class="se-dato">
+              <dt>Número de control</dt>
+              <dd>{{ detalle.numero_control }}</dd>
+            </div>
+            <div class="se-dato">
+              <dt>Fecha carta de no inconveniencia</dt>
+              <dd>{{ detalle.fecha_constancia_no_inconveniencia || '—' }}</dd>
+            </div>
+            <div class="se-dato">
+              <dt>Fecha anexo 9.1</dt>
+              <dd>{{ detalle.fecha_creacion_anexo_9_1 || '—' }}</dd>
+            </div>
+            <div class="se-dato">
+              <dt>Modalidad de titulación</dt>
+              <dd>{{ detalle.modalidad || '—' }}</dd>
+            </div>
+            <div class="se-dato se-dato--proyecto">
+              <dt>Nombre del proyecto</dt>
+              <dd>{{ detalle.nombre_proyecto || '—' }}</dd>
+            </div>
+          </dl>
+
+          <div class="se-acciones" *ngIf="tabActivo === 'pendientes' && !detalle.fecha_aceptacion_servicios_escolares_anexo_9_2">
+            <button type="button" class="se-btn se-btn--aceptar" [disabled]="confirmando" (click)="aceptarPendiente()">
+              {{ confirmando ? 'Confirmando…' : 'Confirmar' }}
+            </button>
+          </div>
+          <p
+            *ngIf="detalle.fecha_aceptacion_servicios_escolares_anexo_9_2"
+            class="se-aceptado"
+            role="status"
+          >
+            Completado el {{ formatearFecha(detalle.fecha_aceptacion_servicios_escolares_anexo_9_2) }}
+          </p>
+        </article>
+      </aside>
+    </section>
+  </main>
+</div>

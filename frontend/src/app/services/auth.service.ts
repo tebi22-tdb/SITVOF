@@ -153,6 +153,10 @@ export class AuthService {
     return this.usuario?.rol?.toLowerCase() === 'academico';
   }
 
+  isServiciosEscolares(): boolean {
+    return this.usuario?.rol?.toLowerCase() === 'servicios_escolares';
+  }
+
   crearUsuario(body: CrearUsuarioBody): Observable<{
     ok: boolean;
     message?: string;

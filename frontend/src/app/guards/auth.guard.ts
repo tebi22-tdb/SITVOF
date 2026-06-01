@@ -19,12 +19,44 @@ export const authGuard: CanActivateFn = (route, state) => {
   );
 };
 
+export const serviciosEscolaresGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  return auth.me().pipe(
+    map(() => {
+      if (auth.isServiciosEscolares()) return true;
+      if (auth.isCoordinador()) {
+        router.navigate(['/home']);
+        return false;
+      }
+      if (auth.isAcademico()) {
+        router.navigate(['/departamento-academico']);
+        return false;
+      }
+      if (auth.isEgresado()) {
+        router.navigate(['/seguimiento']);
+        return false;
+      }
+      router.navigate(['/login']);
+      return false;
+    }),
+    catchError(() => {
+      router.navigate(['/login']);
+      return of(false);
+    }),
+  );
+};
+
 export const academicoGuard: CanActivateFn = (route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);
   return auth.me().pipe(
     map(() => {
       if (auth.isAcademico()) return true;
+      if (auth.isServiciosEscolares()) {
+        router.navigate(['/servicios-escolares']);
+        return false;
+      }
       if (auth.isCoordinador()) {
         router.navigate(['/home']);
         return false;
@@ -106,6 +138,10 @@ export const egresadoGuard: CanActivateFn = (route, state) => {
   return auth.me().pipe(
     map(() => {
       if (auth.isEgresado()) return true;
+      if (auth.isServiciosEscolares()) {
+        router.navigate(['/servicios-escolares']);
+        return false;
+      }
       if (auth.isAcademico()) {
         router.navigate(['/departamento-academico']);
         return false;

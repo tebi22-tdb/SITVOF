@@ -555,15 +555,52 @@
 }
 
 @media (max-width: 980px) {
-  .seg-kpis { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
+  .seg-main { padding: 8px 10px 12px; }
+  .seg-titulo { font-size: 1.35rem; }
+  .seg-kpis { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
   .seg-filtros, .seg-filtros-sec { grid-template-columns: 1fr; }
   .seg-bloques { grid-template-columns: 1fr; }
-  .seg-bloques .seg-proceso { position: static; height: auto; }
-  .seg-tabla-wrap { height: auto; max-height: none; }
+  .seg-bloques .seg-proceso { position: static; height: auto; max-height: none; }
+  .seg-tabla-wrap { height: auto; max-height: min(50vh, 420px); }
+  .seg-proceso { height: auto; max-height: none; min-height: 280px; }
   .seg-proceso-fecha,
   .seg-proceso-acciones {
     margin-left: 0;
     max-width: 100%;
   }
+  .seg-proceso-acciones .seg-btn {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .seg-kpis { grid-template-columns: 1fr; }
+  .seg-kpis .kpi { min-height: 44px; }
+  .seg-cabecera-main { flex-direction: column; align-items: stretch; }
+  .seg-btn-volver { width: 100%; }
+  .btn-limpiar,
+  .btn-mas-filtros {
+    width: 100%;
+    height: 40px;
+  }
+  .seg-proceso-item-top {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .seg-agenda-wrap {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .seg-input-dt {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .seg-main { padding: 6px 8px 10px; }
+  .seg-tabla { min-width: 720px; }
+  .seg-tabla-wrap { max-height: 45vh; }
 }
 
