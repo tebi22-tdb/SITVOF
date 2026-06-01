@@ -60,6 +60,12 @@ data class ProcesoTitulacion(
     val fechaSolicitudAnexo92: Instant? = null,
     @Field("fecha_creacion_anexo_9_2")
     val fechaCreacionAnexo92: Instant? = null,
+    /** Departamento académico confirmó trámite de constancia 9.2 (habilita recepción en DEP). */
+    @Field("fecha_confirmacion_departamento_academico_anexo_9_2")
+    val fechaConfirmacionDepartamentoAcademicoAnexo92: Instant? = null,
+    /** Servicios escolares: constancia 9.2 revisada en bandeja. */
+    @Field("fecha_aceptacion_servicios_escolares_anexo_9_2")
+    val fechaAceptacionServiciosEscolaresAnexo92: Instant? = null,
     @Field("fecha_confirmacion_recibido_anexo_9_2")
     val fechaConfirmacionRecibidoAnexo92: Instant? = null,
 

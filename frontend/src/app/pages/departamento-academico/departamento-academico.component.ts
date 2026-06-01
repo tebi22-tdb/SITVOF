@@ -11,7 +11,14 @@ import { EgresadoService, DepartamentoListItem, DepartamentoCounts } from '../..
 import { CatalogoService } from '../../services/catalogo.service';
 import { DocenteService, DocenteItem } from '../../services/docente.service';
 
-type TabEstado = 'pendientes' | 'en_correccion' | 'aprobados' | 'sinodales' | 'todos' | 'anteproyecto' | 'liberacion_producto';
+type TabEstado =
+  | 'pendientes'
+  | 'en_correccion'
+  | 'aprobados'
+  | 'sinodales'
+  | 'todos'
+  | 'anteproyecto'
+  | 'liberacion_producto';
 @Component({
   selector: 'app-departamento-academico',
   standalone: true,
@@ -225,7 +232,10 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   }
 
   get mensajeListaVacia(): string {
-    if ((this.tabActivo === 'todos' || this.tabActivo === 'sinodales') && this.filtroNumeroControl.trim()) {
+    if (
+      (this.tabActivo === 'todos' || this.tabActivo === 'sinodales') &&
+      this.filtroNumeroControl.trim()
+    ) {
       return 'No se encontró ningún registro con ese número de control.';
     }
     if (this.mostrarTabsRevisionCoordinacion && this.tabActivo === 'en_correccion') {

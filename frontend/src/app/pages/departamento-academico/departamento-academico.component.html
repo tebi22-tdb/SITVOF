@@ -100,7 +100,10 @@
       </div>
     </div>
 
-    <div *ngIf="(tabActivo === 'todos' || tabActivo === 'sinodales') && !cargando && !error" class="departamento-buscar-wrap">
+    <div
+      *ngIf="(tabActivo === 'todos' || tabActivo === 'sinodales') && !cargando && !error"
+      class="departamento-buscar-wrap"
+    >
       <div class="departamento-buscar">
         <input
           type="text"

@@ -1076,6 +1076,7 @@ class EgresadoService(
         val e = cargarEgresadoPorId(id) ?: return false
         val p = e.procesoActivoOrNull() ?: return false
         if (p.fechaSolicitudAnexo92 == null) return false
+        if (p.fechaAceptacionServiciosEscolaresAnexo92 == null) return false
         if (p.fechaConfirmacionRecibidoAnexo92 != null) return false
         val ahora = Instant.now()
         egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaConfirmacionRecibidoAnexo92 = ahora, fecha_actualizacion = ahora)))
@@ -1368,6 +1369,29 @@ class EgresadoService(
             historial_estados = if (reagenda) historial else p.historial_estados,
             fecha_actualizacion = ahora,
         )))
+
+        val correo = e.datos_personales.correo_electronico?.trim().orEmpty()
+        if (correo.isNotBlank()) {
+            val fechaHoraTexto = DateTimeFormatter.ofPattern("dd/MM/yyyy, HH:mm")
+                .withZone(zonaActo93)
+                .format(inicio)
+            val enviado = emailService.enviarAvisoActoProtocolarioAgendado(
+                correoDestino = correo,
+                nombreEgresado = nombreCompleto(e),
+                numeroControl = e.numero_control,
+                fechaHoraActoTexto = fechaHoraTexto,
+            )
+            if (!enviado) {
+                log.warn(
+                    "Acto 9.3 agendado para {} pero no se envió correo al egresado ({})",
+                    e.numero_control,
+                    correo,
+                )
+            }
+        } else {
+            log.warn("Acto 9.3 agendado para {} sin correo del egresado; aviso por correo omitido", e.numero_control)
+        }
+
         return true
     }
 
@@ -1474,6 +1498,8 @@ class EgresadoService(
             fecha_confirmacion_entrega_anexo_9_1 = pr?.fechaConfirmacionEntregaAnexo91?.let { formatter.format(it) },
             fecha_solicitud_anexo_9_2 = pr?.fechaSolicitudAnexo92?.let { formatter.format(it) },
             fecha_creacion_anexo_9_2 = pr?.fechaCreacionAnexo92?.let { formatter.format(it) },
+            fecha_aceptacion_servicios_escolares_anexo_9_2 =
+                pr?.fechaAceptacionServiciosEscolaresAnexo92?.let { formatter.format(it) },
             fecha_confirmacion_recibido_anexo_9_2 = pr?.fechaConfirmacionRecibidoAnexo92?.let { formatter.format(it) },
             fecha_solicitud_sinodales = pr?.fechaSolicitudSinodales?.let { formatter.format(it) },
             fecha_asignacion_sinodales = pr?.fechaAsignacionSinodales?.let { formatter.format(it) },

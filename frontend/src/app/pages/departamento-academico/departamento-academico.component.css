@@ -971,3 +971,160 @@
     padding: 0.65rem 0.8rem;
   }
 }
+
+@media (max-width: 600px) {
+  .departamento-page {
+    padding: 0.5rem 0.65rem 1rem;
+  }
+
+  .departamento-tabla-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .departamento-tabla {
+    min-width: 640px;
+  }
+}
+
+.departamento-anexo92-split {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.departamento-anexo92-lista {
+  background: #fff;
+  border: 1px solid #d9e0ef;
+  border-radius: 8px;
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+}
+
+.departamento-anexo92-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.departamento-anexo92-item {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eef2fa;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.departamento-anexo92-item:hover,
+.departamento-anexo92-item.activo {
+  background: #e8f2fc;
+}
+
+.departamento-anexo92-item.activo {
+  border-left: 3px solid #2f7bcb;
+}
+
+.departamento-anexo92-control {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #1d2a44;
+}
+
+.departamento-anexo92-nombre {
+  font-size: 0.8rem;
+  color: #3d4f6a;
+  line-height: 1.3;
+}
+
+.departamento-anexo92-detalle {
+  background: #fff;
+  border: 1px solid #d9e0ef;
+  border-radius: 8px;
+  padding: 16px 18px;
+  min-height: 320px;
+  position: sticky;
+  top: 12px;
+}
+
+.departamento-anexo92-placeholder,
+.departamento-anexo92-cargando {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.departamento-anexo92-aviso {
+  background: #e8f2fc;
+  border: 1px solid #b8d4f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #1d4a7a;
+}
+
+.departamento-anexo92-datos {
+  margin: 0 0 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.departamento-anexo92-datos div {
+  display: grid;
+  grid-template-columns: minmax(140px, 200px) 1fr;
+  gap: 8px;
+}
+
+.departamento-anexo92-datos dt {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.departamento-anexo92-datos dd {
+  margin: 0;
+  font-size: 0.92rem;
+  color: #1d2a44;
+  line-height: 1.35;
+}
+
+.departamento-anexo92-proyecto dd {
+  word-break: break-word;
+}
+
+.departamento-anexo92-acciones {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1px solid #eef2fa;
+}
+
+.departamento-anexo92-ok {
+  margin: 0;
+  color: #166534;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+@media (max-width: 900px) {
+  .departamento-anexo92-split {
+    grid-template-columns: 1fr;
+  }
+
+  .departamento-anexo92-detalle {
+    position: static;
+  }
+
+  .departamento-anexo92-lista {
+    max-height: min(42vh, 360px);
+  }
+
+  .departamento-anexo92-datos div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

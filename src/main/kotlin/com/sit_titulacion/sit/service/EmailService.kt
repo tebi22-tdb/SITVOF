@@ -216,6 +216,51 @@ class EmailService(
     }
 
     /**
+     * Avisa al egresado que la DEP agendó fecha y horario del acto protocolario.
+     *
+     * @return `true` si el mensaje se entregó por SMTP; `false` si se omitió o falló sin lanzar excepción.
+     */
+    fun enviarAvisoActoProtocolarioAgendado(
+        correoDestino: String,
+        nombreEgresado: String,
+        numeroControl: String,
+        fechaHoraActoTexto: String,
+    ): Boolean {
+        if (correoDestino.isBlank() || mailSender == null || fromEmail.isBlank()) {
+            log.warn(
+                "Aviso acto protocolario agendado no enviado (SMTP o correo vacío), control={}",
+                numeroControl,
+            )
+            return false
+        }
+        val mensaje = SimpleMailMessage().apply {
+            setFrom(fromEmail)
+            setTo(correoDestino.trim())
+            subject = "SITVO – Acto protocolario agendado"
+            text = """
+                Hola $nombreEgresado,
+
+                La División de Estudios Profesionales agendó tu acto protocolario.
+
+                Fecha y horario: $fechaHoraActoTexto
+
+                Revisa tu seguimiento en https://sitvo.net para continuar con tu trámite.
+
+                Saludos,
+                SITVO.
+            """.trimIndent()
+        }
+        return try {
+            mailSender.send(mensaje)
+            log.info("Aviso acto protocolario agendado enviado a {} control={}", correoDestino, numeroControl)
+            true
+        } catch (e: Exception) {
+            log.error("Error al enviar aviso acto protocolario agendado a {}: {}", correoDestino, e.message)
+            false
+        }
+    }
+
+    /**
      * Avisos de plazo (solo residencia): 2 meses, 4 meses, 3 días antes del límite, o cierre del proceso.
      */
     fun enviarAvisoPlazoResidencia(
