@@ -1,5 +1,10 @@
 <div class="se-page">
-  <app-header [showNuevoButton]="false" [showAgregarUsuarioButton]="false" [showVolverInicioButton]="false"></app-header>
+  <app-header
+    [showNuevoButton]="false"
+    [showAgregarUsuarioButton]="false"
+    [showVolverInicioButton]="mostrarVolverInicio"
+    (volverInicioClick)="volverInicio()"
+  ></app-header>
 
   <main class="se-main">
     <header class="se-cabecera">

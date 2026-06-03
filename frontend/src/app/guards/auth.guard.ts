@@ -24,11 +24,7 @@ export const serviciosEscolaresGuard: CanActivateFn = () => {
   const router = inject(Router);
   return auth.me().pipe(
     map(() => {
-      if (auth.isServiciosEscolares()) return true;
-      if (auth.isCoordinador()) {
-        router.navigate(['/home']);
-        return false;
-      }
+      if (auth.isServiciosEscolares() || auth.isCoordinador()) return true;
       if (auth.isAcademico()) {
         router.navigate(['/departamento-academico']);
         return false;

@@ -1,7 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { HeaderComponent } from '../../layout/header/header.component';
+import { AuthService } from '../../services/auth.service';
 import {
   ServiciosEscolaresBandejaItem,
   ServiciosEscolaresDetalle,
@@ -30,7 +32,19 @@ export class ServiciosEscolaresComponent implements OnInit {
   totalPendientes = 0;
   totalAtendidos = 0;
 
-  constructor(private serviciosEscolaresService: ServiciosEscolaresService) {}
+  constructor(
+    private serviciosEscolaresService: ServiciosEscolaresService,
+    private auth: AuthService,
+    private router: Router,
+  ) {}
+
+  get mostrarVolverInicio(): boolean {
+    return this.auth.isCoordinador();
+  }
+
+  volverInicio(): void {
+    this.router.navigate(['/home']);
+  }
 
   ngOnInit(): void {
     this.cargarLista();
@@ -81,6 +95,7 @@ export class ServiciosEscolaresComponent implements OnInit {
     this.serviciosEscolaresService.confirmar(this.detalle.id).subscribe({
       next: () => {
         this.confirmando = false;
+        this.mensajeDetalle = '';
         this.cargarLista();
         this.actualizarContadorOpuesto();
         this.serviciosEscolaresService.detalle(this.detalle!.id).subscribe({

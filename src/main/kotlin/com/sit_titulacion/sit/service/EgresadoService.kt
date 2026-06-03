@@ -1323,7 +1323,7 @@ class EgresadoService(
         if (diaSemana !in 1..5) return false
         val horaInicio = zInicio.toLocalTime()
         val horaFin = horaInicio.plusHours(1)
-        val ventanaInicio = LocalTime.of(10, 0)
+        val ventanaInicio = LocalTime.of(9, 0)
         val ventanaFin = LocalTime.of(14, 0)
         if (horaInicio < ventanaInicio || horaFin > ventanaFin) return false
 
@@ -1464,6 +1464,8 @@ class EgresadoService(
                         fechaCreacionAnexo91 = p.fechaCreacionAnexo91?.let { formatter.format(it) },
                         fechaConfirmacionEntregaAnexo91 = p.fechaConfirmacionEntregaAnexo91?.let { formatter.format(it) },
                         fechaSolicitudAnexo92 = p.fechaSolicitudAnexo92?.let { formatter.format(it) },
+                        fechaAceptacionServiciosEscolaresAnexo92 =
+                            p.fechaAceptacionServiciosEscolaresAnexo92?.let { formatter.format(it) },
                         fechaConfirmacionRecibidoAnexo92 = p.fechaConfirmacionRecibidoAnexo92?.let { formatter.format(it) },
                         fechaSolicitudSinodales = p.fechaSolicitudSinodales?.let { formatter.format(it) },
                         fechaConfirmacionSinodalesRecibidos = p.fechaConfirmacionSinodalesRecibidos?.let { formatter.format(it) },
