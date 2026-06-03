@@ -118,12 +118,20 @@
       <div class="form-fila form-fila-2">
         <div class="form-campo" [class.form-campo-error]="campoInvalido('asesor_interno')">
           <label for="asesor_interno">Asesor interno <span class="form-obligatorio">*</span></label>
-          <input id="asesor_interno" type="text" formControlName="asesor_interno" />
+          <select id="asesor_interno" formControlName="asesor_interno">
+            <option value="">— Seleccionar —</option>
+            <option *ngIf="valorCampo('asesor_interno') && !docenteEnLista(valorCampo('asesor_interno'))" [value]="valorCampo('asesor_interno')">{{ valorCampo('asesor_interno') }}</option>
+            <option *ngFor="let d of docentesLista" [value]="d.nombreCompleto">{{ d.nombreCompleto }}</option>
+          </select>
           <span class="form-error-msg" *ngIf="campoInvalido('asesor_interno')">Campo obligatorio</span>
         </div>
         <div class="form-campo" [class.form-campo-error]="campoInvalido('asesor_externo')">
           <label for="asesor_externo">Asesor externo <span class="form-obligatorio">*</span></label>
-          <input id="asesor_externo" type="text" formControlName="asesor_externo" />
+          <select id="asesor_externo" formControlName="asesor_externo">
+            <option value="">— Seleccionar —</option>
+            <option *ngIf="valorCampo('asesor_externo') && !docenteEnLista(valorCampo('asesor_externo'))" [value]="valorCampo('asesor_externo')">{{ valorCampo('asesor_externo') }}</option>
+            <option *ngFor="let d of docentesLista" [value]="d.nombreCompleto">{{ d.nombreCompleto }}</option>
+          </select>
           <span class="form-error-msg" *ngIf="campoInvalido('asesor_externo')">Campo obligatorio</span>
         </div>
       </div>
@@ -131,18 +139,30 @@
     <ng-container *ngIf="!esCenevalModalidad && catalogoService.tipoMentoresPorNombre(form.get('modalidad')?.value || '') === 'estandar'">
       <div class="form-campo" [class.form-campo-error]="campoInvalido('director')">
         <label for="director">Director <span class="form-obligatorio">*</span></label>
-        <input id="director" type="text" formControlName="director" />
+        <select id="director" formControlName="director">
+          <option value="">— Seleccionar —</option>
+          <option *ngIf="valorCampo('director') && !docenteEnLista(valorCampo('director'))" [value]="valorCampo('director')">{{ valorCampo('director') }}</option>
+          <option *ngFor="let d of docentesLista" [value]="d.nombreCompleto">{{ d.nombreCompleto }}</option>
+        </select>
         <span class="form-error-msg" *ngIf="campoInvalido('director')">Campo obligatorio</span>
       </div>
       <div class="form-fila form-fila-2">
         <div class="form-campo" [class.form-campo-error]="campoInvalido('asesor_1')">
           <label for="asesor_1">Asesor 1 <span class="form-obligatorio">*</span></label>
-          <input id="asesor_1" type="text" formControlName="asesor_1" />
+          <select id="asesor_1" formControlName="asesor_1">
+            <option value="">— Seleccionar —</option>
+            <option *ngIf="valorCampo('asesor_1') && !docenteEnLista(valorCampo('asesor_1'))" [value]="valorCampo('asesor_1')">{{ valorCampo('asesor_1') }}</option>
+            <option *ngFor="let d of docentesLista" [value]="d.nombreCompleto">{{ d.nombreCompleto }}</option>
+          </select>
           <span class="form-error-msg" *ngIf="campoInvalido('asesor_1')">Campo obligatorio</span>
         </div>
         <div class="form-campo" [class.form-campo-error]="campoInvalido('asesor_2')">
           <label for="asesor_2">Asesor 2 <span class="form-obligatorio">*</span></label>
-          <input id="asesor_2" type="text" formControlName="asesor_2" />
+          <select id="asesor_2" formControlName="asesor_2">
+            <option value="">— Seleccionar —</option>
+            <option *ngIf="valorCampo('asesor_2') && !docenteEnLista(valorCampo('asesor_2'))" [value]="valorCampo('asesor_2')">{{ valorCampo('asesor_2') }}</option>
+            <option *ngFor="let d of docentesLista" [value]="d.nombreCompleto">{{ d.nombreCompleto }}</option>
+          </select>
           <span class="form-error-msg" *ngIf="campoInvalido('asesor_2')">Campo obligatorio</span>
         </div>
       </div>

@@ -435,7 +435,12 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         key: 'fecha_solicitud_anexo_9_2',
         titulo:
           'Solicitar anexo 9.2 al sustentante (constancia de no inconveniencia para su acto de recepción profesional)',
-        descripcion: 'La DEP solicita al sustentante la constancia 9.2.',
+        descripcion: 'La DEP solicita al sustentante la constancia 9.2; el trámite queda pendiente en Servicios escolares.',
+      },
+      {
+        key: 'fecha_aceptacion_servicios_escolares_anexo_9_2',
+        titulo: 'Servicios escolares generó el anexo 9.2',
+        descripcion: 'Servicios escolares confirma en su bandeja que generó la constancia 9.2.',
       },
       {
         key: 'fecha_confirmacion_recibido_anexo_9_2',
@@ -456,7 +461,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       {
         key: 'fecha_agenda_acto_9_3',
         titulo: 'La DEP agenda fecha y horario para la realización del acto protocolario del sustentante',
-        descripcion: 'Se agenda día y hora del acto dentro de la ventana permitida (lunes a viernes, 10:00–14:00).',
+        descripcion: 'Se agenda día y hora del acto dentro de la ventana permitida (lunes a viernes, 9:00–14:00).',
       },
       {
         key: 'fecha_creacion_anexo_9_3',
@@ -1524,7 +1529,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       time_24hr: true,
       minuteIncrement: 15,
       dateFormat: 'Y-m-d\\TH:i',
-      minTime: '10:00',
+      minTime: '09:00',
       maxTime: '14:00',
       disable: [(date) => date.getDay() === 0 || date.getDay() === 6],
       onChange: (_dates, dateStr) => {
