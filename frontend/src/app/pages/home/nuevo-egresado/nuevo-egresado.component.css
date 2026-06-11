@@ -307,6 +307,58 @@ select:disabled {
   display: inline-block;
 }
 
+.titulo-compartido-caja {
+  margin-top: 0.6rem;
+  padding: 0.75rem 0.9rem;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-left: 4px solid #d97706;
+  border-radius: 6px;
+}
+
+.titulo-compartido-texto {
+  margin: 0 0 0.65rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #92400e;
+}
+
+.titulo-compartido-acciones {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.btn-titulo-compartido {
+  padding: 0.35rem 1rem;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-family: inherit;
+}
+
+.btn-titulo-compartido--si {
+  background: #16a34a;
+  color: #fff;
+  border-color: #15803d;
+}
+
+.btn-titulo-compartido--si:hover {
+  background: #15803d;
+}
+
+.btn-titulo-compartido--no {
+  background: #fff;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.btn-titulo-compartido--no:hover {
+  background: #fef2f2;
+}
+
 @media (max-width: 640px) {
   .form-fila {
     grid-template-columns: 1fr;

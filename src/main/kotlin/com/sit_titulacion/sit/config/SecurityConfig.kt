@@ -1,9 +1,11 @@
 package com.sit_titulacion.sit.config
 
+import com.sit_titulacion.sit.security.ApiRateLimitFilter
 import com.sit_titulacion.sit.security.JwtAuthenticationFilter
-import com.sit_titulacion.sit.security.LoginRateLimitFilter
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.env.Environment
+import org.springframework.core.env.Profiles
 import org.springframework.http.HttpMethod
 import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration
@@ -22,7 +24,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @EnableWebSecurity
 class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
-    private val loginRateLimitFilter: LoginRateLimitFilter,
+    private val apiRateLimitFilter: ApiRateLimitFilter,
+    private val environment: Environment,
 ) {
 
     @Bean
@@ -50,14 +53,18 @@ class SecurityConfig(
                 auth
                     .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/auth/recuperar-password").permitAll()
-                    .requestMatchers("/api/auth/hash").permitAll()
                     .requestMatchers("/api/verificar/**").permitAll()
                     .requestMatchers("/api/repositorio/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/catalogos/carreras").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/catalogos/niveles").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/catalogos/modalidades").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/catalogos/departamentos").permitAll()
-                    .requestMatchers("/dev/**").permitAll()
+                if (environment.acceptsProfiles(Profiles.of("dev"))) {
+                    auth.requestMatchers("/dev/**", "/api/auth/hash").permitAll()
+                } else {
+                    auth.requestMatchers("/dev/**", "/api/auth/hash").denyAll()
+                }
+                auth
                     .requestMatchers("/api/auth/me").authenticated()
                     .requestMatchers("/api/auth/logout").authenticated()
                     .requestMatchers("/api/**").authenticated()
@@ -71,7 +78,7 @@ class SecurityConfig(
                         response.writer.write("""{"ok":true}""")
                     }
             }
-            .addFilterBefore(loginRateLimitFilter, UsernamePasswordAuthenticationFilter::class.java)
+            .addFilterBefore(apiRateLimitFilter, UsernamePasswordAuthenticationFilter::class.java)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
         return http.build()
     }

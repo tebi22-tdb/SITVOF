@@ -1,10 +1,12 @@
 import { Routes } from '@angular/router';
 import {
-  authGuard,
   academicoGuard,
   coordinadorGuard,
   egresadoGuard,
+  loginGuard,
+  repositorioGuard,
   serviciosEscolaresGuard,
+  staffAdminGuard,
 } from './guards/auth.guard';
 
 /**
@@ -19,6 +21,7 @@ export const routes: Routes = [
   {
     path: 'login',
     loadComponent: () => import('./pages/login/login.component').then((m) => m.LoginComponent),
+    canActivate: [loginGuard],
   },
   {
     path: 'home',
@@ -93,12 +96,13 @@ export const routes: Routes = [
     path: 'home/gestion-cuentas',
     loadComponent: () =>
       import('./pages/gestion-cuentas/gestion-cuentas.component').then((m) => m.GestionCuentasComponent),
-    canActivate: [coordinadorGuard],
+    canActivate: [staffAdminGuard],
   },
   {
     path: 'repositorio',
     loadComponent: () =>
       import('./pages/repositorio/repositorio.component').then((m) => m.RepositorioComponent),
+    canActivate: [repositorioGuard],
   },
   {
     path: 'verificar/:uuid',

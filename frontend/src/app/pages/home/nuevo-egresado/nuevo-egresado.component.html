@@ -100,11 +100,19 @@
         <label for="nombre_proyecto">Nombre del proyecto <span class="form-obligatorio">*</span></label>
         <input id="nombre_proyecto" type="text" formControlName="nombre_proyecto" />
         <span class="form-error-msg" *ngIf="campoInvalido('nombre_proyecto')">Campo obligatorio</span>
-        <div class="originalidad-indicador" *ngIf="originalidadEstado">
+        <div class="originalidad-indicador" *ngIf="originalidadEstado && originalidadEstado !== 'CONFIRMAR'">
           <span *ngIf="originalidadEstado === 'comprobando'" class="orig-comprobando">Verificando...</span>
           <span *ngIf="originalidadEstado === 'LIBRE'" class="orig-libre">Nombre disponible</span>
           <span *ngIf="originalidadEstado === 'ADVERTENCIA'" class="orig-advertencia">Debe usar un título distinto; es demasiado similar a: {{ originalidadTituloSimilar }}</span>
           <span *ngIf="originalidadEstado === 'BLOQUEADO'" class="orig-bloqueado">{{ mensajeBloqueoNombreProyecto }}</span>
+        </div>
+        <div class="titulo-compartido-caja" *ngIf="requiereConfirmacionTituloCompartido">
+          <p class="titulo-compartido-texto">{{ mensajeConfirmacionTituloCompartido }}</p>
+          <div class="titulo-compartido-acciones" *ngIf="tituloCompartidoConfirmado !== true">
+            <button type="button" class="btn-titulo-compartido btn-titulo-compartido--si" (click)="aceptarTituloCompartido()">Sí</button>
+            <button type="button" class="btn-titulo-compartido btn-titulo-compartido--no" (click)="rechazarTituloCompartido()">No</button>
+          </div>
+          <span *ngIf="tituloCompartidoConfirmado === true" class="orig-libre">Confirmado: puede registrar con este título.</span>
         </div>
       </div>
       <div class="form-campo form-campo-checkbox">
@@ -193,7 +201,7 @@
       </div>
     </ng-container>
     <div class="form-subseccion">
-      <h4>Documento adjunto (PDF o Word)</h4>
+      <h4>Documento adjunto (PDF)</h4>
       <div class="form-campo" [class.form-campo-error]="archivoRequeridoError">
         <label for="documento_adjunto">Subir archivo (un solo archivo por alumno) <span class="form-obligatorio">*</span></label>
         <ng-container *ngIf="editando && tieneArchivoActual && !quitarArchivoSeleccionado">
@@ -208,13 +216,14 @@
         <input
           id="documento_adjunto"
           type="file"
-          accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          accept=".pdf,application/pdf"
           (change)="onFileSelected($event)"
           class="form-file"
         />
-        <span class="form-error-msg" *ngIf="archivoRequeridoError">Campo obligatorio</span>
-        <p class="form-file-hint" *ngIf="!archivoSeleccionado && !archivoRequeridoError">
-          {{ editando ? 'Opcional. Deje vacío para conservar el actual; suba uno para reemplazar.' : 'Ningún archivo seleccionado. Formatos: PDF, DOC, DOCX.' }}
+        <span class="form-error-msg" *ngIf="archivoPdfError">{{ archivoPdfError }}</span>
+        <span class="form-error-msg" *ngIf="archivoRequeridoError && !archivoPdfError">Debes adjuntar un archivo PDF.</span>
+        <p class="form-file-hint" *ngIf="!archivoSeleccionado && !archivoRequeridoError && !archivoPdfError">
+          {{ editando ? 'Opcional. Deje vacío para conservar el actual; suba uno para reemplazar.' : 'Ningún archivo seleccionado. Solo PDF (máx. 100 MB).' }}
         </p>
         <p class="form-file-selected" *ngIf="archivoSeleccionado">
           Nuevo archivo: <strong>{{ archivoSeleccionado.name }}</strong> ({{ archivoSeleccionado.size | number }} bytes)
@@ -237,8 +246,7 @@
       class="btn btn-agregar"
       [disabled]="
         guardando ||
-        (!esCenevalModalidad && originalidadEstado === 'BLOQUEADO') ||
-        (!esCenevalModalidad && originalidadEstado === 'ADVERTENCIA') ||
+        (!esCenevalModalidad && !puedeRegistrarTituloProyecto) ||
         errorFechaConstanciaPosterior ||
         originalidadEstado === 'comprobando' ||
         controlAltaEstado === 'BLOQUEADO' ||

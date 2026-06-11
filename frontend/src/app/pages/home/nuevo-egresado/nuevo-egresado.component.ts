@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { aplicarValidacionPdfInput } from '../../../core/archivo-pdf';
 import { EgresadoForm, MODALIDADES_CURSO_TITULACION } from '../../../core/datos';
 import { EgresadoDetail, EgresadoService } from '../../../services/egresado.service';
 import { CatalogoService, ModalidadCatalogo } from '../../../services/catalogo.service';
@@ -53,10 +54,15 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
   errorFechaConstanciaPosterior = false;
   form: FormGroup;
 
-  originalidadEstado: 'LIBRE' | 'ADVERTENCIA' | 'BLOQUEADO' | 'comprobando' | null = null;
+  originalidadEstado: 'LIBRE' | 'CONFIRMAR' | 'ADVERTENCIA' | 'BLOQUEADO' | 'comprobando' | null = null;
   originalidadTituloSimilar: string | null = null;
-  /** cupo_modalidad | otra_modalidad */
+  /** cupo_modalidad | otra_modalidad | misma_modalidad_existente */
   originalidadMotivo: string | null = null;
+  /** null = sin responder; true = aceptó título compartido; false = rechazó */
+  tituloCompartidoConfirmado: boolean | null = null;
+  /** Registros existentes con el mismo título en la misma modalidad (0–3). */
+  originalidadCoincidencias = 0;
+  readonly maxTituloPorModalidad = 3;
   /** vencido | titulado | en_proceso cuando originalidadEstado === BLOQUEADO */
   originalidadExpedienteEstado: 'vencido' | 'titulado' | 'en_proceso' | null = null;
 
@@ -168,6 +174,8 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
             this.originalidadTituloSimilar = null;
             this.originalidadMotivo = null;
             this.originalidadExpedienteEstado = null;
+            this.tituloCompartidoConfirmado = null;
+            this.originalidadCoincidencias = 0;
             return of(null);
           }
           const t = (titulo || '').trim();
@@ -176,9 +184,13 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
             this.originalidadTituloSimilar = null;
             this.originalidadMotivo = null;
             this.originalidadExpedienteEstado = null;
+            this.tituloCompartidoConfirmado = null;
+            this.originalidadCoincidencias = 0;
             return of(null);
           }
           this.originalidadEstado = 'comprobando';
+          this.tituloCompartidoConfirmado = null;
+          this.originalidadCoincidencias = 0;
           const excluirId = this.egresadoParaEditar?.id;
           const mod = (modalidad || '').toString();
           return this.egresadoService.verificarOriginalidad(t, excluirId, mod).pipe(catchError(() => of(null)));
@@ -190,12 +202,17 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
           if (this.originalidadEstado === 'comprobando') this.originalidadEstado = null;
           return;
         }
-        this.originalidadEstado = resultado.estado as 'LIBRE' | 'ADVERTENCIA' | 'BLOQUEADO';
+        const estado = resultado.estado as 'LIBRE' | 'CONFIRMAR' | 'ADVERTENCIA' | 'BLOQUEADO';
+        this.originalidadEstado = this.editando && estado === 'CONFIRMAR' ? 'LIBRE' : estado;
         this.originalidadTituloSimilar = resultado.titulo_similar || null;
         this.originalidadMotivo = (resultado.motivo || '').trim() || null;
+        this.originalidadCoincidencias = resultado.coincidencias_misma_modalidad ?? 0;
         const ex = (resultado.expediente_estado || '').trim();
         this.originalidadExpedienteEstado =
           ex === 'vencido' || ex === 'titulado' || ex === 'en_proceso' ? ex : null;
+        if (this.originalidadEstado !== 'CONFIRMAR') {
+          this.tituloCompartidoConfirmado = null;
+        }
       });
 
     this.form.get('numero_control')!.valueChanges.pipe(
@@ -304,10 +321,46 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   /** Mensaje bajo «Nombre del proyecto» cuando el título está bloqueado. */
+  get requiereConfirmacionTituloCompartido(): boolean {
+    return !this.editando && this.originalidadEstado === 'CONFIRMAR';
+  }
+
+  /** Texto del cuadro Sí/No según cuántos registros ya existen (1 → 2.º alumno; 2 → 3.º). */
+  get mensajeConfirmacionTituloCompartido(): string {
+    const n = this.originalidadCoincidencias;
+    const max = this.maxTituloPorModalidad;
+    if (n === 1) {
+      return `Este título ya está registrado en 1 expediente de la misma modalidad. ¿Desea registrar un segundo egresado con el mismo título? (Máximo ${max} por modalidad.)`;
+    }
+    if (n === 2) {
+      return `Este título ya está registrado en 2 expedientes de la misma modalidad. ¿Desea registrar al tercer egresado con el mismo título? Sería el último permitido.`;
+    }
+    return `Este título ya está asignado a otro registro en la misma modalidad. ¿Desea agregar otro registro con el mismo título? (Máximo ${max} por modalidad.)`;
+  }
+
+  get puedeRegistrarTituloProyecto(): boolean {
+    if (this.esCenevalModalidad) return true;
+    if (this.originalidadEstado === 'BLOQUEADO' || this.originalidadEstado === 'ADVERTENCIA') return false;
+    if (this.requiereConfirmacionTituloCompartido) return this.tituloCompartidoConfirmado === true;
+    return true;
+  }
+
+  aceptarTituloCompartido(): void {
+    this.tituloCompartidoConfirmado = true;
+  }
+
+  rechazarTituloCompartido(): void {
+    this.tituloCompartidoConfirmado = false;
+    this.form.patchValue({ nombre_proyecto: '' });
+    this.originalidadEstado = null;
+    this.originalidadMotivo = null;
+    this.originalidadTituloSimilar = null;
+  }
+
   get mensajeBloqueoNombreProyecto(): string {
     if (this.originalidadEstado !== 'BLOQUEADO') return '';
     if (this.originalidadMotivo === 'cupo_modalidad') {
-      return 'Ya hay 2 egresados con este nombre en la misma modalidad (máximo 2 por modalidad).';
+      return `Ya hay ${this.maxTituloPorModalidad} egresados con este nombre en la misma modalidad. No se puede registrar otro.`;
     }
     if (this.originalidadMotivo === 'otra_modalidad') {
       return 'Este nombre ya está registrado en otra modalidad; usa un título distinto.';
@@ -452,12 +505,28 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
     this.revisarFechasDocumentos();
   }
 
+  archivoPdfError = '';
+
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
-    this.archivoSeleccionado = file ?? null;
     this.archivoRequeridoError = false;
-    if (file) this.quitarArchivoSeleccionado = false;
+    aplicarValidacionPdfInput(
+      input,
+      file,
+      (ok) => {
+        this.archivoSeleccionado = ok;
+        this.archivoPdfError = '';
+        this.quitarArchivoSeleccionado = false;
+      },
+      (msg) => {
+        this.archivoPdfError = msg;
+      },
+      () => {
+        this.archivoSeleccionado = null;
+        this.archivoPdfError = '';
+      },
+    );
   }
 
   /** Abre el picker nativo al hacer clic en cualquier parte del input de fecha. */
@@ -504,7 +573,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       this.form.markAllAsTouched();
       return;
     }
-    if (!this.esCenevalModalidad && (this.originalidadEstado === 'BLOQUEADO' || this.originalidadEstado === 'ADVERTENCIA')) return;
+    if (!this.esCenevalModalidad && !this.puedeRegistrarTituloProyecto) return;
     if (this.controlAltaEstado === 'BLOQUEADO') return;
     if (!this.editando && !this.archivoSeleccionado) {
       this.archivoRequeridoError = true;

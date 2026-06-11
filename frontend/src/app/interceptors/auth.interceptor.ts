@@ -1,6 +1,9 @@
-import { HttpInterceptorFn } from '@angular/common/http';
+import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
+import { inject } from '@angular/core';
+import { Router } from '@angular/router';
+import { catchError, throwError } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { SIT_ACCESS_TOKEN_KEY } from '../services/auth.service';
+import { AuthService, SIT_ACCESS_TOKEN_KEY } from '../services/auth.service';
 
 function isSitApiRequest(url: string): boolean {
   if (environment.apiUrl) {
@@ -11,18 +14,36 @@ function isSitApiRequest(url: string): boolean {
   return false;
 }
 
-/** Añade Bearer por pestaña (sessionStorage); sin cookie compartida entre pestañas. */
+function esRutaLogin(url: string): boolean {
+  return url.includes('/api/auth/login') || url.includes('/api/auth/recuperar-password');
+}
+
+/** Añade Bearer por pestaña (sessionStorage); ante 401 limpia sesión y redirige al login. */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  if (!isSitApiRequest(req.url)) {
-    return next(req);
+  let request = req;
+  if (isSitApiRequest(req.url)) {
+    const token = sessionStorage.getItem(SIT_ACCESS_TOKEN_KEY);
+    if (token) {
+      request = req.clone({
+        setHeaders: { Authorization: `Bearer ${token}` },
+      });
+    }
   }
-  const token = sessionStorage.getItem(SIT_ACCESS_TOKEN_KEY);
-  if (!token) {
-    return next(req);
-  }
-  return next(
-    req.clone({
-      setHeaders: { Authorization: `Bearer ${token}` },
+
+  return next(request).pipe(
+    catchError((err: HttpErrorResponse) => {
+      if (
+        err.status === 401 &&
+        isSitApiRequest(req.url) &&
+        !esRutaLogin(req.url) &&
+        sessionStorage.getItem(SIT_ACCESS_TOKEN_KEY)
+      ) {
+        const auth = inject(AuthService);
+        const router = inject(Router);
+        auth.clearLocalSession();
+        router.navigate(['/login'], { queryParams: { motivo: 'sesion' } });
+      }
+      return throwError(() => err);
     }),
   );
 };

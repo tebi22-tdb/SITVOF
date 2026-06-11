@@ -285,6 +285,7 @@ class EgresadoController(
                 "titulo_similar" to (resultado.tituloSimilar ?: ""),
                 "expediente_estado" to (resultado.expedienteEstado ?: ""),
                 "motivo" to (resultado.motivo ?: ""),
+                "coincidencias_misma_modalidad" to resultado.coincidenciasMismaModalidad,
             ),
         )
     }
@@ -337,7 +338,7 @@ class EgresadoController(
         if (origResultado.estado == "BLOQUEADO" || origResultado.estado == "ADVERTENCIA") {
             val aviso = when {
                 origResultado.motivo == "cupo_modalidad" ->
-                    "Ya hay 2 egresados con el título «${datos.nombreProyecto}» en la modalidad «${datos.modalidad}». No se puede registrar un tercero con el mismo nombre."
+                    "Ya hay ${OriginalidadService.MAX_CUPO_MISMA_MODALIDAD} egresados con el título «${datos.nombreProyecto}» en la modalidad «${datos.modalidad}». No se puede registrar otro con el mismo nombre."
                 origResultado.estado == "BLOQUEADO" ->
                     "El título «${datos.nombreProyecto}» ya está registrado en otra modalidad y no puede usarse."
                 else ->

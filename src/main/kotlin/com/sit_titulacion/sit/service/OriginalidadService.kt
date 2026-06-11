@@ -6,17 +6,24 @@ import org.springframework.stereotype.Service
 import java.text.Normalizer
 
 data class OriginalidadResultado(
-    /** "LIBRE", "ADVERTENCIA" o "BLOQUEADO" */
+    /** "LIBRE", "CONFIRMAR", "ADVERTENCIA" o "BLOQUEADO" */
     val estado: String,
     val tituloSimilar: String? = null,
     /** Solo si [estado] es BLOQUEADO: vencido, titulado o en_proceso (mensajes en alta). */
     val expedienteEstado: String? = null,
-    /** cupo_modalidad: ya hay 2 con el mismo título en esa modalidad; otra_modalidad: título igual en otra modalidad. */
+    /** cupo_modalidad: cupo lleno (3); otra_modalidad: título igual en otra modalidad; misma_modalidad_existente: pide confirmación. */
     val motivo: String? = null,
+    /** Cuántos expedientes activos ya usan el mismo título en la misma modalidad. */
+    val coincidenciasMismaModalidad: Int = 0,
 )
 
 @Service
 class OriginalidadService(private val egresadoRepository: EgresadoRepository) {
+
+    companion object {
+        /** Máximo de egresados con el mismo nombre de proyecto en una modalidad. */
+        const val MAX_CUPO_MISMA_MODALIDAD = 3
+    }
 
     private val STOPWORDS = setOf(
         "de", "del", "la", "el", "los", "las", "un", "una", "unos", "unas",
@@ -27,7 +34,7 @@ class OriginalidadService(private val egresadoRepository: EgresadoRepository) {
 
     /**
      * Compara [titulo] contra proyectos registrados.
-     * [modalidad]: misma modalidad permite hasta 2 egresados con el mismo título (ej. residencia en pareja).
+     * [modalidad]: misma modalidad permite hasta [MAX_CUPO_MISMA_MODALIDAD] egresados con el mismo título.
      * Otra modalidad: título igual o muy similar sigue bloqueando/advirtiendo.
      */
     fun verificar(titulo: String, modalidad: String? = null, excluirId: String? = null): OriginalidadResultado {
@@ -85,15 +92,24 @@ class OriginalidadService(private val egresadoRepository: EgresadoRepository) {
                 "otra_modalidad",
             )
         }
-        if (coincidenciasMismaModalidad >= 2) {
+        if (coincidenciasMismaModalidad >= MAX_CUPO_MISMA_MODALIDAD) {
             return OriginalidadResultado(
                 "BLOQUEADO",
                 tituloReferenciaMismaModalidad,
                 motivo = "cupo_modalidad",
+                coincidenciasMismaModalidad = coincidenciasMismaModalidad,
             )
         }
         if (advertenciaOtraModalidad != null) {
             return OriginalidadResultado("ADVERTENCIA", advertenciaOtraModalidad.first)
+        }
+        if (coincidenciasMismaModalidad in 1 until MAX_CUPO_MISMA_MODALIDAD) {
+            return OriginalidadResultado(
+                "CONFIRMAR",
+                tituloReferenciaMismaModalidad,
+                motivo = "misma_modalidad_existente",
+                coincidenciasMismaModalidad = coincidenciasMismaModalidad,
+            )
         }
         return OriginalidadResultado("LIBRE")
     }
