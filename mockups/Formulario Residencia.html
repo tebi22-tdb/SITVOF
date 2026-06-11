@@ -1,0 +1,899 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1280" />
+<title>SITVO · Formulario de Residencia — Wireframes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --navy:#1e3a6e;
+    --navy-deep:#162b52;
+    --navy-2:#2c4a82;
+    --blue:#3d6aa8;
+    --blue-soft:#c5d6e8;
+    --blue-softer:#dde7f3;
+    --bg:#f4f6fa;
+    --card:#ffffff;
+    --ink:#1a2540;
+    --ink-2:#3a4a66;
+    --muted:#7388a8;
+    --line:#d8e0ec;
+    --line-2:#e7ecf3;
+    --ok:#2f8a5e;
+    --warn:#c4761c;
+    --danger:#b53b3b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:'Inter',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.45}
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+  a{color:inherit}
+
+  /* ---------- Header (placeholder, reusable component) ---------- */
+  .app-header{
+    background:linear-gradient(180deg,var(--navy) 0%, var(--navy-deep) 100%);
+    color:#fff;
+    border-bottom:1px solid rgba(255,255,255,.08);
+  }
+  .app-header .top{
+    display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+    padding:18px 36px;gap:24px;
+  }
+  .app-header .brand-l, .app-header .brand-r{
+    display:flex;align-items:center;gap:14px;color:rgba(255,255,255,.85);font-size:11px;letter-spacing:.04em
+  }
+  .app-header .brand-r{justify-content:flex-end}
+  .seal{
+    width:62px;height:62px;border-radius:50%;background:rgba(255,255,255,.06);
+    border:1px dashed rgba(255,255,255,.25);
+    display:flex;align-items:center;justify-content:center;font-size:9px;color:rgba(255,255,255,.55);text-align:center;line-height:1.1
+  }
+  .app-header .title{text-align:center}
+  .app-header h1{margin:0;font-size:28px;letter-spacing:.18em;font-weight:700}
+  .app-header .subtitle{margin-top:4px;font-size:13px;color:rgba(255,255,255,.78);font-weight:400}
+  .app-header .userbar{
+    display:flex;justify-content:flex-end;align-items:center;gap:14px;
+    padding:10px 36px 12px;font-size:13px;color:rgba(255,255,255,.85);
+  }
+  .app-header .userbar b{color:#fff}
+  .btn-exit{
+    display:inline-flex;align-items:center;gap:8px;
+    background:#fff;color:var(--navy);
+    border:none;border-radius:8px;padding:7px 14px;font-weight:600;font-size:13px;cursor:pointer;
+    box-shadow:0 1px 0 rgba(0,0,0,.04)
+  }
+
+  /* ---------- Page chrome ---------- */
+  .crumbs{
+    padding:18px 36px 0;color:var(--muted);font-size:12px;
+    display:flex;align-items:center;gap:8px
+  }
+  .crumbs b{color:var(--ink)}
+  .page-title{
+    padding:6px 36px 0;display:flex;align-items:end;justify-content:space-between;gap:24px;
+  }
+  .page-title h2{margin:0;font-size:26px;font-weight:700;color:var(--navy)}
+  .page-title p{margin:4px 0 0;color:var(--muted);font-size:13px;max-width:60ch}
+
+  /* ---------- Variant tabs (wireframe selector) ---------- */
+  .tabs{
+    margin:18px 36px 0;background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px;
+    display:inline-flex;gap:4px;box-shadow:0 1px 0 rgba(20,40,80,.03)
+  }
+  .tabs button{
+    border:0;background:transparent;padding:9px 16px;font:inherit;font-size:13px;
+    color:var(--ink-2);border-radius:8px;cursor:pointer;font-weight:500;
+    display:inline-flex;align-items:center;gap:8px;
+  }
+  .tabs button .num{
+    font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);
+    background:var(--blue-softer);padding:2px 6px;border-radius:4px
+  }
+  .tabs button[aria-selected="true"]{background:var(--navy);color:#fff}
+  .tabs button[aria-selected="true"] .num{background:rgba(255,255,255,.15);color:#fff}
+  .variant-meta{
+    margin:8px 36px 0;color:var(--muted);font-size:12px;
+    display:flex;gap:16px;align-items:center;flex-wrap:wrap
+  }
+  .variant-meta .pill{
+    border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--ink-2);background:#fff
+  }
+
+  .variant{display:none;padding:24px 36px 64px}
+  .variant.active{display:block}
+
+  /* ---------- Shared form atoms ---------- */
+  .field label{
+    display:block;font-size:12px;font-weight:600;color:var(--ink-2);
+    margin-bottom:6px;letter-spacing:.01em
+  }
+  .field label .req{color:var(--danger);margin-left:3px}
+  .field .help{font-size:11px;color:var(--muted);margin-top:5px}
+  .input, .select, .textarea{
+    width:100%;background:#fff;border:1px solid var(--line);
+    border-radius:8px;padding:10px 12px;font:inherit;font-size:13.5px;color:var(--ink);
+    transition:border-color .15s, box-shadow .15s, background .15s;
+  }
+  .input::placeholder, .select.placeholder{color:#a4b1c8}
+  .input:focus, .select:focus, .textarea:focus{
+    outline:none;border-color:var(--blue);
+    box-shadow:0 0 0 3px rgba(61,106,168,.15)
+  }
+  .select{appearance:none;-webkit-appearance:none;background-image:
+    linear-gradient(45deg, transparent 50%, var(--ink-2) 50%),
+    linear-gradient(135deg, var(--ink-2) 50%, transparent 50%);
+    background-position: calc(100% - 16px) 16px, calc(100% - 11px) 16px;
+    background-size: 5px 5px, 5px 5px;background-repeat:no-repeat;padding-right:36px
+  }
+  .input.date{padding-right:36px;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e3a6e' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='17' rx='2'/><path d='M16 2v4M8 2v4M3 10h18'/></svg>");
+    background-repeat:no-repeat;background-position:right 10px center;background-size:16px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}
+
+  .upload{
+    border:1.5px dashed var(--line);background:var(--blue-softer);border-radius:10px;
+    padding:18px;display:flex;align-items:center;gap:14px;
+    transition:border-color .15s, background .15s; cursor:pointer
+  }
+  .upload:hover{border-color:var(--blue);background:#eaf1f9}
+  .upload .ico{
+    width:42px;height:42px;border-radius:8px;background:#fff;
+    display:flex;align-items:center;justify-content:center;color:var(--navy);
+    border:1px solid var(--line)
+  }
+  .upload .meta{flex:1}
+  .upload .meta b{display:block;font-size:13px;color:var(--navy);font-weight:600}
+  .upload .meta span{font-size:11.5px;color:var(--muted)}
+  .upload .browse{
+    border:1px solid var(--navy);color:var(--navy);background:#fff;
+    border-radius:6px;padding:6px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer
+  }
+  .upload.done{border-style:solid;border-color:var(--ok);background:#eef7f1}
+  .upload.done .ico{color:var(--ok);border-color:#cce5d6}
+
+  .actions{
+    display:flex;justify-content:space-between;align-items:center;gap:16px;
+    margin-top:24px;padding-top:18px;border-top:1px solid var(--line-2)
+  }
+  .actions .left{display:flex;gap:10px}
+  .btn{
+    border:1px solid var(--line);background:#fff;color:var(--ink);
+    border-radius:8px;padding:10px 18px;font:inherit;font-weight:600;font-size:13px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:8px
+  }
+  .btn.primary{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .btn.primary:hover{background:var(--navy-deep)}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--ink-2)}
+
+  .section-title{
+    display:flex;align-items:center;gap:10px;
+    font-size:13px;font-weight:700;color:var(--navy);
+    text-transform:uppercase;letter-spacing:.08em;margin:0 0 14px
+  }
+  .section-title .dot{
+    width:22px;height:22px;border-radius:6px;background:var(--blue-softer);
+    display:inline-flex;align-items:center;justify-content:center;
+    color:var(--navy);font-size:11px;font-family:'JetBrains Mono',monospace
+  }
+
+  /* ---------- VARIANT 1 — Clásico ---------- */
+  .v1-card{
+    background:#fff;border:1px solid var(--line);border-radius:14px;
+    padding:32px 36px;box-shadow:0 1px 0 rgba(20,40,80,.03);max-width:880px
+  }
+  .v1-card h3{margin:0 0 4px;font-size:18px;color:var(--navy)}
+  .v1-card .lead{margin:0 0 24px;color:var(--muted);font-size:13px}
+  .v1-grid{display:flex;flex-direction:column;gap:18px}
+
+  /* ---------- VARIANT 2 — Por secciones ---------- */
+  .v2-grid{display:grid;grid-template-columns:1fr;gap:20px;max-width:980px}
+  .v2-section{
+    background:#fff;border:1px solid var(--line);border-radius:14px;
+    padding:22px 24px;display:grid;grid-template-columns:240px 1fr;gap:28px;
+    box-shadow:0 1px 0 rgba(20,40,80,.03)
+  }
+  .v2-section .leftcol h4{margin:0 0 6px;font-size:14px;color:var(--navy);font-weight:700}
+  .v2-section .leftcol p{margin:0;font-size:12px;color:var(--muted);line-height:1.5}
+  .v2-section .leftcol .tag{
+    display:inline-block;margin-top:10px;font-family:'JetBrains Mono',monospace;
+    font-size:10.5px;color:var(--navy);background:var(--blue-softer);padding:2px 8px;border-radius:4px
+  }
+  .v2-section .body{display:flex;flex-direction:column;gap:16px}
+
+  /* ---------- VARIANT 3 — Wizard ---------- */
+  .v3-shell{max-width:880px}
+  .stepper{
+    display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;
+    background:#fff;border:1px solid var(--line);border-radius:14px;
+    padding:16px 8px;margin-bottom:20px;position:relative;overflow:hidden
+  }
+  .step{
+    display:flex;align-items:center;gap:12px;padding:8px 18px;position:relative;
+  }
+  .step .n{
+    width:30px;height:30px;border-radius:50%;background:var(--blue-softer);color:var(--navy);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none
+  }
+  .step .lbl b{display:block;font-size:13px;color:var(--ink);font-weight:600}
+  .step .lbl span{font-size:11px;color:var(--muted)}
+  .step.active .n{background:var(--navy);color:#fff}
+  .step.done .n{background:var(--ok);color:#fff}
+  .step.done .lbl b{color:var(--ink-2)}
+  .step:not(:last-child)::after{
+    content:"";position:absolute;right:-1px;top:50%;transform:translateY(-50%);
+    width:1px;height:60%;background:var(--line-2)
+  }
+  .v3-card{
+    background:#fff;border:1px solid var(--line);border-radius:14px;padding:28px 32px;
+    box-shadow:0 1px 0 rgba(20,40,80,.03)
+  }
+  .v3-card h3{margin:0 0 4px;font-size:17px;color:var(--navy)}
+  .v3-card .lead{margin:0 0 22px;color:var(--muted);font-size:13px}
+  .v3-grid{display:flex;flex-direction:column;gap:18px}
+  .progress{
+    height:4px;background:var(--line-2);border-radius:2px;margin-bottom:18px;overflow:hidden
+  }
+  .progress span{display:block;height:100%;width:33%;background:var(--navy)}
+
+  /* ---------- VARIANT 4 — Dos columnas con resumen ---------- */
+  .v4-grid{display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start}
+  .v4-form{background:#fff;border:1px solid var(--line);border-radius:14px;padding:28px 32px;
+    box-shadow:0 1px 0 rgba(20,40,80,.03)}
+  .v4-form h3{margin:0 0 4px;font-size:17px;color:var(--navy)}
+  .v4-form .lead{margin:0 0 22px;color:var(--muted);font-size:13px}
+  .v4-block{display:flex;flex-direction:column;gap:16px;padding-bottom:22px;margin-bottom:22px;border-bottom:1px dashed var(--line-2)}
+  .v4-block:last-of-type{border-bottom:0;margin-bottom:0;padding-bottom:0}
+
+  .v4-summary{
+    position:sticky;top:20px;
+    background:linear-gradient(180deg,var(--navy) 0%, var(--navy-deep) 100%);
+    color:#fff;border-radius:14px;padding:22px 22px 18px;
+    box-shadow:0 10px 24px -16px rgba(20,40,80,.4)
+  }
+  .v4-summary h4{margin:0 0 16px;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.7);font-weight:600}
+  .v4-summary dl{margin:0;display:flex;flex-direction:column;gap:14px}
+  .v4-summary dt{font-size:11px;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px}
+  .v4-summary dd{margin:0;font-size:13.5px;font-weight:500;color:#fff}
+  .v4-summary dd.empty{color:rgba(255,255,255,.35);font-style:italic;font-weight:400}
+  .v4-summary .divider{height:1px;background:rgba(255,255,255,.12);margin:4px 0}
+  .v4-summary .anex{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:rgba(255,255,255,.85)}
+  .v4-summary .anex .ok{color:#9be0b8}
+  .v4-summary .anex .pending{color:rgba(255,255,255,.45)}
+  .v4-summary .submit-cta{
+    margin-top:18px;width:100%;
+    background:#fff;color:var(--navy);border:0;border-radius:10px;
+    padding:12px 16px;font:inherit;font-weight:700;cursor:pointer
+  }
+
+  /* notes */
+  .notes{
+    margin-top:28px;padding:16px 20px;border-radius:10px;
+    background:#fff;border:1px dashed var(--line);
+    font-size:12.5px;color:var(--ink-2);max-width:880px
+  }
+  .notes b{color:var(--navy)}
+  .notes ul{margin:6px 0 0;padding-left:18px}
+  .notes li{margin:3px 0}
+
+  /* Reusable header marker */
+  .header-marker{
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    padding:6px 36px 0;font-size:11px;color:var(--muted);
+    font-family:'JetBrains Mono',monospace
+  }
+  .header-marker span{
+    background:var(--blue-softer);color:var(--navy);padding:2px 8px;border-radius:4px
+  }
+</style>
+</head>
+<body>
+
+<!-- ====================== HEADER (reusable component placeholder) ====================== -->
+<header class="app-header">
+  <div class="top">
+    <div class="brand-l">
+      <div class="seal">TECNM<br/>logo</div>
+      <div>TECNOLÓGICO<br/>NACIONAL DE MÉXICO®</div>
+    </div>
+    <div class="title">
+      <h1>SITVO</h1>
+      <div class="subtitle">Sistema Integral de Titulación del Tecnológico del Valle de Oaxaca</div>
+    </div>
+    <div class="brand-r">
+      <div style="text-align:right">INSTITUTO TECNOLÓGICO<br/>DEL VALLE DE OAXACA</div>
+      <div class="seal">ITVO<br/>logo</div>
+    </div>
+  </div>
+  <div class="userbar">
+    <span>Bienvenido <b>coordinador</b> — Administrador</span>
+    <button class="btn-exit">⏻ Salir</button>
+  </div>
+</header>
+
+<div class="header-marker">
+  <span>// componente reutilizable</span>
+  <span>// el body es lo que viene a continuación</span>
+</div>
+
+<!-- ====================== PAGE CHROME ====================== -->
+<div class="crumbs">
+  <span>Inicio</span> <span>›</span>
+  <span>Inicio del proceso de titulación</span> <span>›</span>
+  <b>Registro de residencia profesional</b>
+</div>
+
+<div class="page-title">
+  <div>
+    <h2>Registro de residencia profesional</h2>
+    <p>Captura los datos del residente, el proyecto y los anexos requeridos para iniciar el expediente.</p>
+  </div>
+</div>
+
+<!-- ====================== VARIANT TABS ====================== -->
+<div class="tabs" role="tablist" id="tabs">
+  <button role="tab" aria-selected="true" data-v="v1"><span class="num">01</span> Clásico</button>
+  <button role="tab" aria-selected="false" data-v="v2"><span class="num">02</span> Por secciones</button>
+  <button role="tab" aria-selected="false" data-v="v3"><span class="num">03</span> Wizard</button>
+  <button role="tab" aria-selected="false" data-v="v4"><span class="num">04</span> Dos columnas + resumen</button>
+</div>
+<div class="variant-meta" id="meta">
+  <span class="pill">Variante 01 · Clásico</span>
+  <span>Columna única, denso, label arriba — para captura rápida.</span>
+</div>
+
+<!-- ================================================================================== -->
+<!-- VARIANT 1 — CLÁSICO                                                                 -->
+<!-- ================================================================================== -->
+<section class="variant active" data-v="v1">
+  <div class="v1-card">
+    <h3>Datos de la residencia</h3>
+    <p class="lead">Llena todos los campos. Los marcados con <span style="color:var(--danger)">*</span> son obligatorios.</p>
+
+    <div class="v1-grid">
+
+      <div class="row">
+        <div class="field">
+          <label>Nombre del alumno <span class="req">*</span></label>
+          <input class="input" type="text" placeholder="Apellidos y nombre(s)" />
+        </div>
+        <div class="field">
+          <label>Número de control <span class="req">*</span></label>
+          <input class="input mono" type="text" placeholder="20E12345" maxlength="10" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Carrera <span class="req">*</span></label>
+        <select class="select placeholder">
+          <option>Selecciona una carrera…</option>
+          <option>Ingeniería en Sistemas Computacionales</option>
+          <option>Ingeniería en Gestión Empresarial</option>
+          <option>Ingeniería en Agronomía</option>
+          <option>Ingeniería en Innovación Agrícola Sustentable</option>
+          <option>Ingeniería Forestal</option>
+          <option>Licenciatura en Biología</option>
+        </select>
+      </div>
+
+      <div class="row-3">
+        <div class="field">
+          <label>Fecha de carta de aceptación <span class="req">*</span></label>
+          <input class="input date" type="date" />
+        </div>
+        <div class="field">
+          <label>Inicio de residencia <span class="req">*</span></label>
+          <input class="input date" type="date" />
+        </div>
+        <div class="field">
+          <label>Fin de residencia <span class="req">*</span></label>
+          <input class="input date" type="date" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Tipo de proyecto <span class="req">*</span></label>
+          <select class="select placeholder">
+            <option>Selecciona el tipo…</option>
+            <option>Proyecto interno</option>
+            <option>Proyecto externo</option>
+            <option>Proyecto propio</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Nombre del proyecto</label>
+          <input class="input" type="text" placeholder="Título del proyecto de residencia" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Asesor interno <span class="req">*</span></label>
+          <input class="input" type="text" placeholder="Nombre completo del docente" />
+          <div class="help">Docente adscrito al ITVO.</div>
+        </div>
+        <div class="field">
+          <label>Asesor externo</label>
+          <input class="input" type="text" placeholder="Nombre completo (si aplica)" />
+          <div class="help">Requerido para proyectos externos.</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Anexo 29 — Solicitud de residencia (PDF) <span class="req">*</span></label>
+          <label class="upload" for="anx29-v1">
+            <div class="ico">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div class="meta">
+              <b>Arrastra el PDF o haz clic para subir</b>
+              <span>Máx. 5 MB · Solo .pdf</span>
+            </div>
+            <button class="browse" type="button">Examinar</button>
+            <input id="anx29-v1" type="file" accept="application/pdf" hidden />
+          </label>
+        </div>
+        <div class="field">
+          <label>Anexo 30 — Asignación de asesor (PDF) <span class="req">*</span></label>
+          <label class="upload done" for="anx30-v1">
+            <div class="ico">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div class="meta">
+              <b>Anexo30_GarciaLopez.pdf</b>
+              <span>312 KB · Subido</span>
+            </div>
+            <button class="browse" type="button">Cambiar</button>
+            <input id="anx30-v1" type="file" accept="application/pdf" hidden />
+          </label>
+        </div>
+      </div>
+
+      <div class="actions">
+        <div class="left"><button class="btn ghost">Cancelar</button></div>
+        <div class="left">
+          <button class="btn">Guardar borrador</button>
+          <button class="btn primary">Registrar residencia →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <b>Notas · Variante 01</b>
+    <ul>
+      <li>Una sola card, scroll vertical. Captura rápida cuando el coordinador conoce el flujo.</li>
+      <li>Validación inline al perder foco. Botón principal a la derecha del bloque.</li>
+      <li>Riesgo: en pantallas chicas se vuelve largo; sin agrupación visual queda denso.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================================================================================== -->
+<!-- VARIANT 2 — POR SECCIONES                                                           -->
+<!-- ================================================================================== -->
+<section class="variant" data-v="v2">
+  <div class="v2-grid">
+
+    <div class="v2-section">
+      <div class="leftcol">
+        <h4>Datos del alumno</h4>
+        <p>Identifica al residente y su programa académico.</p>
+        <span class="tag">01 · obligatorio</span>
+      </div>
+      <div class="body">
+        <div class="row">
+          <div class="field">
+            <label>Nombre del alumno <span class="req">*</span></label>
+            <input class="input" type="text" placeholder="Apellidos y nombre(s)" />
+          </div>
+          <div class="field">
+            <label>Número de control <span class="req">*</span></label>
+            <input class="input mono" type="text" placeholder="20E12345" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Carrera <span class="req">*</span></label>
+          <select class="select placeholder">
+            <option>Selecciona una carrera…</option>
+            <option>Ingeniería en Sistemas Computacionales</option>
+            <option>Ingeniería en Gestión Empresarial</option>
+            <option>Ingeniería en Agronomía</option>
+            <option>Ingeniería en Innovación Agrícola Sustentable</option>
+            <option>Ingeniería Forestal</option>
+            <option>Licenciatura en Biología</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="v2-section">
+      <div class="leftcol">
+        <h4>Fechas del proceso</h4>
+        <p>La aceptación marca el inicio del expediente; el rango de residencia debe coincidir con el periodo asignado.</p>
+        <span class="tag">02 · obligatorio</span>
+      </div>
+      <div class="body">
+        <div class="field">
+          <label>Fecha de carta de aceptación <span class="req">*</span></label>
+          <input class="input date" type="date" style="max-width:260px" />
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Inicio de residencia <span class="req">*</span></label>
+            <input class="input date" type="date" />
+          </div>
+          <div class="field">
+            <label>Fin de residencia <span class="req">*</span></label>
+            <input class="input date" type="date" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="v2-section">
+      <div class="leftcol">
+        <h4>Proyecto y asesoría</h4>
+        <p>Define la modalidad del proyecto y a los responsables académicos.</p>
+        <span class="tag">03 · obligatorio</span>
+      </div>
+      <div class="body">
+        <div class="row">
+          <div class="field">
+            <label>Tipo de proyecto <span class="req">*</span></label>
+            <select class="select placeholder">
+              <option>Selecciona el tipo…</option>
+              <option>Proyecto interno</option>
+              <option>Proyecto externo</option>
+              <option>Proyecto propio</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Nombre del proyecto</label>
+            <input class="input" type="text" placeholder="Título del proyecto" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Asesor interno <span class="req">*</span></label>
+            <input class="input" type="text" placeholder="Docente del ITVO" />
+          </div>
+          <div class="field">
+            <label>Asesor externo</label>
+            <input class="input" type="text" placeholder="Solo si es externo" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="v2-section">
+      <div class="leftcol">
+        <h4>Anexos en PDF</h4>
+        <p>Documentos firmados y escaneados. Máximo 5 MB por archivo.</p>
+        <span class="tag">04 · obligatorio</span>
+      </div>
+      <div class="body">
+        <div class="field">
+          <label>Anexo 29 — Solicitud de residencia <span class="req">*</span></label>
+          <label class="upload" for="anx29-v2">
+            <div class="ico">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div class="meta"><b>Arrastra el PDF o haz clic para subir</b><span>Máx. 5 MB · Solo .pdf</span></div>
+            <button class="browse" type="button">Examinar</button>
+            <input id="anx29-v2" type="file" accept="application/pdf" hidden />
+          </label>
+        </div>
+        <div class="field">
+          <label>Anexo 30 — Asignación de asesor <span class="req">*</span></label>
+          <label class="upload" for="anx30-v2">
+            <div class="ico">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div class="meta"><b>Arrastra el PDF o haz clic para subir</b><span>Máx. 5 MB · Solo .pdf</span></div>
+            <button class="browse" type="button">Examinar</button>
+            <input id="anx30-v2" type="file" accept="application/pdf" hidden />
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions" style="max-width:none">
+      <div class="left"><button class="btn ghost">Cancelar</button></div>
+      <div class="left">
+        <button class="btn">Guardar borrador</button>
+        <button class="btn primary">Registrar residencia →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <b>Notas · Variante 02</b>
+    <ul>
+      <li>Cada bloque tiene contexto a la izquierda: ayuda al coordinador nuevo a entender qué pide cada sección.</li>
+      <li>Más ancho visual, ocupa más alto pero la lectura es más limpia.</li>
+      <li>Bueno para reutilizar el patrón en otros formularios del SITVO.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================================================================================== -->
+<!-- VARIANT 3 — WIZARD                                                                  -->
+<!-- ================================================================================== -->
+<section class="variant" data-v="v3">
+  <div class="v3-shell">
+    <div class="stepper">
+      <div class="step done">
+        <div class="n">✓</div>
+        <div class="lbl"><b>Alumno</b><span>Datos generales</span></div>
+      </div>
+      <div class="step active">
+        <div class="n">2</div>
+        <div class="lbl"><b>Proyecto</b><span>Modalidad y asesores</span></div>
+      </div>
+      <div class="step">
+        <div class="n">3</div>
+        <div class="lbl"><b>Anexos</b><span>PDFs firmados</span></div>
+      </div>
+    </div>
+
+    <div class="v3-card">
+      <div class="progress"><span style="width:66%"></span></div>
+      <h3>Paso 2 de 3 — Proyecto y asesoría</h3>
+      <p class="lead">Define qué tipo de residencia hará el alumno y quién lo asesorará.</p>
+
+      <div class="v3-grid">
+        <div class="row">
+          <div class="field">
+            <label>Tipo de proyecto <span class="req">*</span></label>
+            <select class="select placeholder">
+              <option>Selecciona el tipo…</option>
+              <option>Proyecto interno</option>
+              <option>Proyecto externo</option>
+              <option>Proyecto propio</option>
+            </select>
+            <div class="help">Interno = dentro del ITVO. Externo = empresa u organismo. Propio = iniciativa del residente.</div>
+          </div>
+          <div class="field">
+            <label>Nombre del proyecto <span class="req">*</span></label>
+            <input class="input" type="text" placeholder="Título del proyecto de residencia" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label>Asesor interno <span class="req">*</span></label>
+            <input class="input" type="text" placeholder="Docente del ITVO" />
+          </div>
+          <div class="field">
+            <label>Asesor externo</label>
+            <input class="input" type="text" placeholder="Solo si el proyecto es externo" />
+          </div>
+        </div>
+
+        <div class="row-3">
+          <div class="field">
+            <label>Fecha carta aceptación <span class="req">*</span></label>
+            <input class="input date" type="date" />
+          </div>
+          <div class="field">
+            <label>Inicio residencia <span class="req">*</span></label>
+            <input class="input date" type="date" />
+          </div>
+          <div class="field">
+            <label>Fin residencia <span class="req">*</span></label>
+            <input class="input date" type="date" />
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <div class="left"><button class="btn ghost">← Anterior</button></div>
+        <div class="left">
+          <button class="btn">Guardar y salir</button>
+          <button class="btn primary">Continuar a Anexos →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <b>Notas · Variante 03</b>
+    <ul>
+      <li>Wizard de 3 pasos: alumno → proyecto + fechas → anexos. Bueno para usuarios poco frecuentes.</li>
+      <li>El progreso se guarda; el coordinador puede salir y volver.</li>
+      <li>Riesgo: para captura masiva es más lento que el modo Clásico.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================================================================================== -->
+<!-- VARIANT 4 — DOS COLUMNAS + RESUMEN                                                  -->
+<!-- ================================================================================== -->
+<section class="variant" data-v="v4">
+  <div class="v4-grid">
+    <div class="v4-form">
+      <h3>Nuevo registro de residencia</h3>
+      <p class="lead">Captura todos los campos. El panel a la derecha se actualiza en vivo.</p>
+
+      <div class="v4-block">
+        <div class="section-title"><span class="dot">01</span> Alumno</div>
+        <div class="row">
+          <div class="field">
+            <label>Nombre del alumno <span class="req">*</span></label>
+            <input class="input" type="text" placeholder="Apellidos y nombre(s)" />
+          </div>
+          <div class="field">
+            <label>Número de control <span class="req">*</span></label>
+            <input class="input mono" type="text" placeholder="20E12345" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Carrera <span class="req">*</span></label>
+          <select class="select placeholder">
+            <option>Selecciona una carrera…</option>
+            <option>Ingeniería en Sistemas Computacionales</option>
+            <option>Ingeniería en Gestión Empresarial</option>
+            <option>Ingeniería en Agronomía</option>
+            <option>Ingeniería en Innovación Agrícola Sustentable</option>
+            <option>Ingeniería Forestal</option>
+            <option>Licenciatura en Biología</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="v4-block">
+        <div class="section-title"><span class="dot">02</span> Fechas</div>
+        <div class="row-3">
+          <div class="field">
+            <label>Carta aceptación <span class="req">*</span></label>
+            <input class="input date" type="date" />
+          </div>
+          <div class="field">
+            <label>Inicio <span class="req">*</span></label>
+            <input class="input date" type="date" />
+          </div>
+          <div class="field">
+            <label>Fin <span class="req">*</span></label>
+            <input class="input date" type="date" />
+          </div>
+        </div>
+      </div>
+
+      <div class="v4-block">
+        <div class="section-title"><span class="dot">03</span> Proyecto</div>
+        <div class="row">
+          <div class="field">
+            <label>Tipo de proyecto <span class="req">*</span></label>
+            <select class="select placeholder">
+              <option>Selecciona el tipo…</option>
+              <option>Proyecto interno</option>
+              <option>Proyecto externo</option>
+              <option>Proyecto propio</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Nombre del proyecto</label>
+            <input class="input" type="text" placeholder="Título" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Asesor interno <span class="req">*</span></label>
+            <input class="input" type="text" placeholder="Docente del ITVO" />
+          </div>
+          <div class="field">
+            <label>Asesor externo</label>
+            <input class="input" type="text" placeholder="Si aplica" />
+          </div>
+        </div>
+      </div>
+
+      <div class="v4-block">
+        <div class="section-title"><span class="dot">04</span> Anexos</div>
+        <div class="field">
+          <label>Anexo 29 — Solicitud de residencia (PDF) <span class="req">*</span></label>
+          <label class="upload" for="anx29-v4">
+            <div class="ico">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div class="meta"><b>Subir Anexo 29</b><span>Máx. 5 MB · .pdf</span></div>
+            <button class="browse" type="button">Examinar</button>
+            <input id="anx29-v4" type="file" accept="application/pdf" hidden />
+          </label>
+        </div>
+        <div class="field">
+          <label>Anexo 30 — Asignación de asesor (PDF) <span class="req">*</span></label>
+          <label class="upload" for="anx30-v4">
+            <div class="ico">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div class="meta"><b>Subir Anexo 30</b><span>Máx. 5 MB · .pdf</span></div>
+            <button class="browse" type="button">Examinar</button>
+            <input id="anx30-v4" type="file" accept="application/pdf" hidden />
+          </label>
+        </div>
+      </div>
+
+      <div class="actions">
+        <div class="left"><button class="btn ghost">Cancelar</button></div>
+        <div class="left">
+          <button class="btn">Guardar borrador</button>
+        </div>
+      </div>
+    </div>
+
+    <aside class="v4-summary">
+      <h4>Resumen del expediente</h4>
+      <dl>
+        <div>
+          <dt>Alumno</dt>
+          <dd class="empty">Sin capturar</dd>
+        </div>
+        <div>
+          <dt>No. control</dt>
+          <dd class="empty">—</dd>
+        </div>
+        <div>
+          <dt>Carrera</dt>
+          <dd class="empty">Sin seleccionar</dd>
+        </div>
+        <div class="divider"></div>
+        <div>
+          <dt>Periodo</dt>
+          <dd class="empty">Fechas pendientes</dd>
+        </div>
+        <div>
+          <dt>Modalidad</dt>
+          <dd class="empty">Sin definir</dd>
+        </div>
+        <div>
+          <dt>Asesor interno</dt>
+          <dd class="empty">—</dd>
+        </div>
+        <div class="divider"></div>
+        <div>
+          <dt>Anexos</dt>
+          <dd>
+            <div class="anex"><span>Anexo 29</span><span class="pending">Pendiente</span></div>
+            <div class="anex" style="margin-top:6px"><span>Anexo 30</span><span class="pending">Pendiente</span></div>
+          </dd>
+        </div>
+      </dl>
+      <button class="submit-cta">Registrar residencia</button>
+    </aside>
+  </div>
+
+  <div class="notes" style="max-width:none">
+    <b>Notas · Variante 04</b>
+    <ul>
+      <li>Panel lateral en navy que recoge el lenguaje visual del header. El resumen se actualiza en vivo y refuerza qué falta.</li>
+      <li>CTA principal vive en el panel — siempre visible al hacer scroll.</li>
+      <li>Riesgo: requiere viewport ≥1100px; en móvil el panel pasa abajo.</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+  const tabs = document.querySelectorAll('#tabs button');
+  const variants = document.querySelectorAll('.variant');
+  const meta = document.getElementById('meta');
+  const metaInfo = {
+    v1: ['Variante 01 · Clásico', 'Columna única, denso, label arriba — para captura rápida.'],
+    v2: ['Variante 02 · Por secciones', 'Cards con contexto a la izquierda; lectura limpia.'],
+    v3: ['Variante 03 · Wizard', 'Stepper de 3 pasos; ideal para usuarios poco frecuentes.'],
+    v4: ['Variante 04 · Dos columnas + resumen', 'Form + panel lateral en vivo con CTA fija.']
+  };
+  tabs.forEach(t => t.addEventListener('click', () => {
+    const v = t.dataset.v;
+    tabs.forEach(x => x.setAttribute('aria-selected', x === t ? 'true' : 'false'));
+    variants.forEach(s => s.classList.toggle('active', s.dataset.v === v));
+    meta.innerHTML = `<span class="pill">${metaInfo[v][0]}</span><span>${metaInfo[v][1]}</span>`;
+    window.scrollTo({top: 0, behavior:'smooth'});
+  }));
+</script>
+</body>
+</html>

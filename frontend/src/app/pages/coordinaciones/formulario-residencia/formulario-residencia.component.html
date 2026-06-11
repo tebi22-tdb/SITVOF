@@ -1,0 +1,233 @@
+<app-header [showNuevoButton]="false" [showAgregarUsuarioButton]="false"></app-header>
+
+<!-- Título -->
+<div class="page-title">
+  <div>
+    <h2>{{ modoEdicion ? 'Editar registro de residencia' : 'Registro de residencia profesional' }}</h2>
+    <p>Captura los datos del residente, el proyecto y los anexos requeridos para iniciar el expediente.</p>
+  </div>
+</div>
+
+<!-- Cargando (modo edición) -->
+<div class="loading" *ngIf="cargando">Cargando datos del registro…</div>
+
+<!-- Formulario V1 Clásico -->
+<div class="form-section" *ngIf="!cargando">
+  <div class="v1-card">
+    <h3>Datos de la residencia</h3>
+    <p class="lead">
+      Llena todos los campos. Los marcados con <span class="req-star">*</span> son obligatorios.
+      Los documentos adjuntos son opcionales.
+    </p>
+
+    <!-- Error -->
+    <div class="field-error-banner" *ngIf="error">{{ error }}</div>
+
+    <div class="v1-grid">
+
+      <!-- Alumno + NC -->
+      <div class="row-2">
+        <div class="field">
+          <label>Nombre del alumno <span class="req-star">*</span></label>
+          <input
+            class="input"
+            type="text"
+            [(ngModel)]="form.nombre_alumno"
+            placeholder="Apellidos y nombre(s)"
+          />
+        </div>
+        <div class="field">
+          <label>Número de control <span class="req-star">*</span></label>
+          <input
+            class="input mono"
+            type="text"
+            [(ngModel)]="form.numero_control"
+            placeholder="20E12345"
+            maxlength="12"
+          />
+        </div>
+      </div>
+
+      <!-- Coordinación + Carrera -->
+      <div class="row-2">
+        <div class="field">
+          <label>Coordinación <span class="req-star">*</span></label>
+          <select class="select" [(ngModel)]="form.coordinacion" (ngModelChange)="onCoordinacionChange()">
+            <option value="">Selecciona una coordinación…</option>
+            <option *ngFor="let c of coordinaciones" [value]="c.id">{{ c.nombre }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Carrera <span class="req-star">*</span></label>
+          <select class="select" [(ngModel)]="form.carrera" [disabled]="!form.coordinacion">
+            <option value="">{{ form.coordinacion ? 'Selecciona una carrera…' : 'Primero elige coordinación' }}</option>
+            <option *ngFor="let car of carrerasDisponibles" [value]="car">{{ car }}</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Fechas -->
+      <div class="row-3">
+        <div class="field">
+          <label>Fecha de carta de aceptación <span class="req-star">*</span></label>
+          <input class="input" type="date" [(ngModel)]="form.fecha_carta_aceptacion" />
+        </div>
+        <div class="field">
+          <label>Inicio de residencia <span class="req-star">*</span></label>
+          <input class="input" type="date" [(ngModel)]="form.fecha_inicio" />
+        </div>
+        <div class="field">
+          <label>Fin de residencia <span class="req-star">*</span></label>
+          <input class="input" type="date" [(ngModel)]="form.fecha_fin" />
+        </div>
+      </div>
+
+      <!-- Tipo + Nombre proyecto -->
+      <div class="row-2">
+        <div class="field">
+          <label>Tipo de proyecto <span class="req-star">*</span></label>
+          <select class="select" [(ngModel)]="form.tipo_proyecto">
+            <option value="">Selecciona el tipo…</option>
+            <option value="interno">Proyecto interno</option>
+            <option value="externo">Proyecto externo</option>
+            <option value="propio">Proyecto propio</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Nombre del proyecto <span class="req-star">*</span></label>
+          <input
+            class="input"
+            type="text"
+            [(ngModel)]="form.nombre_proyecto"
+            placeholder="Título del proyecto de residencia"
+          />
+        </div>
+      </div>
+
+      <!-- Asesores -->
+      <div class="row-2">
+        <div class="field">
+          <label>Asesor interno <span class="req-star">*</span></label>
+          <input
+            class="input"
+            type="text"
+            [(ngModel)]="form.asesor_interno"
+            placeholder="Nombre completo del docente"
+          />
+          <div class="field-help">Docente adscrito al ITVO.</div>
+        </div>
+        <div class="field">
+          <label>Asesor externo <span class="optional-label">(opcional)</span></label>
+          <input
+            class="input"
+            type="text"
+            [(ngModel)]="form.asesor_externo"
+            placeholder="Nombre completo (si aplica)"
+          />
+          <div class="field-help">Requerido para proyectos externos.</div>
+        </div>
+      </div>
+
+      <!-- Estado (solo edición) -->
+      <div class="field" *ngIf="modoEdicion">
+        <label>Estado del expediente</label>
+        <select class="select" [(ngModel)]="form.estado" style="max-width: 320px">
+          <option value="activa">Activa</option>
+          <option value="pendiente_anexos">Anexos pendientes</option>
+          <option value="en_revision">En revisión</option>
+          <option value="finalizada">Finalizada</option>
+          <option value="cancelada">Cancelada</option>
+        </select>
+      </div>
+
+      <!-- Separador documentos -->
+      <div class="section-sep">
+        <span class="section-sep-label">Documentos adjuntos</span>
+        <span class="section-sep-note">Opcionales · Solo PDF · Máx. 5 MB</span>
+      </div>
+
+      <!-- Anexos -->
+      <div class="row-2">
+        <!-- Anexo 29 -->
+        <div class="field">
+          <label>Anexo 29 — Solicitud de residencia (PDF)</label>
+          <label
+            class="upload"
+            [class.done]="anexo29 !== null"
+            [class.existing]="anexo29Existente && anexo29 === null"
+            for="anx29"
+          >
+            <div class="upload-ico">
+              <svg *ngIf="anexo29 === null && !anexo29Existente" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+              <svg *ngIf="anexo29 !== null || anexo29Existente" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <div class="upload-meta">
+              <b *ngIf="anexo29 !== null">{{ anexo29Nombre }}</b>
+              <b *ngIf="anexo29 === null && anexo29Existente">Anexo 29 ya adjunto</b>
+              <b *ngIf="anexo29 === null && !anexo29Existente">Arrastra el PDF o haz clic para subir</b>
+              <span *ngIf="anexo29 !== null">Archivo seleccionado</span>
+              <span *ngIf="anexo29 === null && anexo29Existente">Haz clic para reemplazar</span>
+              <span *ngIf="anexo29 === null && !anexo29Existente">Máx. 5 MB · Solo .pdf</span>
+            </div>
+            <button class="upload-browse" type="button" (click)="$event.stopPropagation()">
+              {{ anexo29 !== null || anexo29Existente ? 'Cambiar' : 'Examinar' }}
+            </button>
+            <input id="anx29" type="file" accept="application/pdf" hidden (change)="onAnexo29Change($event)" />
+          </label>
+        </div>
+
+        <!-- Anexo 30 -->
+        <div class="field">
+          <label>Anexo 30 — Asignación de asesor (PDF)</label>
+          <label
+            class="upload"
+            [class.done]="anexo30 !== null"
+            [class.existing]="anexo30Existente && anexo30 === null"
+            for="anx30"
+          >
+            <div class="upload-ico">
+              <svg *ngIf="anexo30 === null && !anexo30Existente" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+              <svg *ngIf="anexo30 !== null || anexo30Existente" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <div class="upload-meta">
+              <b *ngIf="anexo30 !== null">{{ anexo30Nombre }}</b>
+              <b *ngIf="anexo30 === null && anexo30Existente">Anexo 30 ya adjunto</b>
+              <b *ngIf="anexo30 === null && !anexo30Existente">Arrastra el PDF o haz clic para subir</b>
+              <span *ngIf="anexo30 !== null">Archivo seleccionado</span>
+              <span *ngIf="anexo30 === null && anexo30Existente">Haz clic para reemplazar</span>
+              <span *ngIf="anexo30 === null && !anexo30Existente">Máx. 5 MB · Solo .pdf</span>
+            </div>
+            <button class="upload-browse" type="button" (click)="$event.stopPropagation()">
+              {{ anexo30 !== null || anexo30Existente ? 'Cambiar' : 'Examinar' }}
+            </button>
+            <input id="anx30" type="file" accept="application/pdf" hidden (change)="onAnexo30Change($event)" />
+          </label>
+        </div>
+      </div>
+
+      <!-- Acciones -->
+      <div class="form-actions">
+        <button class="btn ghost" type="button" (click)="cancelar()" [disabled]="guardando">Cancelar</button>
+        <button class="btn primary" type="button" (click)="guardar()" [disabled]="guardando">
+          <span *ngIf="!guardando">{{ modoEdicion ? 'Guardar cambios' : 'Registrar residencia' }} →</span>
+          <span *ngIf="guardando">Guardando…</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
