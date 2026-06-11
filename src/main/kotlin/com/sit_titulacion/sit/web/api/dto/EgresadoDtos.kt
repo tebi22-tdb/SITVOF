@@ -221,6 +221,8 @@ data class ProcesoAnteriorDto(
     @JsonProperty("fecha_creacion_anexo_9_1") val fechaCreacionAnexo91: String? = null,
     @JsonProperty("fecha_confirmacion_entrega_anexo_9_1") val fechaConfirmacionEntregaAnexo91: String? = null,
     @JsonProperty("fecha_solicitud_anexo_9_2") val fechaSolicitudAnexo92: String? = null,
+    @JsonProperty("fecha_aceptacion_servicios_escolares_anexo_9_2")
+    val fechaAceptacionServiciosEscolaresAnexo92: String? = null,
     @JsonProperty("fecha_confirmacion_recibido_anexo_9_2") val fechaConfirmacionRecibidoAnexo92: String? = null,
     @JsonProperty("fecha_solicitud_sinodales") val fechaSolicitudSinodales: String? = null,
     @JsonProperty("fecha_confirmacion_sinodales_recibidos") val fechaConfirmacionSinodalesRecibidos: String? = null,

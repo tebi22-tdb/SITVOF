@@ -1,3 +1,4 @@
+import { aplicarValidacionPdfInput, validarArchivoPdf } from '../../../core/archivo-pdf';
 import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -176,23 +177,23 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
   onArchivoRevision(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
-    if (!file) {
-      this.archivoRevision = null;
-      this.nombreArchivoRevision = '';
-      return;
-    }
-    const esPdfNombre = file.name.toLowerCase().endsWith('.pdf');
-    const esPdfTipo = (file.type || '').toLowerCase() === 'application/pdf';
-    if (!esPdfNombre && !esPdfTipo) {
-      this.archivoRevision = null;
-      this.nombreArchivoRevision = '';
-      this.mensaje = 'Solo se permite adjuntar archivos PDF en la revisión.';
-      input.value = '';
-      return;
-    }
-    this.archivoRevision = file;
-    this.nombreArchivoRevision = file.name;
-    this.mensaje = '';
+    aplicarValidacionPdfInput(
+      input,
+      file,
+      (ok) => {
+        this.archivoRevision = ok;
+        this.nombreArchivoRevision = ok.name;
+        this.mensaje = '';
+      },
+      (msg) => {
+        this.mensaje = msg;
+        this.nombreArchivoRevision = '';
+      },
+      () => {
+        this.archivoRevision = null;
+        this.nombreArchivoRevision = '';
+      },
+    );
   }
 
   togglePanelReemplazo(): void {
@@ -203,6 +204,13 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file || !this.id || this.subiendoDocumento) return;
+    const err = validarArchivoPdf(file);
+    if (err) {
+      input.value = '';
+      this.errorSubidaArchivo = true;
+      this.mensajeSubidaArchivo = err;
+      return;
+    }
     this.panelReemplazoExpandido = true;
     this.subiendoDocumento = true;
     this.mensajeSubidaArchivo = '';

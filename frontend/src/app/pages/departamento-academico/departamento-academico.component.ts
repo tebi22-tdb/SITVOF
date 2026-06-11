@@ -1,3 +1,4 @@
+import { validarArchivoPdf } from '../../core/archivo-pdf';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -364,8 +365,20 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
 
   onTesisLiberacionSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    this.archivoTesisLiberacion = input.files?.[0] ?? null;
+    const file = input.files?.[0] ?? null;
     this.mensajeLiberacionProducto = '';
+    if (!file) {
+      this.archivoTesisLiberacion = null;
+      return;
+    }
+    const err = validarArchivoPdf(file);
+    if (err) {
+      input.value = '';
+      this.archivoTesisLiberacion = null;
+      this.mensajeLiberacionProducto = err;
+      return;
+    }
+    this.archivoTesisLiberacion = file;
   }
 
   liberarProductoNoRes(item: DepartamentoListItem, ev?: Event): void {

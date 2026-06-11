@@ -104,6 +104,19 @@ import { AuthService } from '../../services/auth.service';
               </svg>
             </div>
           </button>
+          <button type="button" class="card" (click)="irServiciosEscolares()">
+            <div class="card-texto">
+              <h2>Departamento de Servicios escolares</h2>
+              <p>Bandeja de constancias 9.2 solicitadas por la DEP: pendientes y confirmación.</p>
+            </div>
+            <div class="card-icono" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="card-icono-svg">
+                <path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M8 7h8M8 11h8M8 15h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M16 17l2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </button>
           <button type="button" class="card" (click)="irGestionCuentas()">
             <div class="card-texto">
               <h2>Gestión de cuentas</h2>
@@ -262,6 +275,10 @@ export class CoordinadorInicioComponent {
 
   irDepartamentoAcademicoMenu(): void {
     this.router.navigate(['/home/departamento-academico']);
+  }
+
+  irServiciosEscolares(): void {
+    this.router.navigate(['/servicios-escolares']);
   }
 
   irAltaEgresadosUsuarios(): void {

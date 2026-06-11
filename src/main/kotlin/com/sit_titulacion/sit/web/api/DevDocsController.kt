@@ -9,9 +9,11 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.context.annotation.Profile
 import org.springframework.web.bind.annotation.RestController
 
-// TEMPORAL — eliminar antes de producción
+/** Solo desarrollo local (--spring.profiles.active=dev). */
+@Profile("dev")
 @RestController
 @RequestMapping("/dev")
 class DevDocsController(

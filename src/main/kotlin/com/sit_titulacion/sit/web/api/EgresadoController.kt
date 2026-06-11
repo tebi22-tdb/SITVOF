@@ -273,16 +273,19 @@ class EgresadoController(
     @GetMapping("/verificar-originalidad")
     fun verificarOriginalidad(
         @RequestParam titulo: String,
+        @RequestParam(required = false) modalidad: String? = null,
         @RequestParam(required = false) excluirId: String? = null,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
         if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        val resultado = originalidadService.verificar(titulo, excluirId)
+        val resultado = originalidadService.verificar(titulo, modalidad, excluirId)
         return ResponseEntity.ok(
             mapOf(
                 "estado" to resultado.estado,
                 "titulo_similar" to (resultado.tituloSimilar ?: ""),
                 "expediente_estado" to (resultado.expedienteEstado ?: ""),
+                "motivo" to (resultado.motivo ?: ""),
+                "coincidencias_misma_modalidad" to resultado.coincidenciasMismaModalidad,
             ),
         )
     }
@@ -331,18 +334,22 @@ class EgresadoController(
                 ),
             )
         }
-        val origResultado = originalidadService.verificar(datos.nombreProyecto ?: "")
+        val origResultado = originalidadService.verificar(datos.nombreProyecto ?: "", datos.modalidad)
         if (origResultado.estado == "BLOQUEADO" || origResultado.estado == "ADVERTENCIA") {
+            val aviso = when {
+                origResultado.motivo == "cupo_modalidad" ->
+                    "Ya hay ${OriginalidadService.MAX_CUPO_MISMA_MODALIDAD} egresados con el título «${datos.nombreProyecto}» en la modalidad «${datos.modalidad}». No se puede registrar otro con el mismo nombre."
+                origResultado.estado == "BLOQUEADO" ->
+                    "El título «${datos.nombreProyecto}» ya está registrado en otra modalidad y no puede usarse."
+                else ->
+                    "El título «${datos.nombreProyecto}» es demasiado similar a uno existente en otra modalidad; debes usar un título distinto."
+            }
             return ResponseEntity.status(HttpStatus.CONFLICT).body(
                 EgresadoResponseDto(
                     id = "",
                     numero_control = datos.numero_control,
                     credenciales_enviadas_correo = false,
-                    aviso_credenciales = if (origResultado.estado == "BLOQUEADO") {
-                        "El título «${datos.nombreProyecto}» ya está registrado en el sistema y no puede usarse nuevamente."
-                    } else {
-                        "El título «${datos.nombreProyecto}» es demasiado similar a uno existente; debes usar un título distinto."
-                    },
+                    aviso_credenciales = aviso,
                 ),
             )
         }
@@ -633,7 +640,7 @@ class EgresadoController(
             ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                 mapOf(
                     "error" to
-                        "No se pudo confirmar: servicios escolares debe atender primero la solicitud 9.2, o ya estaba registrada la recepción.",
+                        "No se pudo confirmar: falta la solicitud de la 9.2, Servicios escolares aún no confirma la generación, o ya estaba confirmado.",
                 ),
             )
         }
@@ -884,7 +891,7 @@ class EgresadoController(
         } else {
             ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(mapOf("error" to "No se pudo agendar: fecha/hora fuera del horario permitido (L-V 10:00-14:00) o el intervalo ya está ocupado."))
+                .body(mapOf("error" to "No se pudo agendar: fecha/hora fuera del horario permitido (L-V 9:00-14:00) o el intervalo ya está ocupado."))
         }
     }
 

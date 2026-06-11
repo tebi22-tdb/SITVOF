@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { HeaderComponent } from '../../layout/header/header.component';
 import { EgresadoService, EgresadoDetail, RevisionApi } from '../../services/egresado.service';
 import { CatalogoService } from '../../services/catalogo.service';
+import { aplicarValidacionPdfInput, validarArchivoPdf } from '../../core/archivo-pdf';
 import {
   calcularVistaPlazosNoResidencia,
   calcularVistaPlazosResidencia,
@@ -94,6 +95,7 @@ export class SeguimientoComponent implements OnInit {
       fecha_creacion_anexo_9_1: p.fecha_creacion_anexo_9_1,
       fecha_confirmacion_entrega_anexo_9_1: p.fecha_confirmacion_entrega_anexo_9_1,
       fecha_solicitud_anexo_9_2: p.fecha_solicitud_anexo_9_2,
+      fecha_aceptacion_servicios_escolares_anexo_9_2: p.fecha_aceptacion_servicios_escolares_anexo_9_2,
       fecha_confirmacion_recibido_anexo_9_2: p.fecha_confirmacion_recibido_anexo_9_2,
       fecha_solicitud_sinodales: p.fecha_solicitud_sinodales,
       fecha_confirmacion_sinodales_recibidos: p.fecha_confirmacion_sinodales_recibidos,
@@ -225,8 +227,24 @@ export class SeguimientoComponent implements OnInit {
     const idxActivo = raw.findIndex((p) => !p.completado);
     return raw.map((p, i) => ({
       ...p,
+      numero: i + 1,
       activo: idxActivo >= 0 && i === idxActivo,
     }));
+  }
+
+  /** Paso tras confirmación de Servicios escolares (anexo 9.2 listo para recoger). */
+  private pasoAlumnoServiciosEscolaresGenero92(
+    d: EgresadoDetail,
+    fh: (iso?: string | null) => string,
+  ): Omit<PasoAlumnoVista, 'activo' | 'numero'> {
+    const completado = !!d.fecha_aceptacion_servicios_escolares_anexo_9_2;
+    return {
+      titulo: 'Anexo 9.2 generado por Servicios escolares',
+      detalle:
+        'El departamento de servicios escolares generó tu anexo 9.2, favor de pasar a recogerlo.',
+      fecha: fh(d.fecha_aceptacion_servicios_escolares_anexo_9_2),
+      completado,
+    };
   }
 
   /** Texto del paso «acto agendado»; si hubo reagenda, indica que los pasos posteriores se deben repetir. */
@@ -306,8 +324,9 @@ export class SeguimientoComponent implements OnInit {
         fecha: fh(d.fecha_solicitud_anexo_9_2),
         completado: c6,
       },
+      { numero: 7, ...this.pasoAlumnoServiciosEscolaresGenero92(d, fh) },
       {
-        numero: 7,
+        numero: 8,
         titulo: 'Constancia 9.2 recibida',
         detalle:
           'Quedó registrada la recepción de la constancia 9.2 (constancia de no inconveniencia para acto de recepción profesional) en división de estudios profesionales.',
@@ -315,7 +334,7 @@ export class SeguimientoComponent implements OnInit {
         completado: c7,
       },
       {
-        numero: 8,
+        numero: 9,
         titulo: 'Solicitud de sinodales',
         detalle: 'La DEP solicitó al departamento académico la asignación de sinodales.',
         fecha: fh(d.fecha_solicitud_sinodales),
@@ -446,8 +465,9 @@ export class SeguimientoComponent implements OnInit {
         fecha: fh(d.fecha_solicitud_anexo_9_2),
         completado: c5,
       },
+      { numero: 6, ...this.pasoAlumnoServiciosEscolaresGenero92(d, fh) },
       {
-        numero: 6,
+        numero: 7,
         titulo: 'Constancia 9.2 recibida',
         detalle:
           'Quedó registrada la recepción de la constancia 9.2 (constancia de no inconveniencia para acto de recepción profesional) en división de estudios profesionales.',
@@ -455,14 +475,14 @@ export class SeguimientoComponent implements OnInit {
         completado: c6,
       },
       {
-        numero: 7,
+        numero: 8,
         titulo: 'Solicitud de sinodales',
         detalle: 'La DEP solicitó al departamento académico la asignación de sinodales.',
         fecha: fh(d.fecha_solicitud_sinodales),
         completado: c7,
       },
       {
-        numero: 8,
+        numero: 9,
         titulo: 'Oficio de sinodales recibido',
         detalle: 'Quedó confirmada la recepción del oficio de sinodales que el departamento académico entregó a la DEP.',
         fecha: fh(d.fecha_confirmacion_sinodales_recibidos),
@@ -604,8 +624,9 @@ export class SeguimientoComponent implements OnInit {
         fecha: fh(d.fecha_solicitud_anexo_9_2),
         completado: c6,
       },
+      { numero: 7, ...this.pasoAlumnoServiciosEscolaresGenero92(d, fh) },
       {
-        numero: 7,
+        numero: 8,
         titulo: 'Constancia 9.2 recibida',
         detalle:
           'Quedó registrada la recepción de la constancia 9.2 (constancia de no inconveniencia para acto de recepción profesional) en división de estudios profesionales.',
@@ -613,21 +634,21 @@ export class SeguimientoComponent implements OnInit {
         completado: c7,
       },
       {
-        numero: 8,
+        numero: 9,
         titulo: 'Solicitud de sinodales',
         detalle: 'La DEP solicitó al departamento académico la asignación de sinodales.',
         fecha: fh(d.fecha_solicitud_sinodales),
         completado: c8,
       },
       {
-        numero: 9,
+        numero: 10,
         titulo: 'Oficio de sinodales recibido',
         detalle: 'Quedó confirmada la recepción del oficio de sinodales que el departamento académico entregó a la DEP.',
         fecha: fh(d.fecha_confirmacion_sinodales_recibidos),
         completado: c9,
       },
       {
-        numero: 10,
+        numero: 11,
         titulo: 'Acto protocolario agendado',
         detalle: this.detalleTextoPasoActo93AgendadoAlumno(d),
         fechaDetalleResaltada: d.fecha_agenda_acto_9_3 ? fh(d.fecha_agenda_acto_9_3) : undefined,
@@ -635,7 +656,7 @@ export class SeguimientoComponent implements OnInit {
         completado: c10,
       },
       {
-        numero: 11,
+        numero: 12,
         titulo: 'Anexo 9.3 generado',
         detalle:
           'La DEP generó el anexo 9.3 (aviso de realización de acto protocolario de titulación integral). Favor de recogerlo en división de estudios profesionales.',
@@ -819,8 +840,9 @@ export class SeguimientoComponent implements OnInit {
         fecha: fh(d.fecha_solicitud_anexo_9_2),
         completado: c11,
       },
+      { numero: 13, ...this.pasoAlumnoServiciosEscolaresGenero92(d, fh) },
       {
-        numero: 13,
+        numero: 14,
         titulo: 'Constancia 9.2 recibida',
         detalle:
           'Quedó registrada la recepción de la constancia 9.2 (constancia de no inconveniencia para acto de recepción profesional) en división de estudios profesionales.',
@@ -828,7 +850,7 @@ export class SeguimientoComponent implements OnInit {
         completado: c12,
       },
       {
-        numero: 14,
+        numero: 15,
         titulo: 'Solicitud de sinodales',
         detalle: 'La DEP solicitó al departamento académico la asignación de sinodales.',
         fecha: fh(d.fecha_solicitud_sinodales),
@@ -1021,12 +1043,17 @@ export class SeguimientoComponent implements OnInit {
   onArchivosDocEscaneadaSeleccionados(ev: Event): void {
     const input = ev.target as HTMLInputElement;
     const files = input.files ? Array.from(input.files) : [];
-    const pdfs = files.filter((f) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
-    this.archivosPdfEscaneados = pdfs;
-    this.mensajeDocEscaneada = '';
-    if (files.length > pdfs.length) {
-      this.mensajeDocEscaneada = 'Solo se incluyen archivos PDF; se omitieron otros formatos.';
+    const pdfs: File[] = [];
+    const errores: string[] = [];
+    for (const f of files) {
+      const err = validarArchivoPdf(f);
+      if (err) errores.push(`${f.name}: ${err}`);
+      else pdfs.push(f);
     }
+    this.archivosPdfEscaneados = pdfs;
+    this.mensajeDocEscaneada = errores.length
+      ? 'Solo se incluyen PDF válidos (máx. 100 MB). ' + errores.join(' ')
+      : '';
   }
 
   enviarDocumentacionEscaneadaAlumno(): void {
@@ -1081,22 +1108,19 @@ export class SeguimientoComponent implements OnInit {
     const input = ev.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
     this.mensajeCorreccionExpediente = '';
-    if (!file) {
-      this.archivoCorreccionExpediente = null;
-      return;
-    }
-    const ok =
-      file.type === 'application/pdf' ||
-      file.name.toLowerCase().endsWith('.pdf') ||
-      file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-      file.name.toLowerCase().endsWith('.docx');
-    if (!ok) {
-      this.archivoCorreccionExpediente = null;
-      input.value = '';
-      this.mensajeCorreccionExpediente = 'Solo se permiten archivos PDF o Word (.docx).';
-      return;
-    }
-    this.archivoCorreccionExpediente = file;
+    aplicarValidacionPdfInput(
+      input,
+      file,
+      (ok) => {
+        this.archivoCorreccionExpediente = ok;
+      },
+      (msg) => {
+        this.mensajeCorreccionExpediente = msg;
+      },
+      () => {
+        this.archivoCorreccionExpediente = null;
+      },
+    );
   }
 
   enviarExpedienteCorregido(): void {
@@ -1114,7 +1138,7 @@ export class SeguimientoComponent implements OnInit {
       error: (err: { error?: { error?: string } }) => {
         this.enviandoCorreccionExpediente = false;
         this.mensajeCorreccionExpediente =
-          err?.error?.error ?? 'No se pudo subir el archivo. Verifica que sea PDF o .docx e intenta de nuevo.';
+          err?.error?.error ?? 'No se pudo subir el archivo. Verifica que sea PDF e intenta de nuevo.';
       },
     });
   }
