@@ -1,9 +1,14 @@
 <div class="se-page">
-  <app-header [showNuevoButton]="false" [showAgregarUsuarioButton]="false" [showVolverInicioButton]="false"></app-header>
+  <app-header
+    [showNuevoButton]="false"
+    [showAgregarUsuarioButton]="false"
+    [showVolverInicioButton]="mostrarVolverInicio"
+    (volverInicioClick)="volverInicio()"
+  ></app-header>
 
   <main class="se-main">
     <header class="se-cabecera">
-      <h1 class="se-titulo">Servicios escolares — Constancia 9.2</h1>
+      <h1 class="se-titulo">Servicios escolares</h1>
     </header>
 
     <nav class="se-tabs" aria-label="Estado de constancias">

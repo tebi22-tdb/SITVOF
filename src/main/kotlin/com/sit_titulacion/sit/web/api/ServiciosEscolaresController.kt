@@ -60,7 +60,7 @@ class ServiciosEscolaresController(
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
         }
-        if (!RolSoporte.tieneAlgunRol(principal.getRol(), "servicios_escolares")) {
+        if (!RolSoporte.tieneAlgunRol(principal.getRol(), "servicios_escolares", "coordinador", "administrador")) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
         }
         return null

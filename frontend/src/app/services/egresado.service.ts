@@ -150,6 +150,7 @@ export interface ProcesoAnterior {
   fecha_creacion_anexo_9_1?: string;
   fecha_confirmacion_entrega_anexo_9_1?: string;
   fecha_solicitud_anexo_9_2?: string;
+  fecha_aceptacion_servicios_escolares_anexo_9_2?: string;
   fecha_confirmacion_recibido_anexo_9_2?: string;
   fecha_solicitud_sinodales?: string;
   fecha_confirmacion_sinodales_recibidos?: string;
@@ -530,10 +531,12 @@ export class EgresadoService {
   verificarOriginalidad(
     titulo: string,
     excluirId?: string,
-  ): Observable<{ estado: string; titulo_similar: string; expediente_estado?: string }> {
+    modalidad?: string,
+  ): Observable<{ estado: string; titulo_similar: string; expediente_estado?: string; motivo?: string; coincidencias_misma_modalidad?: number }> {
     let params = new HttpParams().set('titulo', titulo);
     if (excluirId) params = params.set('excluirId', excluirId);
-    return this.http.get<{ estado: string; titulo_similar: string; expediente_estado?: string }>(
+    if (modalidad?.trim()) params = params.set('modalidad', modalidad.trim());
+    return this.http.get<{ estado: string; titulo_similar: string; expediente_estado?: string; motivo?: string; coincidencias_misma_modalidad?: number }>(
       `${API}/verificar-originalidad`,
       { params },
     );

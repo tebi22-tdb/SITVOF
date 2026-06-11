@@ -108,11 +108,11 @@
                   >
                     <p class="timeline-corregir-expediente__tit">Subir expediente corregido</p>
                     <p class="timeline-corregir-expediente__txt">
-                      Sustituye el PDF o Word que tiene Coordinación de Apoyo a la Titulación por tu versión corregida.
+                      Sustituye el PDF que tiene Coordinación de Apoyo a la Titulación por tu versión corregida.
                     </p>
                     <input
                       type="file"
-                      accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      accept=".pdf,application/pdf"
                       class="timeline-doc-escaneada-input"
                       [disabled]="enviandoCorreccionExpediente || procesoBloqueadoPorVencimientoPlazoAlumno"
                       (change)="onArchivoCorreccionExpediente($event)"

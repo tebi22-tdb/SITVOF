@@ -106,6 +106,12 @@ export class AuthService {
     return this.usuario;
   }
 
+  /** Limpia token y usuario en memoria (sesión expirada, 401, inactividad). */
+  clearLocalSession(): void {
+    this.usuario = null;
+    sessionStorage.removeItem(SIT_ACCESS_TOKEN_KEY);
+  }
+
   isCoordinador(): boolean {
     const raw = this.usuario?.rol?.toLowerCase().trim() ?? '';
     if (!raw) return false;

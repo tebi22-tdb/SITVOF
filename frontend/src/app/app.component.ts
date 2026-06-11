@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { InactivityService } from './services/inactivity.service';
 
 /**
  * No redirigir aquí con router.url: al refrescar, la URL del router aún no coincide con la del navegador
@@ -12,4 +13,10 @@ import { RouterOutlet } from '@angular/router';
   template: '<router-outlet></router-outlet>',
   styles: '',
 })
-export class AppComponent {}
+export class AppComponent implements OnInit {
+  constructor(private inactivity: InactivityService) {}
+
+  ngOnInit(): void {
+    this.inactivity.iniciar();
+  }
+}
