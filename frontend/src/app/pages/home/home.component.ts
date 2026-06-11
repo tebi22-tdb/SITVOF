@@ -1,3 +1,4 @@
+import { validarArchivoPdf } from '../../core/archivo-pdf';
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -220,7 +221,20 @@ export class HomeComponent implements OnInit {
 
   onArchivoNuevoProceso(event: Event): void {
     const input = event.target as HTMLInputElement;
-    this.archivoNuevoProceso = input.files?.[0] ?? null;
+    const file = input.files?.[0] ?? null;
+    if (!file) {
+      this.archivoNuevoProceso = null;
+      return;
+    }
+    const err = validarArchivoPdf(file);
+    if (err) {
+      input.value = '';
+      this.archivoNuevoProceso = null;
+      this.errorNuevoProceso = err;
+      return;
+    }
+    this.errorNuevoProceso = '';
+    this.archivoNuevoProceso = file;
   }
 
   confirmarNuevoProceso(): void {

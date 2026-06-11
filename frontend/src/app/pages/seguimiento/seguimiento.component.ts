@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { HeaderComponent } from '../../layout/header/header.component';
 import { EgresadoService, EgresadoDetail, RevisionApi } from '../../services/egresado.service';
 import { CatalogoService } from '../../services/catalogo.service';
+import { aplicarValidacionPdfInput, validarArchivoPdf } from '../../core/archivo-pdf';
 import {
   calcularVistaPlazosNoResidencia,
   calcularVistaPlazosResidencia,
@@ -1042,12 +1043,17 @@ export class SeguimientoComponent implements OnInit {
   onArchivosDocEscaneadaSeleccionados(ev: Event): void {
     const input = ev.target as HTMLInputElement;
     const files = input.files ? Array.from(input.files) : [];
-    const pdfs = files.filter((f) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
-    this.archivosPdfEscaneados = pdfs;
-    this.mensajeDocEscaneada = '';
-    if (files.length > pdfs.length) {
-      this.mensajeDocEscaneada = 'Solo se incluyen archivos PDF; se omitieron otros formatos.';
+    const pdfs: File[] = [];
+    const errores: string[] = [];
+    for (const f of files) {
+      const err = validarArchivoPdf(f);
+      if (err) errores.push(`${f.name}: ${err}`);
+      else pdfs.push(f);
     }
+    this.archivosPdfEscaneados = pdfs;
+    this.mensajeDocEscaneada = errores.length
+      ? 'Solo se incluyen PDF válidos (máx. 100 MB). ' + errores.join(' ')
+      : '';
   }
 
   enviarDocumentacionEscaneadaAlumno(): void {
@@ -1102,22 +1108,19 @@ export class SeguimientoComponent implements OnInit {
     const input = ev.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
     this.mensajeCorreccionExpediente = '';
-    if (!file) {
-      this.archivoCorreccionExpediente = null;
-      return;
-    }
-    const ok =
-      file.type === 'application/pdf' ||
-      file.name.toLowerCase().endsWith('.pdf') ||
-      file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-      file.name.toLowerCase().endsWith('.docx');
-    if (!ok) {
-      this.archivoCorreccionExpediente = null;
-      input.value = '';
-      this.mensajeCorreccionExpediente = 'Solo se permiten archivos PDF o Word (.docx).';
-      return;
-    }
-    this.archivoCorreccionExpediente = file;
+    aplicarValidacionPdfInput(
+      input,
+      file,
+      (ok) => {
+        this.archivoCorreccionExpediente = ok;
+      },
+      (msg) => {
+        this.mensajeCorreccionExpediente = msg;
+      },
+      () => {
+        this.archivoCorreccionExpediente = null;
+      },
+    );
   }
 
   enviarExpedienteCorregido(): void {
@@ -1135,7 +1138,7 @@ export class SeguimientoComponent implements OnInit {
       error: (err: { error?: { error?: string } }) => {
         this.enviandoCorreccionExpediente = false;
         this.mensajeCorreccionExpediente =
-          err?.error?.error ?? 'No se pudo subir el archivo. Verifica que sea PDF o .docx e intenta de nuevo.';
+          err?.error?.error ?? 'No se pudo subir el archivo. Verifica que sea PDF e intenta de nuevo.';
       },
     });
   }

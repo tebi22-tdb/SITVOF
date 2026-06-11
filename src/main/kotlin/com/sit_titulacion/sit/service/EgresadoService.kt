@@ -802,7 +802,7 @@ class EgresadoService(
             log.info("Documento expediente reemplazado por egresado egresadoId={}", egresadoId)
             null
         } catch (ex: IllegalArgumentException) {
-            ex.message ?: "Archivo no válido (solo PDF o Word .docx)."
+            ex.message ?: "Solo se aceptan archivos PDF."
         }
     }
 
@@ -1831,12 +1831,14 @@ class EgresadoService(
     }
 
     private fun subirArchivo(archivo: MultipartFile): ObjectId {
+        ArchivoPdfValidator.validar(archivo)
         val bytes = archivo.bytes
-        val isPdf = bytes.size > 4 && bytes[0] == 0x25.toByte() && bytes[1] == 0x50.toByte() && bytes[2] == 0x44.toByte() && bytes[3] == 0x46.toByte()
-        val isDocx = bytes.size > 4 && bytes[0] == 0x50.toByte() && bytes[1] == 0x4B.toByte() && bytes[2] == 0x03.toByte() && bytes[3] == 0x04.toByte()
-        require(isPdf || isDocx) { "Solo se aceptan archivos PDF o Word (.docx)" }
-        val contentType = if (isPdf) "application/pdf" else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        return gridFsTemplate.store(bytes.inputStream(), archivo.originalFilename ?: "documento", contentType, null) as ObjectId
+        return gridFsTemplate.store(
+            bytes.inputStream(),
+            archivo.originalFilename ?: "documento.pdf",
+            "application/pdf",
+            null,
+        ) as ObjectId
     }
 
     private fun buildDocumentoAdjunto(archivo: MultipartFile?, ahora: Instant): DocumentoAdjunto {

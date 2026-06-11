@@ -532,11 +532,11 @@ export class EgresadoService {
     titulo: string,
     excluirId?: string,
     modalidad?: string,
-  ): Observable<{ estado: string; titulo_similar: string; expediente_estado?: string; motivo?: string }> {
+  ): Observable<{ estado: string; titulo_similar: string; expediente_estado?: string; motivo?: string; coincidencias_misma_modalidad?: number }> {
     let params = new HttpParams().set('titulo', titulo);
     if (excluirId) params = params.set('excluirId', excluirId);
     if (modalidad?.trim()) params = params.set('modalidad', modalidad.trim());
-    return this.http.get<{ estado: string; titulo_similar: string; expediente_estado?: string; motivo?: string }>(
+    return this.http.get<{ estado: string; titulo_similar: string; expediente_estado?: string; motivo?: string; coincidencias_misma_modalidad?: number }>(
       `${API}/verificar-originalidad`,
       { params },
     );
