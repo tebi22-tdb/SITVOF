@@ -4,6 +4,7 @@ import {
   coordinadorGuard,
   egresadoGuard,
   loginGuard,
+  noApoyoTitulacionGuard,
   repositorioGuard,
   serviciosEscolaresGuard,
   staffAdminGuard,
@@ -38,13 +39,13 @@ export const routes: Routes = [
     path: 'home/alta-docentes',
     loadComponent: () =>
       import('./pages/alta-docentes/alta-docentes.component').then((m) => m.AltaDocentesComponent),
-    canActivate: [coordinadorGuard],
+    canActivate: [coordinadorGuard, noApoyoTitulacionGuard],
   },
   {
     path: 'home/catalogos',
     loadComponent: () =>
       import('./pages/catalogos/catalogos.component').then((m) => m.CatalogosComponent),
-    canActivate: [coordinadorGuard],
+    canActivate: [coordinadorGuard, noApoyoTitulacionGuard],
   },
   {
     path: 'home/seguimiento-proceso',
@@ -58,7 +59,7 @@ export const routes: Routes = [
       import('./pages/departamento-academico/revision-documento/revision-documento.component').then(
         (m) => m.RevisionDocumentoComponent,
       ),
-    canActivate: [coordinadorGuard],
+    canActivate: [coordinadorGuard, noApoyoTitulacionGuard],
   },
   {
     path: 'home/departamento-academico',
@@ -66,13 +67,13 @@ export const routes: Routes = [
       import('./pages/departamento-academico-menu/departamento-academico-menu.component').then(
         (m) => m.DepartamentoAcademicoMenuComponent,
       ),
-    canActivate: [coordinadorGuard],
+    canActivate: [coordinadorGuard, noApoyoTitulacionGuard],
   },
   {
     path: 'home/revisiones',
     loadComponent: () =>
       import('./pages/departamento-academico/departamento-academico.component').then((m) => m.DepartamentoAcademicoComponent),
-    canActivate: [coordinadorGuard],
+    canActivate: [coordinadorGuard, noApoyoTitulacionGuard],
   },
   {
     path: 'seguimiento',

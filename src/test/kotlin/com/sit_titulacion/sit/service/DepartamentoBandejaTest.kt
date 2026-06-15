@@ -3,6 +3,7 @@ package com.sit_titulacion.sit.service
 import com.sit_titulacion.sit.domain.*
 import com.sit_titulacion.sit.repository.CatalogoRepository
 import com.sit_titulacion.sit.repository.DocumentacionEscaneadaRepository
+import com.sit_titulacion.sit.repository.DocenteRepository
 import com.sit_titulacion.sit.repository.EgresadoRepository
 import com.sit_titulacion.sit.repository.UsuarioRepository
 import org.bson.types.ObjectId
@@ -38,6 +39,10 @@ class DepartamentoBandejaTest {
     @Mock private lateinit var documentacionEscaneadaRepository: DocumentacionEscaneadaRepository
     @Mock private lateinit var catalogoRepository: CatalogoRepository
     @Mock private lateinit var usuarioRepository: UsuarioRepository
+    @Mock private lateinit var docenteRepository: DocenteRepository
+    @Mock private lateinit var emailService: EmailService
+    @Mock private lateinit var residenciaPlazoNotificacionService: ResidenciaPlazoNotificacionService
+    @Mock private lateinit var noResidenciaPlazoNotificacionService: NoResidenciaPlazoNotificacionService
     @Mock private lateinit var gridFsTemplate: GridFsTemplate
     @Mock private lateinit var env: Environment
     @Mock private lateinit var htmlAnexoPdfService: HtmlAnexoPdfService
@@ -65,6 +70,10 @@ class DepartamentoBandejaTest {
             documentacionEscaneadaRepository,
             catalogoRepository,
             usuarioRepository,
+            docenteRepository,
+            emailService,
+            residenciaPlazoNotificacionService,
+            noResidenciaPlazoNotificacionService,
             gridFsTemplate,
             env,
             htmlAnexoPdfService,

@@ -54,7 +54,7 @@ class SecurityConfig(
                     .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/auth/recuperar-password").permitAll()
                     .requestMatchers("/api/verificar/**").permitAll()
-                    .requestMatchers("/api/repositorio/**").permitAll()
+                    .requestMatchers("/api/repositorio/**").authenticated()
                     .requestMatchers(HttpMethod.GET, "/api/catalogos/carreras").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/catalogos/niveles").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/catalogos/modalidades").permitAll()

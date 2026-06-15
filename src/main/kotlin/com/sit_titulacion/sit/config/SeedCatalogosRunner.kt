@@ -5,6 +5,7 @@ import com.sit_titulacion.sit.repository.CatalogoRepository
 import org.slf4j.LoggerFactory
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component
  */
 @Component
 @Order(3)
+@ConditionalOnProperty(name = ["sit.seed.enabled"], havingValue = "true", matchIfMissing = true)
 class SeedCatalogosRunner(
     private val catalogoRepository: CatalogoRepository,
 ) : ApplicationRunner {
