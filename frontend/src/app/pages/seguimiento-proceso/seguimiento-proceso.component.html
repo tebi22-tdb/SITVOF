@@ -39,13 +39,10 @@
     </section>
 
     <section class="seg-filtros seg-filtros-sec" *ngIf="mostrarMasFiltros">
-      <div class="seg-filtro-grupo">
-        <label for="filtro-modalidad">Modalidad:</label>
-        <select id="filtro-modalidad" [(ngModel)]="filtroModalidad">
-          <option value="">Todas</option>
-          <option *ngFor="let m of modalidadesDisponibles" [value]="m">{{ m }}</option>
-        </select>
-      </div>
+      <select [(ngModel)]="filtroModalidad">
+        <option value="">Modalidad (todas)</option>
+        <option *ngFor="let m of modalidadesDisponibles" [value]="m">{{ m }}</option>
+      </select>
       <select [(ngModel)]="filtroDocumento">
         <option value="todos">Documento / situación (todos)</option>
         <option value="Sin atraso">Sin atraso</option>
