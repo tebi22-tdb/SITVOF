@@ -70,12 +70,32 @@ export const authGuard: CanActivateFn = (route, state) => {
   );
 };
 
+/** Bloquea rutas de staff completo para Apoyo a Titulación (solo inicio, alta y seguimiento). */
+export const noApoyoTitulacionGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  return auth.me().pipe(
+    map(() => {
+      if (auth.isApoyoTitulacion()) {
+        router.navigate(['/home']);
+        return false;
+      }
+      return true;
+    }),
+    catchError(() => {
+      router.navigate(['/login']);
+      return of(false);
+    }),
+  );
+};
+
 export const serviciosEscolaresGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   return auth.me().pipe(
     map(() => {
-      if (auth.isServiciosEscolares() || auth.isCoordinador()) return true;
+      if (auth.isServiciosEscolares()) return true;
+      if (auth.isCoordinador() && !auth.isApoyoTitulacion()) return true;
       if (auth.isAcademico()) {
         router.navigate(['/departamento-academico']);
         return false;
