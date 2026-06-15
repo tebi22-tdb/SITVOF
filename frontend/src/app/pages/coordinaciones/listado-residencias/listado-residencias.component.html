@@ -1,0 +1,218 @@
+<app-header [showNuevoButton]="false" [showAgregarUsuarioButton]="false"></app-header>
+
+<!-- PAGE CHROME -->
+<div class="page-title">
+  <div>
+    <h2>Residencias profesionales</h2>
+    <p>Consulta, edita o elimina los expedientes de residencia registrados.</p>
+  </div>
+  <div class="cta">
+    <button class="btn primary" (click)="irNuevo()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      Nuevo registro
+    </button>
+  </div>
+</div>
+
+<!-- VARIANT 1 — TABLA -->
+<div class="variant">
+
+  <!-- Stats strip -->
+  <div class="stats">
+    <div class="stat">
+      <span class="label">Total registradas</span>
+      <span class="num">{{ stats.total }}</span>
+      <span class="trend">expedientes</span>
+    </div>
+    <div class="stat">
+      <span class="label">Activas</span>
+      <span class="num">{{ stats.activas }}</span>
+      <span class="trend">en curso</span>
+    </div>
+    <div class="stat">
+      <span class="label">Anexos pendientes</span>
+      <span class="num">{{ stats.pendientes_anexos }}</span>
+      <span class="trend warn">requieren atención</span>
+    </div>
+    <div class="stat">
+      <span class="label">Finalizadas</span>
+      <span class="num">{{ stats.finalizadas }}</span>
+      <span class="trend">en este periodo</span>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" [(ngModel)]="busqueda" (ngModelChange)="aplicarFiltros()"
+        placeholder="Buscar por nombre, número de control o proyecto…" />
+    </div>
+
+    <select class="filter" [(ngModel)]="filtroCoordinacion" (ngModelChange)="aplicarFiltros()">
+      <option value="">Todas las coordinaciones</option>
+      <option *ngFor="let c of coordinaciones" [value]="c.id">{{ c.nombre }}</option>
+    </select>
+
+    <select class="filter" [(ngModel)]="filtroTipo" (ngModelChange)="aplicarFiltros()">
+      <option value="">Modalidad: todas</option>
+      <option value="interno">Proyecto interno</option>
+      <option value="externo">Proyecto externo</option>
+      <option value="propio">Proyecto propio</option>
+    </select>
+
+    <select class="filter" [(ngModel)]="filtroEstado" (ngModelChange)="aplicarFiltros()">
+      <option value="">Estado: todos</option>
+      <option value="activa">Activa</option>
+      <option value="pendiente_anexos">Pendiente anexos</option>
+      <option value="en_revision">En revisión</option>
+      <option value="finalizada">Finalizada</option>
+      <option value="cancelada">Cancelada</option>
+    </select>
+
+    <div class="divider"></div>
+    <span class="count">
+      <b>{{ residencias.length }}</b> registros
+      <ng-container *ngIf="residencias.length > 0"> · mostrando {{ rangoMostrando }}</ng-container>
+    </span>
+  </div>
+
+  <!-- Error -->
+  <div class="error-toast" *ngIf="error">{{ error }}</div>
+
+  <!-- Loading -->
+  <div class="empty-toast" *ngIf="cargando">Cargando registros…</div>
+
+  <!-- Tabla -->
+  <div class="table-wrap" *ngIf="!cargando">
+
+    <!-- Empty -->
+    <div class="empty-toast" style="margin:0;border-radius:0;border:0;border-bottom:1px solid var(--line-2)"
+      *ngIf="residencias.length === 0">
+      No hay residencias registradas
+      <span *ngIf="busqueda || filtroCoordinacion || filtroTipo || filtroEstado"> con esos filtros</span>.
+      <button class="btn primary" style="margin-left:12px" (click)="irNuevo()">Registrar primera</button>
+    </div>
+
+    <table class="t" *ngIf="residencias.length > 0">
+      <thead>
+        <tr>
+          <th>Alumno</th>
+          <th>Carrera</th>
+          <th>Proyecto</th>
+          <th>Periodo</th>
+          <th>Asesor interno</th>
+          <th>Anexos</th>
+          <th>Estado</th>
+          <th style="text-align:right">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let r of residenciasPagina">
+          <!-- Alumno -->
+          <td data-label="Alumno">
+            <div class="student">
+              <div class="avatar">{{ iniciales(r.nombre_alumno) }}</div>
+              <div>
+                <div class="name">{{ r.nombre_alumno }}</div>
+                <div class="nc">{{ r.numero_control }}</div>
+              </div>
+            </div>
+          </td>
+          <!-- Carrera -->
+          <td data-label="Carrera">
+            <div class="career">{{ r.carrera }}</div>
+            <div class="small">{{ nombreCoordinacion(r.coordinacion) }}</div>
+          </td>
+          <!-- Proyecto -->
+          <td data-label="Proyecto">
+            <div class="career">{{ r.nombre_proyecto }}</div>
+            <div class="small">
+              <span [ngClass]="etiquetaTipo(r.tipo_proyecto).clase">{{ etiquetaTipo(r.tipo_proyecto).texto }}</span>
+            </div>
+          </td>
+          <!-- Periodo -->
+          <td data-label="Periodo">
+            <div class="dates">
+              {{ fmt(r.fecha_inicio) }}<br/>
+              <span style="color:var(--muted)">→ {{ fmt(r.fecha_fin) }}</span>
+            </div>
+          </td>
+          <!-- Asesor -->
+          <td data-label="Asesor">
+            <div style="font-size:12.5px;color:var(--ink-2)">{{ r.asesor_interno }}</div>
+            <div class="small" *ngIf="r.asesor_externo">Ext: {{ r.asesor_externo }}</div>
+          </td>
+          <!-- Anexos -->
+          <td data-label="Anexos">
+            <span [ngClass]="['anex-chip', r.tiene_anexo_29 ? '' : 'miss']">A29 {{ r.tiene_anexo_29 ? '✓' : '!' }}</span>
+            <span [ngClass]="['anex-chip', r.tiene_anexo_30 ? '' : 'miss']">A30 {{ r.tiene_anexo_30 ? '✓' : '!' }}</span>
+          </td>
+          <!-- Estado -->
+          <td data-label="Estado">
+            <span [ngClass]="['badge', etiquetaEstado(r.estado).clase]">{{ etiquetaEstado(r.estado).texto }}</span>
+          </td>
+          <!-- Acciones -->
+          <td data-label="" class="actions-cell">
+            <button class="icon-btn" title="Editar" (click)="irEditar(r.id)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button class="icon-btn del" title="Eliminar" (click)="abrirModal(r.id, r.nombre_alumno)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+              </svg>
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Paginación -->
+    <div class="pagination" *ngIf="residencias.length > porPagina">
+      <span class="info">Mostrando <b>{{ rangoMostrando }}</b> de <b>{{ residencias.length }}</b></span>
+      <div class="pages">
+        <button class="page-btn" [disabled]="paginaActual === 1" (click)="irPagina(paginaActual - 1)">‹</button>
+        <button *ngFor="let p of numeroPaginas" class="page-btn" [class.active]="p === paginaActual"
+          (click)="irPagina(p)">{{ p }}</button>
+        <button class="page-btn" [disabled]="paginaActual === totalPaginas" (click)="irPagina(paginaActual + 1)">›</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /variant -->
+
+<!-- MODAL ELIMINAR -->
+<div class="modal-back" [class.open]="modalVisible" (click)="cerrarModal()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="body">
+      <div class="icon-warn">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          <path d="M10 11v6M14 11v6"/>
+          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+        </svg>
+      </div>
+      <h3>¿Eliminar registro de residencia?</h3>
+      <p>Vas a eliminar el expediente de <b>{{ modalNombre }}</b>. Esta acción no se puede deshacer.</p>
+    </div>
+    <div class="footer">
+      <button class="btn" (click)="cerrarModal()">Cancelar</button>
+      <button class="btn primary-danger" (click)="confirmarEliminar()">Eliminar definitivamente</button>
+    </div>
+  </div>
+</div>

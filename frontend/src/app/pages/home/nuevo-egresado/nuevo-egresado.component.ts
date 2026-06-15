@@ -135,8 +135,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       const soloCurso = this.modalidadesCatalogo.filter(m => m.esCursoTitulacion).map(m => m.nombre);
       return soloCurso.length ? soloCurso : [...MODALIDADES_CURSO_TITULACION];
     }
-    const normales = this.modalidadesCatalogo.filter(m => !m.esCursoTitulacion).map(m => m.nombre);
-    return normales.length ? normales : this.modalidadesCatalogo.map(m => m.nombre);
+    return this.modalidadesCatalogo.map(m => m.nombre);
   }
 
   ngOnInit(): void {
@@ -378,7 +377,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       return 'Este número de control ya tuvo un expediente vencido. Para registrarlo nuevamente debes elegir una modalidad distinta.';
     }
     if (this.controlAltaExpedienteEstado === 'titulado') {
-      return 'Este número de control ya fue usado en un expediente titulado. Para registrarlo nuevamente debes elegir una modalidad distinta.';
+      return 'Este número de control ya concluyó su proceso de titulación. No es posible darlo de alta nuevamente.';
     }
     return 'Este número de control ya está registrado; el expediente se encuentra en proceso.';
   }

@@ -143,6 +143,20 @@ import { AuthService } from '../../services/auth.service';
               </svg>
             </div>
           </button>
+          <button type="button" class="card" (click)="irConfigInstitucional()">
+            <div class="card-texto">
+              <h2>Configuración institucional</h2>
+              <p>Actualiza la imagen anual TECNM y los jefes de departamento para los formatos XXXII y XXXIII.</p>
+            </div>
+            <div class="card-icono" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="card-icono-svg">
+                <rect x="3" y="3" width="18" height="4" rx="1" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M3 10h18M3 15h12M3 19h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <circle cx="19" cy="17" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M19 15.5v1.5l1 1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </button>
           <button type="button" class="card" *ngIf="!esApoyoTitulacion" (click)="irCatalogos()">
             <div class="card-texto">
               <h2>Configuración de catálogos</h2>
@@ -312,5 +326,9 @@ export class CoordinadorInicioComponent {
 
   irCatalogos(): void {
     this.router.navigate(['/home/catalogos']);
+  }
+
+  irConfigInstitucional(): void {
+    this.router.navigate(['/home/config-institucional']);
   }
 }

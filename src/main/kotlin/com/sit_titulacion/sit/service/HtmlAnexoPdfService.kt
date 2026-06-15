@@ -8,10 +8,6 @@ import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 
-/**
- * PDF a partir de plantillas XHTML en classpath (sin LibreOffice).
- * Usado para anexos 9.1 y 9.3; el 9.2 sigue con DOCX + conversión externa si aplica.
- */
 @Service
 class HtmlAnexoPdfService {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -41,6 +37,7 @@ class HtmlAnexoPdfService {
     /**
      * Sustituye src="nombre.png" por un data URI base64 cargado desde el classpath
      * junto a la plantilla. Evita problemas de resolución de rutas en fat JARs.
+     * Omite valores que ya son data URIs (empiezan con "data:").
      */
     private fun embedirImagenesLocales(html: String, templateClasspath: String): String {
         val directorio = templateClasspath.substringBeforeLast("/")
@@ -77,7 +74,8 @@ class HtmlAnexoPdfService {
     private fun aplicarPlaceholders(html: String, valores: Map<String, String>): String {
         var out = html
         valores.forEach { (k, v) ->
-            val safe = escapeHtml(v.ifBlank { "—" })
+            // No escapar valores que ya son data URIs — no contienen caracteres HTML especiales
+            val safe = if (v.startsWith("data:")) v else escapeHtml(v.ifBlank { "—" })
             out = out.replace("{{$k}}", safe, ignoreCase = false)
         }
         return Regex("""\{\{([A-Z0-9_]+)}}""").replace(out) { "—" }

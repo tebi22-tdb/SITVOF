@@ -18,7 +18,7 @@ class RootController {
             <h1>SITVO - Sistema Integral de Titulación</h1>
             <p>Este es el <strong>backend</strong> (API). Aquí no se muestra la aplicación.</p>
             <p>Para usar el sistema, abre el <strong>frontend</strong> en:</p>
-            <p><a href="http://77.37.74.122" style="font-size: 1.2rem;">http://77.37.74.122</a></p>
+            <p><a href="https://sitvo.net" style="font-size: 1.2rem;">https://sitvo.net</a></p>
         </body>
         </html>
     """.trimIndent()

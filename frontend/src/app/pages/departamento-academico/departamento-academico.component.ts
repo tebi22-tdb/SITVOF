@@ -48,8 +48,14 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   lista: DepartamentoListItem[] = [];
   cargando = true;
   error = '';
-  /** ID del egresado mientras se ejecuta Liberar (evita doble clic). */
-  liberandoId: string | null = null;
+  /** ID del egresado mientras se descarga el Anexo XXXII. */
+  descargando32Id: string | null = null;
+  /** ID del egresado mientras se descarga el Anexo XXXIII. */
+  descargando33Id: string | null = null;
+  /** ID del egresado mientras se ejecuta la liberación de residencia. */
+  liberandoResidenciaId: string | null = null;
+  /** ID del egresado mientras se libera el producto (no residencia). */
+  liberandoProductoId: string | null = null;
   /** ID del egresado mientras se confirma recepción Anexo XXXII (evita doble clic). */
   confirmandoXxxiiId: string | null = null;
   /** PDF de tesis seleccionado en pestaña Liberación de producto. */
@@ -383,25 +389,26 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
 
   liberarProductoNoRes(item: DepartamentoListItem, ev?: Event): void {
     ev?.stopPropagation();
+    const modalidad = item.modalidad || 'tesis';
     if (!this.archivoTesisLiberacion) {
-      this.mensajeLiberacionProducto = 'Selecciona el PDF de la tesis antes de liberar.';
+      this.mensajeLiberacionProducto = `Selecciona el PDF de ${modalidad} antes de liberar.`;
       return;
     }
     this.error = '';
     this.mensajeLiberacionProducto = '';
-    this.liberandoId = item.id;
+    this.liberandoProductoId = item.id;
     this.egresadoService.liberarProductoNoResidencia(item.id, this.archivoTesisLiberacion).subscribe({
       next: () => {
-        this.liberandoId = null;
+        this.liberandoProductoId = null;
         this.archivoTesisLiberacion = null;
-        this.mensajeLiberacionProducto = 'Tesis liberada correctamente.';
+        this.mensajeLiberacionProducto = `${modalidad} liberada correctamente.`;
         this.cargarCounts();
         this.cargarLista();
         this.limpiarSeleccionDocumento();
       },
       error: (err: { error?: { error?: string } }) => {
-        this.liberandoId = null;
-        this.mensajeLiberacionProducto = err?.error?.error ?? 'No se pudo liberar la tesis.';
+        this.liberandoProductoId = null;
+        this.mensajeLiberacionProducto = err?.error?.error ?? `No se pudo liberar ${modalidad}.`;
       },
     });
   }
@@ -410,20 +417,56 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     this.router.navigate(['/home']);
   }
 
-  /** Liberar (marca recibido registro y liberación). Solo Residencia Profesional; el registro pasa a Aprobados. */
-  liberar(id: string): void {
+  /** Descarga el Anexo XXXII sin cambiar estado. */
+  descargarAnexo32(id: string, ev?: Event): void {
+    ev?.stopPropagation();
+    if (this.descargando32Id === id) return;
+    this.descargando32Id = id;
+    this.egresadoService.descargarHoja32(id).subscribe({
+      next: ({ blob, fileName }) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = fileName; a.click();
+        URL.revokeObjectURL(url);
+        this.descargando32Id = null;
+      },
+      error: () => { this.descargando32Id = null; },
+    });
+  }
+
+  /** Descarga el Anexo XXXIII sin cambiar estado. */
+  descargarAnexo33(id: string, ev?: Event): void {
+    ev?.stopPropagation();
+    if (this.descargando33Id === id) return;
+    this.descargando33Id = id;
+    this.egresadoService.descargarHoja33(id).subscribe({
+      next: ({ blob, fileName }) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = fileName; a.click();
+        URL.revokeObjectURL(url);
+        this.descargando33Id = null;
+      },
+      error: () => { this.descargando33Id = null; },
+    });
+  }
+
+  /** Libera la residencia (da paso al siguiente paso en seguimiento). */
+  liberarResidencia(id: string, ev?: Event): void {
+    ev?.stopPropagation();
+    if (this.liberandoResidenciaId === id) return;
+    this.liberandoResidenciaId = id;
     this.error = '';
-    this.liberandoId = id;
-    this.egresadoService.liberar(id).subscribe({
+    this.egresadoService.registrarGeneracionAnexos(id).subscribe({
       next: () => {
-        this.liberandoId = null;
+        this.liberandoResidenciaId = null;
         this.cargarCounts();
         this.cargarLista();
       },
       error: (err: { error?: { error?: string; message?: string }; message?: string }) => {
-        this.liberandoId = null;
         const msg = err?.error?.error ?? err?.error?.message ?? err?.message;
-        this.error = msg ? `No se pudo liberar: ${msg}` : 'No se pudo liberar. Solo aplica a Residencia Profesional.';
+        this.error = msg || 'No se pudo liberar.';
+        this.liberandoResidenciaId = null;
       },
     });
   }

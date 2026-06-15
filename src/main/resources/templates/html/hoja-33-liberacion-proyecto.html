@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es" xml:lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>Anexo XXXIII</title>
+<style type="text/css">
+@page { size: A4; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 10pt;
+  color: #000;
+  line-height: 1.4;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+/* ── Encabezado fijo ─────────────────────────────────────────── */
+.hdr-fixed {
+  position: fixed;
+  top: 0.6cm;
+  left: 1.5cm;
+  right: 1.5cm;
+  height: 3.2cm;
+}
+.hdr-table {
+  width: 100%;
+  border-collapse: collapse;
+  height: 3.2cm;
+}
+.hdr-left {
+  width: 55%;
+  vertical-align: middle;
+  padding: 0 0.3cm 0 0;
+}
+.hdr-left img {
+  max-width: 9.5cm;
+  height: auto;
+  display: block;
+}
+.hdr-right {
+  width: 45%;
+  vertical-align: top;
+  text-align: right;
+  padding: 0;
+}
+.hdr-right-inner {
+  display: inline-block;
+  text-align: right;
+}
+.hdr-right img.mujer {
+  width: 2.2cm;
+  height: auto;
+  display: block;
+  margin-left: auto;
+  margin-bottom: 0.12cm;
+}
+.hdr-right .itvo-nombre {
+  font-size: 8.5pt;
+  font-weight: normal;
+  color: #000;
+  line-height: 1.2;
+  margin: 0;
+}
+.hdr-right .itvo-depto {
+  font-size: 7.5pt;
+  font-weight: normal;
+  color: #000;
+  line-height: 1.2;
+  margin: 0;
+}
+/* ── Pie fijo ────────────────────────────────────────────────── */
+.ftr-fixed {
+  position: fixed;
+  top: 26.2cm;
+  left: 0;
+  width: 100%;
+  height: 3.5cm;
+}
+/* ── Cuerpo del documento ────────────────────────────────────── */
+.doc-body {
+  padding: 4.1cm 1.5cm 3.9cm 1.5cm;
+}
+.titulo-doc {
+  text-align: center;
+  font-size: 10pt;
+  font-weight: normal;
+  margin: 0 0 6px;
+  line-height: 1.35;
+}
+.lugar-fecha-line {
+  text-align: right;
+  font-size: 10pt;
+  margin: 0 0 4px;
+  line-height: 1.4;
+}
+.fecha-resaltada {
+  background: #000;
+  color: #fff;
+  padding: 1px 5px;
+}
+.asunto-line {
+  text-align: right;
+  font-size: 10pt;
+  font-weight: normal;
+  margin: 12px 0 14px;
+  text-decoration: none;
+}
+.asunto-resaltado {
+  background: #000;
+  color: #fff;
+  padding: 1px 5px;
+}
+.destinatario-bloque {
+  margin: 0 0 10px;
+}
+.destinatario-bloque p {
+  margin: 0;
+  padding: 0;
+  font-weight: bold;
+  font-size: 10pt;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+.cuerpo-texto {
+  font-size: 10pt;
+  margin: 0 0 8px;
+  line-height: 1.4;
+  text-align: justify;
+}
+.tabla-datos {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 10px;
+  font-size: 10pt;
+}
+.tabla-datos td {
+  border: 1px solid #000;
+  padding: 3px 7px;
+  vertical-align: top;
+  line-height: 1.35;
+}
+.tabla-datos td:first-child {
+  width: 32%;
+  font-weight: normal;
+  white-space: nowrap;
+}
+.agradecimiento {
+  font-size: 10pt;
+  margin: 0 0 12px;
+  line-height: 1.4;
+  text-align: justify;
+}
+.atentamente {
+  font-size: 10.5pt;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  margin: 8px 0 2px;
+}
+.motto {
+  font-size: 9pt;
+  font-weight: bold;
+  font-style: normal;
+  margin: 0;
+  line-height: 1.35;
+}
+.firmante-nombre {
+  font-size: 10pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin: 18px 0 0;
+  line-height: 1.3;
+}
+.firmante-cargo {
+  font-size: 10pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin: 0 0 14px;
+  line-height: 1.3;
+}
+.tabla-firmas {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 6px;
+  font-size: 9pt;
+}
+.tabla-firmas td {
+  border: 1px solid #000;
+  text-align: center;
+  width: 33.33%;
+  line-height: 1.3;
+}
+.tabla-firmas .fila-nombres td {
+  padding: 18px 6px 4px;
+  vertical-align: bottom;
+  font-weight: bold;
+  font-size: 9pt;
+}
+.tabla-firmas .fila-etiquetas td {
+  padding: 3px 6px 4px;
+  vertical-align: top;
+  font-size: 8.5pt;
+  font-weight: normal;
+}
+.ccp-line {
+  font-size: 9pt;
+  margin: 2px 0 0;
+  line-height: 1.3;
+}
+</style>
+</head>
+<body>
+
+<!-- ENCABEZADO FIJO -->
+<div class="hdr-fixed">
+  <table class="hdr-table">
+    <tr>
+      <td class="hdr-left">
+        <img src="logo-sep-tecnm.png" alt="SEP / TECNM"/>
+      </td>
+      <td class="hdr-right">
+        <div class="hdr-right-inner">
+          <img class="mujer" src="logo-itvo-mujer.jpg" alt="ITVO"/>
+          <p class="itvo-nombre">Instituto Tecnol&#243;gico del Valle de Oaxaca</p>
+          <p class="itvo-depto">{{DEPARTAMENTO_NOMBRE}}</p>
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<!-- PIE FIJO -->
+<div class="ftr-fixed">
+  <table cellpadding="0" cellspacing="0" style="width:100%; border-collapse:collapse; height:3.5cm;">
+    <tr>
+      <td style="width:25%; vertical-align:bottom; padding:0;">
+        <img src="imagenAnualCambiante.png" style="height:3.5cm; width:auto; display:block;" alt=""/>
+      </td>
+      <td style="width:75%; vertical-align:middle; padding:0;">
+        <img src="imagenPiePagina.png" style="height:3.5cm; width:auto; display:block;" alt=""/>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<!-- CUERPO -->
+<div class="doc-body">
+
+  <p class="titulo-doc" style="margin-bottom:0;">ANEXO XXXIII</p>
+  <p class="titulo-doc">FORMATO DE LIBERACI&#211;N DE PROYECTO PARA LA TITULACI&#211;N INTEGRAL</p>
+
+  <p class="lugar-fecha-line">ExHacienda de Nazareno, Xoxocotl&#225;n, Oaxaca&#160;<span class="fecha-resaltada">{{FECHA_CARTA}}</span></p>
+  <p class="asunto-line">Asunto:&#160;<span class="asunto-resaltado">Liberaci&#243;n de proyecto para la titulaci&#243;n integral.</span></p>
+
+  <div class="destinatario-bloque">
+    <p>{{JEFE_DIVISION_NOMBRE}}</p>
+    <p>JEFE DE LA DIVISI&#211;N DE ESTUDIOS PROFESIONALES</p>
+    <p>PRESENTE</p>
+  </div>
+
+  <p class="cuerpo-texto">
+    Por medio le informo que ha sido liberado el siguiente proyecto para la Titulaci&#243;n Integral:
+  </p>
+
+  <table class="tabla-datos">
+    <tr>
+      <td>a) Nombre del Egresado</td>
+      <td>{{NOMBRE}}</td>
+    </tr>
+    <tr>
+      <td>b) Carrera</td>
+      <td>{{CARRERA}}</td>
+    </tr>
+    <tr>
+      <td>c) No. de Control</td>
+      <td>{{NUMERO_CONTROL}}</td>
+    </tr>
+    <tr>
+      <td>d) Nombre del proyecto</td>
+      <td>{{NOMBRE_PROYECTO}}</td>
+    </tr>
+    <tr>
+      <td>e) Producto</td>
+      <td>{{PRODUCTO}}</td>
+    </tr>
+  </table>
+
+  <p class="agradecimiento">
+    Agradezco de antemano su valioso apoyo en esta importante actividad para la formaci&#243;n profesional de nuestros egresados.
+  </p>
+
+  <p class="atentamente">A T E N T A M E N T E</p>
+  <p class="motto">Excelencia en Educaci&#243;n Tecnol&#243;gica&#174;</p>
+  <p class="motto">Ciencia y tecnolog&#237;a para el campo&#174;.</p>
+
+  <p class="firmante-nombre">{{JEFE_DEPTO_NOMBRE}}</p>
+  <p class="firmante-cargo">{{JEFE_DEPTO_CARGO}}</p>
+
+  <table class="tabla-firmas">
+    <tr class="fila-nombres">
+      <td>{{FIRMA_NOMBRE_1}}</td>
+      <td>{{FIRMA_NOMBRE_2}}</td>
+      <td>{{FIRMA_NOMBRE_3}}</td>
+    </tr>
+    <tr class="fila-etiquetas">
+      <td>{{FIRMA_LABEL_1}}</td>
+      <td>{{FIRMA_LABEL_2}}</td>
+      <td>{{FIRMA_LABEL_3}}</td>
+    </tr>
+  </table>
+
+  <p class="ccp-line">ccp. Expediente</p>
+  <p class="ccp-line">{{JEFE_DEPTO_INICIALES}}</p>
+
+</div>
+</body>
+</html>

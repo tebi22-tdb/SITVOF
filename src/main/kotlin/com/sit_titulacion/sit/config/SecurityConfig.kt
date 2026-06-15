@@ -92,7 +92,6 @@ class SecurityConfig(
             allowCredentials = true
             allowedOrigins = listOf(
                 "http://localhost:4200",
-                "http://77.37.74.122",
                 "https://sitvo.net",
                 "https://www.sitvo.net",
             )

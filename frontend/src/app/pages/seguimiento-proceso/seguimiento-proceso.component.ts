@@ -609,6 +609,8 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
   }
 
   private construirPasosSeguimientoNoResidencia16(): PasoProcesoUi[] {
+    const d = this.detalleSeleccionado!;
+    const modalidadTitulo = (d.datos_proyecto?.modalidad ?? '').trim() || 'Tesis';
     const defs: PasoTitulacionDef[] = [
       {
         key: 'fecha_confirmacion_entrega_egresado_depto',
@@ -619,45 +621,43 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       {
         key: 'fecha_envio_solicitud_registro_anteproyecto_depto_academico',
         titulo:
-          'La DEP envía al departamento académico el anteproyecto y solicita el registro de la tesis (anexo XXXII)',
+          `La DEP envía al departamento académico el anteproyecto y solicita el registro de ${modalidadTitulo} (anexo XXXII)`,
         descripcion:
           'La DEP registra el envío al departamento académico; en la bandeja Anteproyecto quedará pendiente de marcar como registrado.',
       },
       {
         key: 'fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii',
         titulo:
-          'La DEP recibe el registro de la tesis (Anexo XXXII) por parte del departamento académico',
+          `La DEP recibe el registro de ${modalidadTitulo} (Anexo XXXII) por parte del departamento académico`,
         descripcion:
           'La DEP confirma la recepción del registro una vez que el departamento académico marcó como registrado.',
       },
       {
         key: 'fecha_recepcion_trabajo_division_estudios_prof',
-        titulo: 'El egresado está desarrollando su proyecto de Tesis',
+        titulo: `El egresado está desarrollando su proyecto de ${modalidadTitulo}`,
         descripcion: '',
       },
       {
         key: 'fecha_solicitud_registro_liberacion_depto_academico',
         titulo: 'Liberación de producto en el departamento académico',
         descripcion:
-          'El departamento académico sube la tesis en la pestaña Liberación de producto y pulsa Liberar (por carrera).',
+          `El departamento académico sube ${modalidadTitulo} en la pestaña Liberación de producto y pulsa Liberar (por carrera).`,
       },
       {
         key: 'fecha_recepcion_registro_liberacion_depto_academico',
-        titulo: 'La DEP recibe la liberación de la tesis (Anexo XXXIII)',
-        descripcion: 'La DEP confirma la recepción de la liberación de la tesis.',
+        titulo: `La DEP recibe la liberación de ${modalidadTitulo} (Anexo XXXIII)`,
+        descripcion: `La DEP confirma la recepción de la liberación de ${modalidadTitulo}.`,
       },
       {
         key: 'fecha_enviado_departamento_academico',
         titulo:
           'Envío a Coordinación de Apoyo a la Titulación para la revisión de acuerdo a las normas de presentación para trabajos profesionales',
         descripcion:
-          'La DEP envía la tesis a Coordinación de Apoyo a la Titulación para la revisión según las normas de presentación para trabajos profesionales.',
+          `La DEP envía ${modalidadTitulo} a Coordinación de Apoyo a la Titulación para la revisión según las normas de presentación para trabajos profesionales.`,
       },
       ...this.pasosTitulacionCompartidosDef(),
       ...this.pasosDocumentacionEscaneadaDef(),
     ];
-    const d = this.detalleSeleccionado!;
-    const modalidadTitulo = (d.datos_proyecto?.modalidad ?? '').trim() || 'Tesis';
     let todosPreviosCompletados = true;
     return defs.map((s, i) => {
       if (s.key === 'fecha_confirmacion_entrega_egresado_depto') {

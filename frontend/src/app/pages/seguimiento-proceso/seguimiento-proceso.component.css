@@ -394,6 +394,49 @@
   resize: vertical;
 }
 
+.seg-doc-escaneada-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.seg-doc-escaneada-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.seg-doc-escaneada-categoria {
+  flex: 0 0 auto;
+  font-weight: 600;
+  color: #2b6cb0;
+  background: #ebf8ff;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.seg-doc-escaneada-nombre {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #2d3748;
+}
+
+.seg-btn-xs {
+  flex: 0 0 auto;
+  padding: 3px 10px;
+  font-size: 0.78rem;
+}
+
 .seg-bloques { display: grid; grid-template-columns: minmax(0, 5.5fr) minmax(340px, 4.5fr); gap: 14px; align-items: stretch; }
 .seg-bloques .seg-tabla-wrap { margin: 0; }
 .seg-bloques .seg-proceso { margin: 0; position: sticky; top: 12px; }

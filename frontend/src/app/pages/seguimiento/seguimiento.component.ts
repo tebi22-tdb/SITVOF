@@ -206,6 +206,22 @@ export class SeguimientoComponent implements OnInit {
     return this.pasoActivoPorClave('doc_escaneada_subir') || this.pasoActivoPorClave('doc_escaneada_unificada');
   }
 
+  get nombreResultadoModalidad(): string {
+    const m = this.datosVista?.datos_proyecto?.modalidad?.toLowerCase() ?? '';
+    if (m.includes('tesis'))       return 'Tesis (ejemplar con firmas de aprobación)';
+    if (m.includes('investigaci')) return 'Reporte Final del Proyecto de Investigación';
+    if (m.includes('monograf'))    return 'Monografía (documento con firmas de aprobación)';
+    if (m.includes('tesina'))      return 'Tesina (documento con firmas de aprobación)';
+    if (m.includes('residencia'))  return 'Reporte de Residencia Profesional (con firmas de aprobación)';
+    if (m.includes('ceneval'))     return 'Constancia de Resultados CENEVAL';
+    return 'Documento de titulación aprobado';
+  }
+
+  get esTesisParaDocEscaneada(): boolean {
+    const m = this.datosVista?.datos_proyecto?.modalidad?.toLowerCase() ?? '';
+    return m.includes('tesis') || m.includes('tesina');
+  }
+
   /** Mensaje “enviado, esperando DEP” dentro del mismo paso unificado. */
   get mostrarEstadoDocEscaneadaEnviada(): boolean {
     const d = this.datos;
@@ -769,15 +785,15 @@ export class SeguimientoComponent implements OnInit {
         numero: 3,
         titulo: 'Envío al departamento académico de tu carrera',
         detalle:
-          'La DEP envió a tu departamento académico el anteproyecto y la solicitud de registro de la tesis (anexo XXXII).',
+          `La DEP envió a tu departamento académico el anteproyecto y la solicitud de registro de tu ${modalidad} (anexo XXXII).`,
         fecha: fh(d.fecha_envio_solicitud_registro_anteproyecto_depto_academico),
         completado: c3,
       },
       {
         numero: 4,
-        titulo: 'Registro de la tesis en el departamento académico',
+        titulo: `Registro de tu ${modalidad} en el departamento académico`,
         detalle:
-          'Tu departamento académico registró la tesis y la DEP confirmó la recepción del anexo XXXII.',
+          `Tu departamento académico registró tu ${modalidad} y la DEP confirmó la recepción del anexo XXXII.`,
         fecha: fh(d.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii),
         completado: c4,
       },
@@ -793,16 +809,16 @@ export class SeguimientoComponent implements OnInit {
         numero: 6,
         titulo: 'Liberación de producto en tu departamento académico',
         detalle: c5
-          ? 'Tu departamento académico liberó la tesis (anexo XXXIII) y la envió a la división de estudios profesionales.'
-          : 'Tu departamento académico liberará la tesis (anexo XXXIII) cuando concluyas el desarrollo; no requiere acción tuya en el SITVO.',
+          ? `Tu departamento académico liberó tu ${modalidad} (anexo XXXIII) y la envió a la división de estudios profesionales.`
+          : `Tu departamento académico liberará tu ${modalidad} (anexo XXXIII) cuando concluyas el desarrollo; no requiere acción tuya en el SITVO.`,
         fecha: fh(d.fecha_solicitud_registro_liberacion_depto_academico),
         completado: c5,
       },
       {
         numero: 7,
-        titulo: 'Recepción en la DEP de la liberación y la tesis',
+        titulo: `Recepción en la DEP de la liberación y tu ${modalidad}`,
         detalle:
-          'La división de estudios profesionales confirmó la recepción del anexo XXXIII y de tu documento de tesis.',
+          `La división de estudios profesionales confirmó la recepción del anexo XXXIII y de tu ${modalidad}.`,
         fecha: fh(d.fecha_recepcion_registro_liberacion_depto_academico),
         completado: c6,
       },
@@ -810,7 +826,7 @@ export class SeguimientoComponent implements OnInit {
         numero: 8,
         titulo: 'Envío a coordinación de Apoyo a la Titulación',
         detalle:
-          'Tu tesis fue enviada a la coordinación de apoyo a la titulación para la revisión de acuerdo a las normas de presentación para trabajos profesionales.',
+          `Tu ${modalidad} fue enviada a la coordinación de apoyo a la titulación para la revisión de acuerdo a las normas de presentación para trabajos profesionales.`,
         fecha: fh(d.fecha_enviado_departamento_academico),
         completado: c7,
       },
@@ -1295,13 +1311,13 @@ export class SeguimientoComponent implements OnInit {
     const liberacion = d.fecha_solicitud_registro_liberacion_depto_academico?.trim();
     if (liberacion) {
       const ini = this.formatearSoloFechaDesdeIso(liberacion);
-      return `Tu departamento académico liberó la tesis el ${ini}. El plazo de desarrollo del proyecto quedó concluido. Cuentas con ${MESES_PLAZO_TITULACION_NO_RES} meses calendario desde esa fecha para avanzar en el trámite de titulación.`;
+      return `Tu departamento académico liberó tu ${mod} el ${ini}. El plazo de desarrollo del proyecto quedó concluido. Cuentas con ${MESES_PLAZO_TITULACION_NO_RES} meses calendario desde esa fecha para avanzar en el trámite de titulación.`;
     }
     const inicial = d.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii?.trim();
     if (!inicial) {
-      return `El plazo de ${plazoDevTxt} calendario para desarrollar tu ${mod} comenzará cuando la división confirme en la DEP la recepción del registro de tu tesis.`;
+      return `El plazo de ${plazoDevTxt} calendario para desarrollar tu ${mod} comenzará cuando la división confirme en la DEP la recepción del registro de tu ${mod}.`;
     }
     const ref = this.formatearSoloFechaDesdeIso(inicial);
-    return `Tienes un plazo de ${plazoDevTxt} calendario para desarrollar tu ${mod}, contado desde el ${ref}. El plazo termina cuando tu departamento académico libere la tesis.`;
+    return `Tienes un plazo de ${plazoDevTxt} calendario para desarrollar tu ${mod}, contado desde el ${ref}. El plazo termina cuando tu departamento académico libere tu ${mod}.`;
   }
 }
