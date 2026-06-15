@@ -137,7 +137,32 @@
                 <div *ngIf="(paso.clave === 'doc_escaneada_subir' || paso.clave === 'doc_escaneada_unificada') && mostrarFormularioSubidaDocEscaneada" class="timeline-doc-escaneada">
                   <h4 class="timeline-doc-escaneada-titulo">Subir documentación</h4>
                   <p class="timeline-doc-escaneada-texto">
-                    Sube al SITVO un solo archivo .PDF con toda la documentación escaneada (no fotos).
+                    Como parte de tu proceso de titulación bajo la modalidad
+                    <strong>{{ datosVista?.datos_proyecto?.modalidad }}</strong>,
+                    debes integrar en un único archivo PDF todos los documentos que se enlistan
+                    a continuación, en el orden indicado. Los documentos deben estar escaneados
+                    en buena calidad; no se aceptan fotografías. Una vez que el archivo PDF esté
+                    completo, selecciónalo y haz clic en <strong>Enviar</strong>.
+                  </p>
+                  <ol class="timeline-doc-escaneada-reqs">
+                    <li>Anexo XXXI</li>
+                    <li>Anexo XXXII</li>
+                    <li>Anexo XXXIII</li>
+                    <li>Formato 9.1</li>
+                    <li>Formato 9.2</li>
+                    <li>Formato 9.3</li>
+                    <li *ngIf="esTesisParaDocEscaneada">Identificación oficial vigente (INE)</li>
+                    <li *ngIf="esTesisParaDocEscaneada">CURP (impresión actualizada)</li>
+                    <li *ngIf="esTesisParaDocEscaneada">Licencia</li>
+                    <li *ngIf="esTesisParaDocEscaneada">Manifiesto</li>
+                    <li><strong>{{ nombreResultadoModalidad }}</strong></li>
+                  </ol>
+                  <p *ngIf="esTesisParaDocEscaneada" class="timeline-doc-escaneada-texto">
+                    Los formatos institucionales requeridos (Manifiesto de Tesis y Licencia de Uso de Obra)
+                    están disponibles para su descarga en el portal de la Dirección de Estudios Profesionales (DEP):
+                    <a href="https://dep.voaxaca.tecnm.mx/form-estudiantil/" target="_blank" rel="noopener" class="timeline-doc-escaneada-enlace">
+                      dep.voaxaca.tecnm.mx/form-estudiantil
+                    </a>.
                   </p>
                   <p
                     *ngIf="datos.observaciones_reenvio_documentacion_escaneada && !datos.fecha_envio_documentacion_escaneada_egresado"

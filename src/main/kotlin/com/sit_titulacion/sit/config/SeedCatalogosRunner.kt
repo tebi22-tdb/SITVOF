@@ -52,10 +52,10 @@ class SeedCatalogosRunner(
         data class ModalidadSeed(val nombre: String, val meses: Int?, val esResidencia: Boolean, val esCursoTitulacion: Boolean = false)
         listOf(
             ModalidadSeed("Tesis",                     meses = 12,   esResidencia = false),
-            ModalidadSeed("Tesina",                    meses = 12,   esResidencia = false),
+            ModalidadSeed("Tesina",                    meses = 12,   esResidencia = false, esCursoTitulacion = true),
             ModalidadSeed("Residencia Profesional",    meses = 6,    esResidencia = true),
             ModalidadSeed("CENEVAL",                   meses = null, esResidencia = false),
-            ModalidadSeed("Proyecto de Investigación", meses = 12,   esResidencia = false),
+            ModalidadSeed("Proyecto de Investigación", meses = 12,   esResidencia = false, esCursoTitulacion = true),
             ModalidadSeed("Monografía",                meses = 12,   esResidencia = false, esCursoTitulacion = true),
         ).forEachIndexed { i, m ->
             creados += sembrarSiNoExiste(
@@ -68,7 +68,40 @@ class SeedCatalogosRunner(
             )
         }
 
+        // Migración: corregir esCursoTitulacion en modalidades ya existentes con valor incorrecto
+        listOf("Tesina", "Proyecto de Investigación").forEach { nombre ->
+            val cat = catalogoRepository.findFirstByTipoAndNombreIgnoreCase("modalidad", nombre)
+            if (cat != null && !cat.esCursoTitulacion) {
+                catalogoRepository.save(cat.copy(esCursoTitulacion = true))
+                log.info("SeedCatalogos: modalidad '{}' actualizada → esCursoTitulacion=true", nombre)
+            }
+        }
+
         // ── Departamentos ─────────────────────────────────────────────────────
+        // Eliminar departamentos fantasma (slugs que ya no forman parte del catálogo oficial)
+        listOf("veterinaria").forEach { slugFantasma ->
+            val fantasmas = catalogoRepository.findAll().filter {
+                it.tipo == "departamento" && it.slug == slugFantasma
+            }
+            fantasmas.forEach { f ->
+                catalogoRepository.delete(f)
+                log.warn("SeedCatalogos: eliminado departamento fantasma slug='{}' id={}", slugFantasma, f.id)
+            }
+        }
+
+        // Eliminar duplicados de slug que pudieran haberse creado en ejecuciones anteriores
+        val slugsConocidos = listOf("virtuales", "ingenierias", "economico_administrativo", "ciencias_basicas")
+        slugsConocidos.forEach { slug ->
+            val todos = catalogoRepository.findByTipoAndActivoTrue("departamento").filter { it.slug == slug }
+            if (todos.size > 1) {
+                val conservar = todos.first()
+                todos.drop(1).forEach { dup ->
+                    catalogoRepository.delete(dup)
+                    log.warn("SeedCatalogos: eliminado duplicado de departamento slug='{}' id={}", slug, dup.id)
+                }
+            }
+        }
+
         data class DeptSeed(val nombre: String, val slug: String, val carreras: List<String>)
         listOf(
             DeptSeed(
@@ -103,13 +136,23 @@ class SeedCatalogosRunner(
                 carreras = listOf("LICENCIATURA EN BIOLOGÍA"),
             ),
         ).forEachIndexed { i, d ->
-            creados += sembrarSiNoExiste(
-                tipo = "departamento",
-                nombre = d.nombre,
-                orden = i,
-                slug = d.slug,
-                carreras = d.carreras,
-            )
+            val existente = catalogoRepository.findFirstByTipoAndNombreIgnoreCase("departamento", d.nombre)
+            if (existente != null) {
+                // Siempre actualizar slug y carreras; pueden haber cambiado desde el primer seed
+                val necesitaActualizar = existente.slug != d.slug || existente.carreras != d.carreras || existente.orden != i
+                if (necesitaActualizar) {
+                    catalogoRepository.save(existente.copy(slug = d.slug, carreras = d.carreras, orden = i))
+                    log.info("SeedCatalogos: departamento '{}' actualizado (slug/carreras)", d.nombre)
+                }
+            } else {
+                creados += sembrarSiNoExiste(
+                    tipo = "departamento",
+                    nombre = d.nombre,
+                    orden = i,
+                    slug = d.slug,
+                    carreras = d.carreras,
+                )
+            }
         }
 
         if (creados > 0) log.info("SeedCatalogos: {} ítems nuevos creados en colección 'catalogos'", creados)

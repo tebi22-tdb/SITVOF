@@ -1,6 +1,6 @@
 /**
  * No residencia, flujo 7 pasos (tesis):
- * - Plazo de desarrollo (12/18 meses): desde la confirmación DEP del paso 3 (recepción XXXI, anteproyecto y XXXII),
+ * - Plazo de desarrollo (12 meses): desde la confirmación DEP del paso 3 (recepción XXXI, anteproyecto y XXXII),
  *   no desde el envío al departamento académico (paso 2).
  * - Tras confirmar recepción del trabajo en división (paso 4): termina el plazo de desarrollo; 6 meses calendario
  *   para el trámite de titulación posterior.
@@ -27,9 +27,6 @@ export interface PlazoDesarrolloRecepcionUi {
 }
 
 export function mesesPlazoDesarrolloProyectoNoRes(modalidad: string | undefined | null): number {
-  const m = (modalidad ?? '').trim().toLowerCase();
-  if (m.includes('monograf')) return 18;
-  if (m.includes('tesis') || m.includes('tesina') || m.includes('investigaci')) return 12;
   return 12;
 }
 
@@ -178,7 +175,8 @@ function textoTiempoRestanteCorto(v: PlazoDesarrolloProyectoVista): string {
 }
 
 export interface EgresadoPlazoRecepcionInput {
-  datos_proyecto?: { modalidad?: string };
+  datos_proyecto?: { modalidad?: string; curso_titulacion?: string };
+  documentos?: { constancia_no_inconveniencia?: { fecha_expedicion?: string } };
   fecha_envio_solicitud_registro_anteproyecto_depto_academico?: string;
   fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii?: string;
   fecha_recepcion_trabajo_division_estudios_prof?: string;
@@ -188,20 +186,25 @@ export interface EgresadoPlazoRecepcionInput {
 }
 
 /**
- * Vista numérica del plazo (desarrollo 12/18 meses desde envío, o 6 meses desde recepción en división).
- * Sigue aplicando aunque el cuadro verde esté oculto tras confirmar recepción.
+ * Vista numérica del plazo (desarrollo 12 meses desde inicio según modalidad).
+ * Para curso de titulación: inicia desde la fecha de expedición de la constancia de no inconveniencia.
+ * Para demás modalidades: inicia desde confirmación DEP paso 3 (Anexo XXXII).
  */
 export function calcularVistaPlazoDesarrolloRecepcionNoRes(
   d: EgresadoPlazoRecepcionInput,
 ): PlazoDesarrolloProyectoVista | null {
   if (!d.fecha_envio_solicitud_registro_anteproyecto_depto_academico?.trim()) return null;
   if (d.fecha_enviado_departamento_academico?.trim()) return null;
+  const esCurso = d.datos_proyecto?.curso_titulacion === 'si';
+  const fechaInicio = esCurso
+    ? d.documentos?.constancia_no_inconveniencia?.fecha_expedicion
+    : d.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii;
   return calcularPlazoDesarrolloProyectoNoRes({
     modalidad: d.datos_proyecto?.modalidad,
     fechaRecepcionDivision: d.fecha_recepcion_trabajo_division_estudios_prof,
     fechaLiberacionProducto: d.fecha_solicitud_registro_liberacion_depto_academico,
     fechaEnvioAnteproyecto: d.fecha_envio_solicitud_registro_anteproyecto_depto_academico.trim(),
-    fechaConfirmacionInicial: d.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii,
+    fechaConfirmacionInicial: fechaInicio,
   });
 }
 

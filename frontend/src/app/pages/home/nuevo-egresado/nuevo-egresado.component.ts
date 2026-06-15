@@ -135,8 +135,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       const soloCurso = this.modalidadesCatalogo.filter(m => m.esCursoTitulacion).map(m => m.nombre);
       return soloCurso.length ? soloCurso : [...MODALIDADES_CURSO_TITULACION];
     }
-    const normales = this.modalidadesCatalogo.filter(m => !m.esCursoTitulacion).map(m => m.nombre);
-    return normales.length ? normales : this.modalidadesCatalogo.map(m => m.nombre);
+    return this.modalidadesCatalogo.map(m => m.nombre);
   }
 
   ngOnInit(): void {
