@@ -1007,7 +1007,7 @@ class EgresadoController(
 
     @PostMapping("/mi-seguimiento/documentacion-escaneada", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun miSeguimientoSubirDocumentacionEscaneada(
-        @RequestPart("archivos") archivos: List<MultipartFile>?,
+        @RequestParam("archivos") archivos: List<MultipartFile>,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
         if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
@@ -1052,6 +1052,58 @@ class EgresadoController(
         if (principal == null) return null
         if (principal.getRol().trim().lowercase() != "academico") return null
         return respuestaSiNoAccesoEgresadoBandeja(id, principal)
+    }
+
+    @GetMapping("/{id}/hoja-32")
+    fun descargarHoja32(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        val nc32 = egresadoService.obtenerNumeroControl(id) ?: id
+        val bytes = egresadoService.crearHoja32(id)
+            ?: return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                mapOf("error" to "No se pudo generar la hoja 32. Verifica que el egresado tenga proceso activo."),
+            )
+        return ResponseEntity.ok()
+            .contentType(MediaType.APPLICATION_PDF)
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"AnexoXXXII-$nc32.pdf\"")
+            .body(bytes)
+    }
+
+    @GetMapping("/{id}/hoja-33")
+    fun descargarHoja33(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        val nc33 = egresadoService.obtenerNumeroControl(id) ?: id
+        val bytes = egresadoService.crearHoja33(id)
+            ?: return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                mapOf("error" to "No se pudo generar la hoja 33. Verifica que el egresado tenga proceso activo."),
+            )
+        return ResponseEntity.ok()
+            .contentType(MediaType.APPLICATION_PDF)
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"AnexoXXXIII-$nc33.pdf\"")
+            .body(bytes)
+    }
+
+    @PostMapping("/{id}/registrar-generacion-anexos")
+    fun registrarGeneracionAnexos(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (principal == null || !puedeVerBandejaDepartamento(principal.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        }
+        respuestaSiNoAccesoEgresadoBandeja(id, principal)?.let { return it }
+        val ok = egresadoService.registrarGeneracionAnexos(id)
+        if (!ok) return ResponseEntity.badRequest().body(
+            mapOf("error" to "No aplica. Verifica que sea Residencia Profesional y que el expediente esté enviado al departamento."),
+        )
+        return ResponseEntity.ok().body(mapOf("ok" to true))
     }
 
     private fun mensajeConflictoNumeroControlAlta(expedienteEstado: String?): String =

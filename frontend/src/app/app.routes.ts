@@ -117,5 +117,13 @@ export const routes: Routes = [
       ),
     canActivate: [serviciosEscolaresGuard],
   },
+  {
+    path: 'home/config-institucional',
+    loadComponent: () =>
+      import('./pages/config-institucional/config-institucional.component').then(
+        (m) => m.ConfigInstitucionalComponent,
+      ),
+    canActivate: [coordinadorGuard],
+  },
   { path: '**', redirectTo: 'login' },
 ];

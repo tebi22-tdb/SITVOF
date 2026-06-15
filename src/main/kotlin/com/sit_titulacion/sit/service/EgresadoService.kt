@@ -108,6 +108,7 @@ class EgresadoService(
     private val htmlAnexoPdfService: HtmlAnexoPdfService,
     private val revisionService: RevisionService,
     private val certService: CertificacionPdfService,
+    private val configInstitucionalService: ConfiguracionInstitucionalService,
 ) {
     private val log = LoggerFactory.getLogger(EgresadoService::class.java)
 
@@ -484,6 +485,7 @@ class EgresadoService(
                 fechaEnvioAnteproyectoDepto = pr.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico?.let { formatter.format(it) },
                 fechaRegistradoDepartamento = pr.fechaRegistradoDepartamento?.let { formatter.format(it) },
                 fechaLiberacionProducto = pr.fechaSolicitudRegistroLiberacionDeptoAcademico?.let { formatter.format(it) },
+                fechaGeneracionAnexosXxxiiXxxxiii = pr.fechaGeneracionAnexosXxxiiXxxxiii?.let { formatter.format(it) },
             )
         }
     }
@@ -1250,26 +1252,28 @@ class EgresadoService(
         return true
     }
 
-    fun subirDocumentacionEscaneadaEgresado(egresadoId: String, archivos: List<MultipartFile>?): String? {
+    fun subirDocumentacionEscaneadaEgresado(
+        egresadoId: String,
+        archivos: List<MultipartFile>,
+    ): String? {
         val oid = try { ObjectId(egresadoId) } catch (_: Exception) { return "Identificador inválido." }
         val e = egresadoRepository.findById(oid).orElse(null) ?: return "Registro no encontrado."
         val p = e.procesoActivoOrNull() ?: return "No hay proceso activo."
         if (p.fechaSolicitudDocumentacionEscaneada == null) return "Aún no se ha solicitado la documentación escaneada."
         if (p.fechaConfirmacionDocumentacionEscaneadaRecibida != null) return "Ya se confirmó la recepción; no se pueden enviar más archivos."
-        val lista = archivos?.filter { !it.isEmpty } ?: emptyList()
-        if (lista.isEmpty()) return "Debes adjuntar al menos un PDF."
-        for (a in lista) {
+        val validos = archivos.filter { !it.isEmpty }
+        if (validos.isEmpty()) return "Debes adjuntar al menos un PDF."
+        for (a in validos) {
             if (!esPdfValido(a)) return "Solo se permiten archivos PDF (${a.originalFilename ?: "archivo"})."
         }
         eliminarEntregaEscaneadaAnterior(oid)
-        val metas = mutableListOf<ArchivoEscaneadoMeta>()
-        for (a in lista) {
-            metas.add(ArchivoEscaneadoMeta(
+        val metas = validos.map { a ->
+            ArchivoEscaneadoMeta(
                 gridfsId = subirArchivo(a),
                 nombreOriginal = a.originalFilename ?: "documento.pdf",
                 contentType = a.contentType ?: "application/pdf",
                 tamanioBytes = a.size,
-            ))
+            )
         }
         val guardado = documentacionEscaneadaRepository.save(
             DocumentacionEscaneada(
@@ -1717,6 +1721,27 @@ class EgresadoService(
         return "$dia de $mes del ${z.year}"
     }
 
+    private fun toTitleCaseCarrera(s: String): String {
+        val exact = mapOf(
+            "INGENIERIA EN AGRONOMÍA" to "Ingeniería en Agronomía",
+            "LICENCIATURA EN BIOLOGÍA" to "Licenciatura en Biología",
+            "INGENIERIA FORESTAL" to "Ingeniería Forestal",
+            "INGENIERIA INFORMÁTICA" to "Ingeniería Informática",
+            "INGENIERIA EN TECNOLOGIA DE LA INFORMACION Y COMUNICACION" to "Ingeniería en Tecnología de la Información y Comunicación",
+            "INGENIERIA EN CIENCIA DE DATOS" to "Ingeniería en Ciencia de Datos",
+            "INGENIERIA SISTEMAS COMPUTACIONALES" to "Ingeniería Sistemas Computacionales",
+            "INGENIERIA AMBIENTAL" to "Ingeniería Ambiental",
+            "INGENIERIA EN GESTIÓN EMPRESARIAL (VIRTUAL)" to "Ingeniería en Gestión Empresarial (Virtual)",
+        )
+        val key = s.trim().uppercase()
+        exact[key]?.let { return it }
+        val small = setOf("EN", "DE", "LA", "EL", "LOS", "LAS", "DEL", "Y", "O")
+        return s.trim().split("\\s+".toRegex()).mapIndexed { i, w ->
+            if (i != 0 && w.uppercase() in small) w.lowercase()
+            else w.lowercase().replaceFirstChar { it.uppercaseChar() }
+        }.joinToString(" ")
+    }
+
     private fun nombreMesEspanol(monthValue1to12: Int): String {
         val meses = listOf("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre")
         return meses.getOrElse(monthValue1to12 - 1) { "—" }.replaceFirstChar { it.uppercaseChar() }
@@ -1962,5 +1987,104 @@ class EgresadoService(
         val out = ByteArrayOutputStream()
         doc.write(out)
         return out.toByteArray()
+    }
+
+    fun crearHoja32(id: String): ByteArray? {
+        val e = cargarEgresadoPorId(id) ?: return null
+        val p = e.procesoActivoOrNull() ?: return null
+        val deptConfig = configInstitucionalService.resolverPorCarrera(e.datos_personales.carrera)
+        val asesores = listOfNotNull(
+            p.datos_proyecto.asesor_interno,
+            p.datos_proyecto.asesor_externo,
+            p.datos_proyecto.director,
+            p.datos_proyecto.asesor_1,
+            p.datos_proyecto.asesor_2,
+        ).filter { it.isNotBlank() }.joinToString(", ")
+        val deptNombre = catalogoRepository.findByTipoAndActivoTrue("departamento")
+            .firstOrNull { d -> d.carreras.any { it.trim().equals(e.datos_personales.carrera.trim(), ignoreCase = true) } }
+            ?.nombre ?: ""
+        val valores = construirValoresPlantillaHtml(e, listOf(
+            "FECHA_CARTA" to fechaCartaEspanolaAnexo93(Instant.now()),
+            "CARRERA" to toTitleCaseCarrera(e.datos_personales.carrera),
+            "DEPARTAMENTO_NOMBRE" to deptNombre,
+            "JEFE_DIVISION_NOMBRE" to configInstitucionalService.obtenerJefeDivisionNombre(),
+            "JEFE_DIVISION_TITULO" to configInstitucionalService.obtenerJefeDivisionTitulo(),
+            "NOMBRE_PROYECTO" to p.datos_proyecto.nombre_proyecto,
+            "NOMBRE_ASESORES" to asesores,
+            "NUM_ESTUDIANTES" to "1",
+            "JEFE_DEPTO_NOMBRE" to (deptConfig?.jefeNombre ?: ""),
+            "JEFE_DEPTO_CARGO" to (deptConfig?.jefeCargo ?: ""),
+            "JEFE_DEPTO_INICIALES" to (deptConfig?.jefeIniciales ?: ""),
+        ))
+        return htmlAnexoPdfService.generarDesdeClasspath("templates/html/hoja-32-registro-proyecto.html", valores)
+    }
+
+    fun crearHoja33(id: String): ByteArray? {
+        val e = cargarEgresadoPorId(id) ?: return null
+        val p = e.procesoActivoOrNull() ?: return null
+        val deptConfig = configInstitucionalService.resolverPorCarrera(e.datos_personales.carrera)
+        val deptNombre33 = catalogoRepository.findByTipoAndActivoTrue("departamento")
+            .firstOrNull { d -> d.carreras.any { it.trim().equals(e.datos_personales.carrera.trim(), ignoreCase = true) } }
+            ?.nombre ?: ""
+        val esResidencia = esResidenciaProfesional(e)
+        val firmaNombre1: String
+        val firmaNombre2: String
+        val firmaNombre3: String
+        val firmaLabel1: String
+        val firmaLabel2: String
+        val firmaLabel3: String
+        if (esResidencia) {
+            firmaNombre1 = p.datos_proyecto.asesor_interno?.takeIf { it.isNotBlank() } ?: ""
+            firmaNombre2 = ""
+            firmaNombre3 = ""
+            firmaLabel1 = "Nombre y firma de Asesor"
+            firmaLabel2 = "Nombre y firma del Revisor*"
+            firmaLabel3 = "Nombre y firma del Revisor*"
+        } else {
+            firmaNombre1 = p.datos_proyecto.director?.takeIf { it.isNotBlank() } ?: ""
+            firmaNombre2 = p.datos_proyecto.asesor_1?.takeIf { it.isNotBlank() } ?: ""
+            firmaNombre3 = p.datos_proyecto.asesor_2?.takeIf { it.isNotBlank() } ?: ""
+            firmaLabel1 = "Director"
+            firmaLabel2 = "Asesor"
+            firmaLabel3 = "Asesor"
+        }
+        val valores = construirValoresPlantillaHtml(e, listOf(
+            "FECHA_CARTA" to fechaCartaEspanolaAnexo93(Instant.now()),
+            "CARRERA" to toTitleCaseCarrera(e.datos_personales.carrera),
+            "DEPARTAMENTO_NOMBRE" to deptNombre33,
+            "JEFE_DIVISION_NOMBRE" to configInstitucionalService.obtenerJefeDivisionNombre(),
+            "NOMBRE_PROYECTO" to p.datos_proyecto.nombre_proyecto,
+            "PRODUCTO" to textoOpcionTitulacionIntegral(p.datos_proyecto.modalidad),
+            "FIRMA_NOMBRE_1" to firmaNombre1,
+            "FIRMA_NOMBRE_2" to firmaNombre2,
+            "FIRMA_NOMBRE_3" to firmaNombre3,
+            "FIRMA_LABEL_1" to firmaLabel1,
+            "FIRMA_LABEL_2" to firmaLabel2,
+            "FIRMA_LABEL_3" to firmaLabel3,
+            "JEFE_DEPTO_NOMBRE" to (deptConfig?.jefeNombre ?: ""),
+            "JEFE_DEPTO_CARGO" to (deptConfig?.jefeCargo ?: ""),
+            "JEFE_DEPTO_INICIALES" to (deptConfig?.jefeIniciales ?: ""),
+        ))
+        return htmlAnexoPdfService.generarDesdeClasspath("templates/html/hoja-33-liberacion-proyecto.html", valores)
+    }
+
+    fun obtenerNumeroControl(id: String): String? = cargarEgresadoPorId(id)?.numero_control
+
+    fun registrarGeneracionAnexos(id: String): Boolean {
+        val e = cargarEgresadoPorId(id) ?: return false
+        val p = e.procesoActivoOrNull() ?: return false
+        if (!esResidenciaProfesional(e)) return false
+        if (p.fechaEnviadoDepartamentoAcademico == null) return false
+        val ahora = Instant.now()
+        egresadoRepository.save(
+            e.actualizarProcesoActivo(
+                p.copy(
+                    fechaRecibidoRegistroLiberacion = p.fechaRecibidoRegistroLiberacion ?: ahora,
+                    fechaGeneracionAnexosXxxiiXxxxiii = ahora,
+                    fecha_actualizacion = ahora,
+                ),
+            ),
+        )
+        return true
     }
 }

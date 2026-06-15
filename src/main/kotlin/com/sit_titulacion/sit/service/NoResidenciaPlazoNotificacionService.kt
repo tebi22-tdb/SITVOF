@@ -16,8 +16,8 @@ import java.time.temporal.ChronoUnit
 
 /**
  * Tesis / monografía (flujo 7 pasos, no residencia):
- * - Desarrollo: 12 meses (tesis) o 18 (monografía) desde confirmación DEP paso 3.
- *   Correos a 3, 6 y 9 meses (tesis) o 6, 12 y 15 (monografía), más 3 días antes del límite.
+ * - Desarrollo: 12 meses desde confirmación DEP paso 3.
+ *   Correos a 3, 6 y 9 meses, más 3 días antes del límite.
  * - Trámite: 6 meses desde liberación en departamento.
  *   Correos a 2 y 4 meses, aviso de inicio de fase, 3 días antes y cierre (concluido/vencido).
  */
@@ -96,7 +96,11 @@ class NoResidenciaPlazoNotificacionService(
             return
         }
 
-        val inicioDev = p0.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii ?: return
+        val inicioDev = if (p0.datos_proyecto.curso_titulacion == "si") {
+            p0.documentos.constancia_no_inconveniencia.fecha_expedicion ?: return
+        } else {
+            p0.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii ?: return
+        }
         procesarFaseDesarrollo(egresado, p0, correo, nombre, inicioDev, p0.datos_proyecto.modalidad)
     }
 
@@ -335,13 +339,9 @@ class NoResidenciaPlazoNotificacionService(
         return cat?.esResidencia ?: nombre.equals("Residencia Profesional", ignoreCase = true)
     }
 
-    private fun mesesDesarrollo(modalidad: String): Long {
-        val m = modalidad.trim().lowercase()
-        return if (m.contains("monograf")) 18L else 12L
-    }
+    private fun mesesDesarrollo(modalidad: String): Long = 12L
 
-    private fun avisosMesesDesarrollo(mesesDev: Long): List<Long> =
-        if (mesesDev == 18L) listOf(6L, 12L, 15L) else listOf(3L, 6L, 9L)
+    private fun avisosMesesDesarrollo(mesesDev: Long): List<Long> = listOf(3L, 6L, 9L)
 
     private fun etiquetaModalidad(modalidad: String): String {
         val m = modalidad.trim().lowercase()

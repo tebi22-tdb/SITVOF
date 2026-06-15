@@ -48,6 +48,8 @@ data class ProcesoTitulacion(
     val fechaEnviadoDepartamentoAcademico: Instant? = null,
     @Field("fecha_recibido_registro_liberacion")
     val fechaRecibidoRegistroLiberacion: Instant? = null,
+    @Field("fecha_generacion_anexos_xxxii_xxxiii")
+    val fechaGeneracionAnexosXxxiiXxxxiii: Instant? = null,
 
     // ── División de estudios / Anexos ────────────────────────────────────────
     @Field("fecha_confirmacion_recibidos_anexo_xxxi_xxxii")

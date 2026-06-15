@@ -13,7 +13,7 @@ export const CARRERAS = [
   'INGENIERIA SISTEMAS COMPUTACIONALES',
   'INGENIERIA AMBIENTAL',
   'INGENIERIA EN GESTIÓN EMPRESARIAL (VIRTUAL)',
-] as const;
+] as const; 
 
 export const NIVELES = ['Licenciatura', 'Maestría', 'Posgrado'] as const;
 
