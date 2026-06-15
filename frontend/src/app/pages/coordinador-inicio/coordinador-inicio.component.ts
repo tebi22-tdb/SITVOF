@@ -34,7 +34,7 @@ import { AuthService } from '../../services/auth.service';
               </svg>
             </div>
           </button>
-          <button type="button" class="card" (click)="irAltaDocentes()">
+          <button type="button" class="card" *ngIf="!esApoyoTitulacion" (click)="irAltaDocentes()">
             <div class="card-texto">
               <h2>Alta de docentes</h2>
               <p>Registra docentes con nombre, correo y cédula para asignarlos como sinodales.</p>
@@ -73,7 +73,7 @@ import { AuthService } from '../../services/auth.service';
               </svg>
             </div>
           </button>
-          <button type="button" class="card" (click)="irRevisiones()">
+          <button type="button" class="card" *ngIf="!esApoyoTitulacion" (click)="irRevisiones()">
             <div class="card-texto">
               <h2>Revisiones de documentos profesionales</h2>
               <p>Consulta el estado de la revisión académica.</p>
@@ -92,7 +92,7 @@ import { AuthService } from '../../services/auth.service';
               </svg>
             </div>
           </button>
-          <button type="button" class="card" (click)="irDepartamentoAcademicoMenu()">
+          <button type="button" class="card" *ngIf="!esApoyoTitulacion" (click)="irDepartamentoAcademicoMenu()">
             <div class="card-texto">
               <h2>Departamento académico</h2>
               <p>Ingenierías, Económico-Administrativo, Carreras virtuales y más.</p>
@@ -104,7 +104,7 @@ import { AuthService } from '../../services/auth.service';
               </svg>
             </div>
           </button>
-          <button type="button" class="card" (click)="irServiciosEscolares()">
+          <button type="button" class="card" *ngIf="!esApoyoTitulacion" (click)="irServiciosEscolares()">
             <div class="card-texto">
               <h2>Departamento de Servicios escolares</h2>
               <p>Bandeja de constancias 9.2 solicitadas por la DEP: pendientes y confirmación.</p>
@@ -117,7 +117,7 @@ import { AuthService } from '../../services/auth.service';
               </svg>
             </div>
           </button>
-          <button type="button" class="card" (click)="irGestionCuentas()">
+          <button type="button" class="card" *ngIf="!esApoyoTitulacion" (click)="irGestionCuentas()">
             <div class="card-texto">
               <h2>Gestión de cuentas</h2>
               <p>Cambia correo o resetea contraseña de egresados con acceso bloqueado.</p>
@@ -130,7 +130,7 @@ import { AuthService } from '../../services/auth.service';
               </svg>
             </div>
           </button>
-          <button type="button" class="card" (click)="irRepositorio()">
+          <button type="button" class="card" *ngIf="!esApoyoTitulacion" (click)="irRepositorio()">
             <div class="card-texto">
               <h2>Repositorio de documentos profesionales</h2>
               <p>Consulta los proyectos de los egresados de las diferentes carreras y modalidades.</p>
@@ -143,7 +143,7 @@ import { AuthService } from '../../services/auth.service';
               </svg>
             </div>
           </button>
-          <button type="button" class="card" (click)="irCatalogos()">
+          <button type="button" class="card" *ngIf="!esApoyoTitulacion" (click)="irCatalogos()">
             <div class="card-texto">
               <h2>Configuración de catálogos</h2>
               <p>Administra carreras, niveles, modalidades y departamentos académicos.</p>
@@ -257,6 +257,10 @@ export class CoordinadorInicioComponent {
     private auth: AuthService,
   ) {}
 
+  get esApoyoTitulacion(): boolean {
+    return this.auth.isApoyoTitulacion();
+  }
+
   get puedeVerRepositorio(): boolean {
     return this.auth.puedeAccederRepositorio();
   }
@@ -268,9 +272,10 @@ export class CoordinadorInicioComponent {
   }
 
   get descripcionCardAlta(): string {
-    return this.auth.puedeAdministrarUsuariosStaff()
-      ? 'Registro de egresados al proceso de titulacion por las diferentes modalidades y alta de roles'
-      : 'Registro de egresados al proceso de titulacion por las diferentes modalidades y alta de roles';
+    if (this.auth.puedeAdministrarUsuariosStaff()) {
+      return 'Registro de egresados al proceso de titulacion por las diferentes modalidades y alta de roles';
+    }
+    return 'Registro de egresados al proceso de titulacion por las diferentes modalidades';
   }
 
   irDepartamentoAcademicoMenu(): void {
