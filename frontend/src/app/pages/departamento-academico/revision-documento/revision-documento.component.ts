@@ -96,7 +96,7 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
           const msg =
             (err as { error?: { error?: string }; message?: string }).error?.error ??
             (err as { message?: string }).message;
-          this.errorDocumento = msg ? `No se pudo cargar la tesis: ${msg}` : 'No se pudo cargar la tesis.';
+          this.errorDocumento = msg ? `No se pudo cargar el documento: ${msg}` : 'No se pudo cargar el documento.';
         },
       }),
     );

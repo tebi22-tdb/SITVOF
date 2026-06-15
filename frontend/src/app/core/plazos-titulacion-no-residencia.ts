@@ -1,7 +1,7 @@
 /**
  * Plazos para lista / semáforo del coordinador y vista del egresado.
  * - Residencia: 6 meses desde fecha de registro Anexo XXXI (alta).
- * - No residencia (flujo 7 pasos): desarrollo 12/18 meses desde confirmación DEP paso 3;
+ * - No residencia (flujo 7 pasos): desarrollo 12 meses desde confirmación DEP paso 3;
  *   tras liberación en departamento, 6 meses hasta envío a CAT.
  */
 import {

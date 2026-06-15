@@ -83,16 +83,21 @@
 }
 
 .verificar-icono {
-  font-size: 2rem;
-  display: block;
-  margin-bottom: 4px;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.verificar-icono img {
+  height: 80px;
+  width: auto;
+  object-fit: contain;
 }
 
 .verificar-valido {
   border-top: 4px solid #2a9461;
 }
 
-.verificar-valido .verificar-icono,
 .verificar-valido h3 {
   color: #2a9461;
 }

@@ -181,6 +181,8 @@ export interface DepartamentoListItem {
   fecha_registrado_departamento?: string;
   /** Pestaña Liberación de producto: ya liberado. */
   fecha_liberacion_producto?: string;
+  /** Residencia: fecha en que el departamento generó por primera (o última) vez los Anexos XXXII y XXXIII. */
+  fecha_generacion_anexos_xxxii_xxxiii?: string;
 }
 
 /** Revisión guardada (del backend). */
@@ -582,12 +584,9 @@ export class EgresadoService {
     return this.http.post(`${API}/${id}/solicitar-documentacion-escaneada-nuevamente`, { observaciones });
   }
 
-  /** Egresado: sube uno o más PDF (multipart, campo `archivos`). */
   subirDocumentacionEscaneadaMiSeguimiento(archivos: File[]): Observable<unknown> {
     const formData = new FormData();
-    for (const f of archivos) {
-      formData.append('archivos', f, f.name);
-    }
+    for (const f of archivos) formData.append('archivos', f, f.name);
     return this.http.post(`${API}/mi-seguimiento/documentacion-escaneada`, formData);
   }
 
@@ -598,5 +597,33 @@ export class EgresadoService {
       formData.append('archivo', archivo, archivo.name);
     }
     return this.http.post(`${API}/${id}`, formData);
+  }
+
+  registrarGeneracionAnexos(id: string): Observable<unknown> {
+    return this.http.post(`${API}/${id}/registrar-generacion-anexos`, {});
+  }
+
+  descargarHoja32(id: string): Observable<{ blob: Blob; fileName: string }> {
+    return this.http
+      .get(`${API}/${id}/hoja-32`, { responseType: 'blob', observe: 'response' })
+      .pipe(
+        map((res) => {
+          const disp = res.headers.get('Content-Disposition') ?? '';
+          const match = /filename[*]?=(?:UTF-8'')?["']?([^"';\n]+)/i.exec(disp);
+          return { blob: res.body!, fileName: match?.[1]?.trim() ?? 'Hoja-32.pdf' };
+        }),
+      );
+  }
+
+  descargarHoja33(id: string): Observable<{ blob: Blob; fileName: string }> {
+    return this.http
+      .get(`${API}/${id}/hoja-33`, { responseType: 'blob', observe: 'response' })
+      .pipe(
+        map((res) => {
+          const disp = res.headers.get('Content-Disposition') ?? '';
+          const match = /filename[*]?=(?:UTF-8'')?["']?([^"';\n]+)/i.exec(disp);
+          return { blob: res.body!, fileName: match?.[1]?.trim() ?? 'Hoja-33.pdf' };
+        }),
+      );
   }
 }

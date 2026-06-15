@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1280" />
+<title>SITVO · Detalle de residencia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --navy:#1e3a6e;
+    --navy-deep:#162b52;
+    --blue:#3d6aa8;
+    --blue-soft:#c5d6e8;
+    --blue-softer:#dde7f3;
+    --bg:#f4f6fa;
+    --ink:#1a2540;
+    --ink-2:#3a4a66;
+    --muted:#7388a8;
+    --line:#d8e0ec;
+    --line-2:#e7ecf3;
+    --ok:#2f8a5e;
+    --ok-soft:#e3f2eb;
+    --warn:#c4761c;
+    --warn-soft:#fbf0dd;
+    --danger:#b53b3b;
+    --danger-soft:#fbe6e6;
+    --info-soft:#e5eef9;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:'Inter',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.45}
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+
+  /* ---------- Header (reusable placeholder) ---------- */
+  .app-header{background:linear-gradient(180deg,var(--navy) 0%, var(--navy-deep) 100%);color:#fff;border-bottom:1px solid rgba(255,255,255,.08)}
+  .app-header .top{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:18px 36px;gap:24px}
+  .app-header .brand-l, .app-header .brand-r{display:flex;align-items:center;gap:14px;color:rgba(255,255,255,.85);font-size:11px;letter-spacing:.04em}
+  .app-header .brand-r{justify-content:flex-end}
+  .seal{width:62px;height:62px;border-radius:50%;background:rgba(255,255,255,.06);border:1px dashed rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:9px;color:rgba(255,255,255,.55);text-align:center;line-height:1.1}
+  .app-header .title{text-align:center}
+  .app-header h1{margin:0;font-size:28px;letter-spacing:.18em;font-weight:700}
+  .app-header .subtitle{margin-top:4px;font-size:13px;color:rgba(255,255,255,.78);font-weight:400}
+  .app-header .userbar{display:flex;justify-content:flex-end;align-items:center;gap:14px;padding:10px 36px 12px;font-size:13px;color:rgba(255,255,255,.85)}
+  .app-header .userbar b{color:#fff}
+  .btn-exit{display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--navy);border:none;border-radius:8px;padding:7px 14px;font-weight:600;font-size:13px;cursor:pointer}
+  .header-marker{display:flex;align-items:center;justify-content:center;gap:8px;padding:6px 36px 0;font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+  .header-marker span{background:var(--blue-softer);color:var(--navy);padding:2px 8px;border-radius:4px}
+
+  /* ---------- Page ---------- */
+  .crumbs{padding:18px 36px 0;color:var(--muted);font-size:12px;display:flex;align-items:center;gap:8px}
+  .crumbs a{color:var(--muted);text-decoration:none}
+  .crumbs a:hover{color:var(--navy)}
+  .crumbs b{color:var(--ink)}
+
+  .page-title{padding:6px 36px 0;display:flex;align-items:end;justify-content:space-between;gap:24px}
+  .page-title .left h2{margin:0;font-size:26px;font-weight:700;color:var(--navy);display:flex;align-items:center;gap:10px}
+  .page-title .left h2 .ro{
+    font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+    background:var(--blue-softer);color:var(--navy);padding:4px 10px;border-radius:999px;
+    display:inline-flex;align-items:center;gap:6px
+  }
+  .page-title .left p{margin:4px 0 0;color:var(--muted);font-size:13px}
+  .page-title .cta{display:flex;gap:10px;align-items:center}
+
+  .btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;padding:9px 14px;font:inherit;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;line-height:1;text-decoration:none}
+  .btn:hover{border-color:#b9c5d8}
+  .btn.primary{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .btn.primary:hover{background:var(--navy-deep)}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--ink-2)}
+  .btn.danger{color:var(--danger);border-color:var(--line)}
+  .btn.danger:hover{background:var(--danger-soft);border-color:#e8c6c6}
+
+  .badge{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:999px}
+  .badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.7}
+  .badge.b-act{color:var(--ok);background:var(--ok-soft)}
+  .pill-mod{font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;background:var(--blue-softer);color:var(--navy);font-family:'JetBrains Mono',monospace}
+
+  /* ---------- Layout ---------- */
+  .wrap{padding:20px 36px 64px;max-width:980px}
+
+  /* hero summary */
+  .hero{
+    background:#fff;border:1px solid var(--line);border-radius:14px;
+    padding:22px 28px;display:flex;align-items:center;gap:18px;margin-bottom:18px;
+    box-shadow:0 1px 0 rgba(20,40,80,.03)
+  }
+  .hero .avatar{
+    width:56px;height:56px;border-radius:50%;background:var(--blue-softer);
+    color:var(--navy);font-weight:700;font-size:18px;
+    display:flex;align-items:center;justify-content:center;flex:none
+  }
+  .hero .who{flex:1}
+  .hero .who h3{margin:0;font-size:18px;color:var(--ink);font-weight:700}
+  .hero .who .nc{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);margin-top:3px}
+  .hero .who .car{font-size:12.5px;color:var(--ink-2);margin-top:6px}
+  .hero .right{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+
+  /* card */
+  .card{
+    background:#fff;border:1px solid var(--line);border-radius:14px;
+    padding:0;margin-bottom:18px;box-shadow:0 1px 0 rgba(20,40,80,.03);overflow:hidden
+  }
+  .card h4{
+    margin:0;padding:14px 22px;font-size:11.5px;color:var(--navy);
+    text-transform:uppercase;letter-spacing:.08em;font-weight:700;
+    background:#fafbfd;border-bottom:1px solid var(--line-2);
+    display:flex;align-items:center;gap:8px
+  }
+  .card h4 .dot{
+    width:6px;height:6px;border-radius:50%;background:var(--blue)
+  }
+  .card .content{padding:18px 22px 20px}
+
+  /* read-only fields */
+  .field-ro{display:flex;flex-direction:column;gap:5px}
+  .field-ro .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+  .field-ro .v{font-size:14px;color:var(--ink);font-weight:500;line-height:1.4;
+    padding:9px 12px;background:var(--bg);border-radius:8px;border:1px solid var(--line-2);min-height:38px;display:flex;align-items:center}
+  .field-ro .v.mono{font-family:'JetBrains Mono',monospace}
+  .field-ro .v.empty{color:var(--muted);font-style:italic;font-weight:400}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+  .col-stack{display:flex;flex-direction:column;gap:14px}
+
+  /* anexos */
+  .anex-list{display:flex;flex-direction:column;gap:10px}
+  .anex-item{
+    display:flex;align-items:center;gap:14px;
+    padding:14px 16px;background:var(--bg);border:1px solid var(--line-2);border-radius:10px
+  }
+  .anex-item .ico{
+    width:42px;height:42px;border-radius:8px;background:#fff;color:var(--navy);
+    display:flex;align-items:center;justify-content:center;flex:none;border:1px solid var(--line)
+  }
+  .anex-item .meta{flex:1;min-width:0}
+  .anex-item .meta b{display:block;font-size:13.5px;color:var(--ink);font-weight:600}
+  .anex-item .meta span{font-size:11.5px;color:var(--muted)}
+  .anex-item .actions{display:flex;gap:6px}
+  .anex-item .ok-tag{
+    font-size:10.5px;font-weight:600;color:var(--ok);background:var(--ok-soft);
+    padding:2px 8px;border-radius:999px;text-transform:uppercase;letter-spacing:.05em
+  }
+
+  /* timeline */
+  .tl{display:flex;flex-direction:column;gap:0;position:relative;padding-left:8px}
+  .tl-item{position:relative;padding:0 0 18px 26px}
+  .tl-item:last-child{padding-bottom:0}
+  .tl-item::before{
+    content:"";position:absolute;left:6px;top:6px;bottom:-6px;width:1px;background:var(--line)
+  }
+  .tl-item:last-child::before{display:none}
+  .tl-item .dot{
+    position:absolute;left:0;top:3px;width:13px;height:13px;border-radius:50%;
+    background:#fff;border:2px solid var(--blue);
+  }
+  .tl-item.done .dot{background:var(--ok);border-color:var(--ok)}
+  .tl-item.pending .dot{background:#fff;border-color:var(--line)}
+  .tl-item .t{font-size:13px;font-weight:600;color:var(--ink)}
+  .tl-item .d{font-size:11.5px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px}
+  .tl-item .who{font-size:11.5px;color:var(--ink-2);margin-top:2px}
+
+  /* sidebar actions sticky on desktop */
+  .layout{display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start}
+  .side{position:sticky;top:18px}
+  .side .card .content{padding:14px 16px}
+  .side .meta-row{display:flex;justify-content:space-between;font-size:12.5px;padding:6px 0;border-bottom:1px dashed var(--line-2)}
+  .side .meta-row:last-child{border-bottom:0}
+  .side .meta-row .k{color:var(--muted)}
+  .side .meta-row .v{color:var(--ink-2);font-weight:600;font-family:'JetBrains Mono',monospace;font-size:11.5px}
+  .side .actions-list{display:flex;flex-direction:column;gap:8px}
+  .side .actions-list .btn{justify-content:flex-start;width:100%}
+</style>
+</head>
+<body>
+
+<!-- HEADER placeholder -->
+<header class="app-header">
+  <div class="top">
+    <div class="brand-l">
+      <div class="seal">TECNM<br/>logo</div>
+      <div>TECNOLÓGICO<br/>NACIONAL DE MÉXICO®</div>
+    </div>
+    <div class="title">
+      <h1>SITVO</h1>
+      <div class="subtitle">Sistema Integral de Titulación del Tecnológico del Valle de Oaxaca</div>
+    </div>
+    <div class="brand-r">
+      <div style="text-align:right">INSTITUTO TECNOLÓGICO<br/>DEL VALLE DE OAXACA</div>
+      <div class="seal">ITVO<br/>logo</div>
+    </div>
+  </div>
+  <div class="userbar">
+    <span>Bienvenido <b>coordinador</b> — Administrador</span>
+    <button class="btn-exit">⏻ Salir</button>
+  </div>
+</header>
+
+<div class="header-marker">
+  <span>// componente reutilizable</span>
+  <span>// el body es lo que viene a continuación</span>
+</div>
+
+<div class="crumbs">
+  <a href="#">Inicio</a> <span>›</span>
+  <a href="#">Inicio del proceso de titulación</a> <span>›</span>
+  <a href="Listado Residencias.html">Residencias profesionales</a> <span>›</span>
+  <b>García López, María Fernanda</b>
+</div>
+
+<div class="page-title">
+  <div class="left">
+    <h2>Detalle del expediente
+      <span class="ro">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Solo lectura
+      </span>
+    </h2>
+    <p>Consulta los datos registrados. Para modificar campos usa "Editar".</p>
+  </div>
+  <div class="cta">
+    <a class="btn" href="Listado Residencias.html">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Volver al listado
+    </a>
+    <a class="btn primary" href="Formulario Residencia.html">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Editar expediente
+    </a>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="hero">
+    <div class="avatar">GL</div>
+    <div class="who">
+      <h3>García López, María Fernanda</h3>
+      <div class="nc">No. control · 20E12345</div>
+      <div class="car">Ingeniería en Sistemas Computacionales</div>
+    </div>
+    <div class="right">
+      <span class="badge b-act">Activa</span>
+      <span class="pill-mod">Interno</span>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div>
+
+      <!-- DATOS GENERALES -->
+      <div class="card">
+        <h4><span class="dot"></span> Datos generales</h4>
+        <div class="content col-stack">
+          <div class="row">
+            <div class="field-ro">
+              <span class="k">Nombre del alumno</span>
+              <span class="v">García López, María Fernanda</span>
+            </div>
+            <div class="field-ro">
+              <span class="k">Número de control</span>
+              <span class="v mono">20E12345</span>
+            </div>
+          </div>
+          <div class="field-ro">
+            <span class="k">Carrera</span>
+            <span class="v">Ingeniería en Sistemas Computacionales</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- FECHAS -->
+      <div class="card">
+        <h4><span class="dot"></span> Fechas del proceso</h4>
+        <div class="content">
+          <div class="row-3">
+            <div class="field-ro">
+              <span class="k">Carta de aceptación</span>
+              <span class="v mono">22 / 01 / 2026</span>
+            </div>
+            <div class="field-ro">
+              <span class="k">Inicio de residencia</span>
+              <span class="v mono">03 / 02 / 2026</span>
+            </div>
+            <div class="field-ro">
+              <span class="k">Fin de residencia</span>
+              <span class="v mono">31 / 07 / 2026</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROYECTO Y ASESORÍA -->
+      <div class="card">
+        <h4><span class="dot"></span> Proyecto y asesoría</h4>
+        <div class="content col-stack">
+          <div class="row">
+            <div class="field-ro">
+              <span class="k">Tipo de proyecto</span>
+              <span class="v">Proyecto interno</span>
+            </div>
+            <div class="field-ro">
+              <span class="k">Nombre del proyecto</span>
+              <span class="v">Plataforma web para control de prácticas profesionales</span>
+            </div>
+          </div>
+          <div class="row">
+            <div class="field-ro">
+              <span class="k">Asesor interno</span>
+              <span class="v">Dr. Hernández Ruiz, Jorge</span>
+            </div>
+            <div class="field-ro">
+              <span class="k">Asesor externo</span>
+              <span class="v empty">No aplica</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ANEXOS -->
+      <div class="card">
+        <h4><span class="dot"></span> Anexos</h4>
+        <div class="content">
+          <div class="anex-list">
+            <div class="anex-item">
+              <div class="ico">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <div class="meta">
+                <b>Anexo 29 — Solicitud de residencia</b>
+                <span>Anexo29_GarciaLopez.pdf · 312 KB · Subido 22/01/2026</span>
+              </div>
+              <span class="ok-tag">Cargado</span>
+              <div class="actions">
+                <button class="btn" style="padding:7px 10px" title="Ver">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+                <button class="btn" style="padding:7px 10px" title="Descargar">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="anex-item">
+              <div class="ico">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <div class="meta">
+                <b>Anexo 30 — Asignación de asesor</b>
+                <span>Anexo30_GarciaLopez.pdf · 284 KB · Subido 24/01/2026</span>
+              </div>
+              <span class="ok-tag">Cargado</span>
+              <div class="actions">
+                <button class="btn" style="padding:7px 10px" title="Ver">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+                <button class="btn" style="padding:7px 10px" title="Descargar">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HISTORIAL -->
+      <div class="card">
+        <h4><span class="dot"></span> Historial del expediente</h4>
+        <div class="content">
+          <div class="tl">
+            <div class="tl-item done">
+              <div class="dot"></div>
+              <div class="t">Expediente registrado</div>
+              <div class="d">22 / 01 / 2026 · 10:42</div>
+              <div class="who">por coordinador@itvo.edu.mx</div>
+            </div>
+            <div class="tl-item done">
+              <div class="dot"></div>
+              <div class="t">Anexo 30 cargado</div>
+              <div class="d">24 / 01 / 2026 · 12:15</div>
+              <div class="who">por coordinador@itvo.edu.mx</div>
+            </div>
+            <div class="tl-item">
+              <div class="dot"></div>
+              <div class="t">Residencia iniciada</div>
+              <div class="d">03 / 02 / 2026</div>
+            </div>
+            <div class="tl-item pending">
+              <div class="dot"></div>
+              <div class="t">Fin de residencia (estimado)</div>
+              <div class="d">31 / 07 / 2026</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- SIDEBAR -->
+    <aside class="side">
+      <div class="card">
+        <h4><span class="dot"></span> Acciones</h4>
+        <div class="content">
+          <div class="actions-list">
+            <a class="btn primary" href="Formulario Residencia.html">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Editar expediente
+            </a>
+            <button class="btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              Imprimir expediente
+            </button>
+            <button class="btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Descargar PDF
+            </button>
+            <button class="btn danger">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4><span class="dot"></span> Metadatos</h4>
+        <div class="content">
+          <div class="meta-row"><span class="k">ID expediente</span><span class="v">#RES-2026-0142</span></div>
+          <div class="meta-row"><span class="k">Creado</span><span class="v">22/01/2026</span></div>
+          <div class="meta-row"><span class="k">Última edición</span><span class="v">24/01/2026</span></div>
+          <div class="meta-row"><span class="k">Periodo</span><span class="v">2026-1</span></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+</body>
+</html>

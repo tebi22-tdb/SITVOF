@@ -434,16 +434,17 @@
 }
 
 .departamento-btn-liberar {
-  min-height: 30px;
-  padding: 0.28rem 0.55rem;
+  min-height: 26px;
+  padding: 0.18rem 0.42rem;
   border: 1px solid #2f855a;
   border-radius: 4px;
   background: #38a169;
   color: #fff;
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  margin: 0 0.2rem 0.2rem 0;
 }
 
 .departamento-btn-liberar:focus-visible {
@@ -726,9 +727,9 @@
 }
 
 .departamento-tabla-wrap--en-split .departamento-btn-liberar {
-  min-height: 28px;
-  padding: 0.2rem 0.45rem;
-  font-size: 0.72rem;
+  min-height: 24px;
+  padding: 0.15rem 0.38rem;
+  font-size: 0.69rem;
 }
 
 .departamento-doc-placeholder {
@@ -810,7 +811,7 @@
 }
 
 .departamento-btn-liberar--panel {
-  min-height: 30px;
+  min-height: 26px;
 }
 
 .departamento-btn-revision-panel {

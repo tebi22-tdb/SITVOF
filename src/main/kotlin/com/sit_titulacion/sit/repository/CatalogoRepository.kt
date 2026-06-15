@@ -17,6 +17,8 @@ interface CatalogoRepository : MongoRepository<Catalogo, ObjectId> {
 
     fun existsByTipoAndNombreIgnoreCase(tipo: String, nombre: String): Boolean
 
+    fun findFirstByTipoAndNombreIgnoreCase(tipo: String, nombre: String): Catalogo?
+
     /** Cuenta documentos (nunca lanza por “non unique” aunque haya duplicados). */
     fun countByTipoAndSlug(tipo: String, slug: String): Long
 }

@@ -942,6 +942,112 @@
   color: #c05621;
 }
 
+.timeline-doc-escaneada-btn {
+  padding: 0.5rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+  background: #3182ce;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.timeline-doc-escaneada-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.timeline-doc-escaneada-reqs {
+  margin: 0 0 1rem 1.1rem;
+  padding: 0;
+  font-size: 0.85rem;
+  color: #2d3748;
+  line-height: 1.7;
+}
+
+.timeline-doc-escaneada-reqs li:last-child {
+  font-weight: 600;
+  color: #2c5282;
+}
+
+.timeline-doc-escaneada-enlace {
+  color: #2b6cb0;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.timeline-doc-escaneada-enlace:hover {
+  color: #1a4e8a;
+}
+
+.timeline-doc-escaneada-categoria {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.timeline-doc-escaneada-categoria-titulo {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.timeline-doc-escaneada-archivos {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.timeline-doc-escaneada-archivo-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px;
+  background: #edf2f7;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.timeline-doc-escaneada-archivo-nombre {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #2d3748;
+}
+
+.timeline-doc-escaneada-archivo-tamano {
+  flex: 0 0 auto;
+  color: #718096;
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.timeline-doc-escaneada-archivo-quitar {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  color: #a0aec0;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  border-radius: 3px;
+}
+
+.timeline-doc-escaneada-archivo-quitar:hover {
+  color: #e53e3e;
+  background: #fff5f5;
+}
+
 /* Pasos completados antiguos: aspecto atenuado (no el último completado) */
 .timeline-item.completado:not(.ultimo-completado) .timeline-fecha,
 .timeline-item.completado:not(.ultimo-completado) .timeline-texto,
