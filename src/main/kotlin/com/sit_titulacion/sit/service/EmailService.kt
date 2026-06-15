@@ -1,5 +1,13 @@
 package com.sit_titulacion.sit.service
 
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.client.j2se.MatrixToImageWriter
+import com.google.zxing.qrcode.QRCodeWriter
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
+import org.apache.poi.util.Units
+import org.apache.poi.xwpf.usermodel.ParagraphAlignment
+import org.apache.poi.xwpf.usermodel.XWPFDocument
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
@@ -9,6 +17,7 @@ import org.springframework.mail.SimpleMailMessage
 import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.mail.javamail.MimeMessageHelper
 import org.springframework.stereotype.Service
+import java.io.ByteArrayInputStream
 
 enum class RolSinodalCorreo {
     PRESIDENTE,
@@ -26,6 +35,7 @@ data class SinodalCorreoDestino(
 class EmailService(
     @Autowired(required = false) private val mailSender: JavaMailSender?,
     @Value("\${spring.mail.username:}") private val fromEmail: String,
+    @Value("\${sit.base-url:https://sitvo.net}") private val baseUrl: String,
 ) {
     private val log = LoggerFactory.getLogger(EmailService::class.java)
 
@@ -221,7 +231,7 @@ class EmailService(
                 }
                 helper.addAttachment(fileName, ByteArrayResource(pdfBytes))
                 if (incluirFormatoPreguntas) {
-                    adjuntoFormatoPreguntas(dest.rol)?.let { (nombre, bytes) ->
+                    adjuntoFormatoPreguntas(dest.rol, numeroControl)?.let { (nombre, bytes) ->
                         helper.addAttachment(nombre, ByteArrayResource(bytes))
                     }
                 }
@@ -235,7 +245,7 @@ class EmailService(
         return enviados
     }
 
-    private fun adjuntoFormatoPreguntas(rol: RolSinodalCorreo): Pair<String, ByteArray>? {
+    private fun adjuntoFormatoPreguntas(rol: RolSinodalCorreo, certId: String): Pair<String, ByteArray>? {
         val classpath = when (rol) {
             RolSinodalCorreo.PRESIDENTE -> "templates/sinodales/FORMATO_PREGUNTAS_PRESIDENTE.docx"
             RolSinodalCorreo.SECRETARIO -> "templates/sinodales/FORMATO_PREGUNTAS_SECRETARIO.docx"
@@ -248,12 +258,37 @@ class EmailService(
                 log.warn("No se encontró plantilla de preguntas para {}: {}", rol, classpath)
                 return null
             }
+            val qrUrl = "${baseUrl.trimEnd('/')}/#/verificar/$certId"
+            val qrPng = generarQrPngBytes(qrUrl)
+            val doc = XWPFDocument(res.inputStream)
+            val qrPara = doc.createParagraph()
+            qrPara.alignment = ParagraphAlignment.CENTER
+            qrPara.createRun().addPicture(
+                ByteArrayInputStream(qrPng),
+                XWPFDocument.PICTURE_TYPE_PNG, "qr.png",
+                Units.toEMU(200.0), Units.toEMU(200.0),
+            )
+            val txtPara = doc.createParagraph()
+            txtPara.alignment = ParagraphAlignment.CENTER
+            val txtRun = txtPara.createRun()
+            txtRun.fontSize = 8
+            txtRun.setText("Verifica la autenticidad: $qrUrl")
+            val out = java.io.ByteArrayOutputStream()
+            doc.write(out)
             val nombre = res.filename ?: "FORMATO_PREGUNTAS.docx"
-            nombre to res.inputStream.use { it.readBytes() }
+            nombre to out.toByteArray()
         } catch (ex: Exception) {
             log.warn("No se pudo cargar plantilla de preguntas para {}: {}", rol, ex.message)
             null
         }
+    }
+
+    private fun generarQrPngBytes(contenido: String, size: Int = 200): ByteArray {
+        val hints = mapOf(EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.M)
+        val matrix = QRCodeWriter().encode(contenido, BarcodeFormat.QR_CODE, size, size, hints)
+        val bos = java.io.ByteArrayOutputStream()
+        MatrixToImageWriter.writeToStream(matrix, "PNG", bos)
+        return bos.toByteArray()
     }
 
     /**

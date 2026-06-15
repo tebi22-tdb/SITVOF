@@ -2012,6 +2012,9 @@ class EgresadoService(
         val e = cargarEgresadoPorId(id) ?: return null
         val p = e.procesoActivoOrNull() ?: return null
         val deptConfig = configInstitucionalService.resolverPorCarrera(e.datos_personales.carrera)
+        val certId32 = p.cert_uuid?.trim().takeUnless { it.isNullOrBlank() }
+            ?: e.id?.toHexString() ?: e.numero_control
+        val qrDataUri32 = generarQrDataUri("${baseUrlCert().trimEnd('/')}/#/verificar/$certId32")
         val asesores = listOfNotNull(
             p.datos_proyecto.asesor_interno,
             p.datos_proyecto.asesor_externo,
@@ -2034,6 +2037,7 @@ class EgresadoService(
             "JEFE_DEPTO_NOMBRE" to (deptConfig?.jefeNombre ?: ""),
             "JEFE_DEPTO_CARGO" to (deptConfig?.jefeCargo ?: ""),
             "JEFE_DEPTO_INICIALES" to (deptConfig?.jefeIniciales ?: ""),
+            "QR_CODE" to qrDataUri32,
         ))
         return htmlAnexoPdfService.generarDesdeClasspath("templates/html/hoja-32-registro-proyecto.html", valores)
     }
@@ -2041,6 +2045,9 @@ class EgresadoService(
     fun crearHoja33(id: String): ByteArray? {
         val e = cargarEgresadoPorId(id) ?: return null
         val p = e.procesoActivoOrNull() ?: return null
+        val certId33 = p.cert_uuid?.trim().takeUnless { it.isNullOrBlank() }
+            ?: e.id?.toHexString() ?: e.numero_control
+        val qrDataUri33 = generarQrDataUri("${baseUrlCert().trimEnd('/')}/#/verificar/$certId33")
         val deptConfig = configInstitucionalService.resolverPorCarrera(e.datos_personales.carrera)
         val deptNombre33 = catalogoRepository.findByTipoAndActivoTrue("departamento")
             .firstOrNull { d -> d.carreras.any { it.trim().equals(e.datos_personales.carrera.trim(), ignoreCase = true) } }
@@ -2083,6 +2090,7 @@ class EgresadoService(
             "JEFE_DEPTO_NOMBRE" to (deptConfig?.jefeNombre ?: ""),
             "JEFE_DEPTO_CARGO" to (deptConfig?.jefeCargo ?: ""),
             "JEFE_DEPTO_INICIALES" to (deptConfig?.jefeIniciales ?: ""),
+            "QR_CODE" to qrDataUri33,
         ))
         return htmlAnexoPdfService.generarDesdeClasspath("templates/html/hoja-33-liberacion-proyecto.html", valores)
     }
