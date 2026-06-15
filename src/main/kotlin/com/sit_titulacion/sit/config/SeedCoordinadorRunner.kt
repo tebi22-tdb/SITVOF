@@ -5,6 +5,8 @@ import com.sit_titulacion.sit.repository.UsuarioRepository
 import org.slf4j.LoggerFactory
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.dao.DuplicateKeyException
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Component
  */
 @Component
 @Order(1)
+@ConditionalOnProperty(name = ["sit.seed.enabled"], havingValue = "true", matchIfMissing = true)
 class SeedCoordinadorRunner(
     private val usuarioRepository: UsuarioRepository,
     private val passwordEncoder: PasswordEncoder,
@@ -42,7 +45,11 @@ class SeedCoordinadorRunner(
             egresadoId = null,
             activo = true,
         )
-        usuarioRepository.save(usuario)
-        log.info("Usuario coordinador por defecto creado (usuario: $USERNAME_COORDINADOR).")
+        try {
+            usuarioRepository.save(usuario)
+            log.info("Usuario coordinador por defecto creado (usuario: $USERNAME_COORDINADOR).")
+        } catch (ex: DuplicateKeyException) {
+            log.warn("Usuario coordinador no creado (ya existe o conflicto de índice): {}", ex.mostSpecificCause.message)
+        }
     }
 }

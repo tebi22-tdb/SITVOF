@@ -127,6 +127,15 @@ export class AuthService {
     );
   }
 
+  /** División de Estudios Profesionales — Apoyo a Titulación (solo inicio y seguimiento). */
+  isApoyoTitulacion(): boolean {
+    const raw = this.usuario?.rol?.toLowerCase().trim() ?? '';
+    if (!raw) return false;
+    const partes = raw.split(/\s*[-–—]\s*|,/g).map((p) => p.trim()).filter(Boolean);
+    const candidatos = partes.length ? partes : [raw.replace(/\s+/g, ' ')];
+    return candidatos.some((r) => r === 'apoyo_titulacion' || r === 'apoyo titulacion');
+  }
+
   /** Listar/crear usuarios staff: coordinador o división administrativa (no apoyo a titulación). */
   puedeAdministrarUsuariosStaff(): boolean {
     const raw = this.usuario?.rol?.toLowerCase().trim() ?? '';

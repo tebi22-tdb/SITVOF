@@ -1128,6 +1128,15 @@ class EgresadoService(
         return true
     }
 
+    /** Formato Word de preguntas a sinodales: solo modalidad Tesis, o Monografía en curso de titulación. */
+    private fun requiereFormatoPreguntasSinodales(p: ProcesoTitulacion): Boolean {
+        val modalidad = p.datos_proyecto.modalidad.trim().lowercase(Locale.ROOT)
+        val cursoTit = p.datos_proyecto.curso_titulacion.trim().lowercase(Locale.ROOT) == "si"
+        if (modalidad == "tesis") return true
+        if (modalidad.contains("monograf") && cursoTit) return true
+        return false
+    }
+
     fun crearAnexo93(id: String): Pair<ByteArray, Int>? {
         val e = cargarEgresadoPorId(id) ?: return null
         val p = e.procesoActivoOrNull() ?: return null
@@ -1165,18 +1174,27 @@ class EgresadoService(
 
         var emailsEnviados = 0
         if (esNuevaGeneracion) {
-            val nombres = listOfNotNull(
-                p.sinodalesTribunal?.presidente,
-                p.sinodalesTribunal?.secretario,
-                p.sinodalesTribunal?.vocal,
-                p.sinodalesTribunal?.vocal_suplente,
-            ).map { it.trim() }.filter { it.isNotBlank() }
-
-            if (nombres.isNotEmpty()) {
+            val tribunal = p.sinodalesTribunal
+            if (tribunal != null) {
                 val emailPorNombre = docenteRepository.findByActivoTrue()
                     .filter { it.correo.isNotBlank() }
                     .associateBy { it.nombreCompleto.trim() }
-                val destinatarios = nombres.mapNotNull { emailPorNombre[it]?.correo }
+
+                fun correoSinodal(nombre: String?, rol: RolSinodalCorreo): SinodalCorreoDestino? {
+                    val n = nombre?.trim().orEmpty()
+                    if (n.isBlank()) return null
+                    val correo = emailPorNombre[n]?.correo?.trim().orEmpty()
+                    if (correo.isBlank()) return null
+                    return SinodalCorreoDestino(correo, rol)
+                }
+
+                val destinatarios = listOfNotNull(
+                    correoSinodal(tribunal.presidente, RolSinodalCorreo.PRESIDENTE),
+                    correoSinodal(tribunal.secretario, RolSinodalCorreo.SECRETARIO),
+                    correoSinodal(tribunal.vocal, RolSinodalCorreo.VOCAL),
+                    correoSinodal(tribunal.vocal_suplente, RolSinodalCorreo.VOCAL_SUPLENTE),
+                )
+
                 if (destinatarios.isNotEmpty()) {
                     val nombreEgresado = listOf(
                         e.datos_personales.nombre,
@@ -1190,6 +1208,7 @@ class EgresadoService(
                         fechaActo = actoLegible,
                         pdfBytes = bytes,
                         fileName = "Anexo-9.3-${e.numero_control}.pdf",
+                        incluirFormatoPreguntas = requiereFormatoPreguntasSinodales(p),
                     )
                 } else {
                     log.warn("Anexo 9.3: ningún sinodal tiene correo registrado en la colección de docentes (egresado {})", e.numero_control)

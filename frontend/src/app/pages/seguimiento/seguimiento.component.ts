@@ -26,6 +26,8 @@ export interface PasoAlumnoVista {
   fecha: string;
   completado: boolean;
   activo: boolean;
+  /** Último paso ya completado (resaltado junto al paso actual). */
+  ultimoCompletado?: boolean;
   /** Identifica bloques especiales en la plantilla (revisiones, subida de PDF, etc.). */
   clave?: string;
   /** Cuadro de semáforo del plazo de desarrollo (recepción en división, flujo 16). */
@@ -64,6 +66,8 @@ export class SeguimientoComponent implements OnInit {
   revisionesEnviadas: RevisionApi[] = [];
   mostrarPanelRevisiones = false;
   mostrarHistorial = false;
+  /** Pasos anteriores expandidos al hacer clic en la fila del timeline. */
+  pasosAnterioresExpandidos = new Set<number>();
   /** 'actual' = proceso activo, number = índice en procesos_anteriores */
   tabActiva: 'actual' | number = 'actual';
 
@@ -239,12 +243,15 @@ export class SeguimientoComponent implements OnInit {
     return this.construirPasosAlumnoNoRes16();
   }
 
-  private aplicarActivoPasos(raw: Omit<PasoAlumnoVista, 'activo'>[]): PasoAlumnoVista[] {
+  private aplicarActivoPasos(raw: Omit<PasoAlumnoVista, 'activo' | 'ultimoCompletado'>[]): PasoAlumnoVista[] {
     const idxActivo = raw.findIndex((p) => !p.completado);
+    const idxUltimoCompletado =
+      idxActivo > 0 ? idxActivo - 1 : idxActivo === -1 && raw.length > 0 ? raw.length - 1 : -1;
     return raw.map((p, i) => ({
       ...p,
       numero: i + 1,
       activo: idxActivo >= 0 && i === idxActivo,
+      ultimoCompletado: i === idxUltimoCompletado && p.completado,
     }));
   }
 
@@ -1042,6 +1049,14 @@ export class SeguimientoComponent implements OnInit {
     return (partes[0][0] + partes[1][0]).toUpperCase();
   }
 
+  /** Porcentaje visual de pasos completados (barra de progreso, sin texto nuevo). */
+  get porcentajeAvancePasos(): number {
+    const pasos = this.pasosAlumno;
+    if (!pasos.length) return 0;
+    const completados = pasos.filter((p) => p.completado).length;
+    return Math.min(100, Math.round((completados / pasos.length) * 100));
+  }
+
   constructor(
     private egresadoService: EgresadoService,
     private catalogoService: CatalogoService,
@@ -1049,6 +1064,40 @@ export class SeguimientoComponent implements OnInit {
 
   cambiarTabProceso(tab: 'actual' | number): void {
     this.tabActiva = tab;
+    this.reiniciarExpansionPasosAnteriores();
+  }
+
+  esPasoAnteriorCompactable(paso: PasoAlumnoVista): boolean {
+    return paso.completado && !paso.ultimoCompletado;
+  }
+
+  pasoEstaCompacto(paso: PasoAlumnoVista): boolean {
+    return this.esPasoAnteriorCompactable(paso) && !this.pasosAnterioresExpandidos.has(paso.numero);
+  }
+
+  onClickPasoResumen(paso: PasoAlumnoVista, event: Event): void {
+    if (!this.esPasoAnteriorCompactable(paso)) return;
+    event.stopPropagation();
+    this.togglePasoAnterior(paso.numero);
+  }
+
+  onKeydownPasoResumen(paso: PasoAlumnoVista, event: KeyboardEvent): void {
+    if (!this.esPasoAnteriorCompactable(paso)) return;
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    this.togglePasoAnterior(paso.numero);
+  }
+
+  private togglePasoAnterior(numero: number): void {
+    if (this.pasosAnterioresExpandidos.has(numero)) {
+      this.pasosAnterioresExpandidos.delete(numero);
+      return;
+    }
+    this.pasosAnterioresExpandidos.add(numero);
+  }
+
+  private reiniciarExpansionPasosAnteriores(): void {
+    this.pasosAnterioresExpandidos.clear();
   }
 
   ngOnInit(): void {

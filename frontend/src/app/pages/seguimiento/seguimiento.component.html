@@ -2,11 +2,40 @@
   <app-header [showNuevoButton]="false"></app-header>
   <main class="seguimiento-main">
     <header class="seguimiento-header">
-      <h2 class="seguimiento-titulo">Seguimiento de tu proceso de titulación</h2>
+      <div class="seguimiento-header-inner">
+        <h2 class="seguimiento-titulo">Seguimiento de tu proceso de titulación</h2>
+        <div
+          *ngIf="!cargando && !error && datos"
+          class="seguimiento-progreso"
+          role="progressbar"
+          [attr.aria-valuenow]="porcentajeAvancePasos"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          [attr.aria-label]="'Avance del proceso: ' + porcentajeAvancePasos + ' por ciento'"
+        >
+          <div class="seguimiento-progreso-fill" [style.width.%]="porcentajeAvancePasos"></div>
+        </div>
+      </div>
     </header>
 
-    <div *ngIf="cargando" class="seguimiento-cargando">Cargando seguimiento…</div>
-    <div *ngIf="error" class="seguimiento-error">{{ error }}</div>
+    <div *ngIf="cargando" class="seguimiento-skeleton" aria-busy="true" aria-live="polite">
+      <p class="seguimiento-skeleton-msg">Cargando seguimiento…</p>
+      <div class="seguimiento-skeleton-layout">
+        <div class="seguimiento-skeleton-main">
+          <div class="seg-sk seg-sk-title"></div>
+          <div class="seg-sk seg-sk-line"></div>
+          <div class="seg-sk seg-sk-block"></div>
+          <div class="seg-sk seg-sk-step" *ngFor="let _ of [1,2,3,4,5]"></div>
+        </div>
+        <div class="seguimiento-skeleton-aside">
+          <div class="seg-sk seg-sk-aside-card"></div>
+          <div class="seg-sk seg-sk-aside-card seg-sk-aside-card--sm"></div>
+        </div>
+      </div>
+    </div>
+    <div *ngIf="error" class="seguimiento-error-card" role="alert">
+      <p class="seguimiento-error">{{ error }}</p>
+    </div>
 
     <!-- Pestañas de procesos -->
     <div *ngIf="!cargando && !error && datos && (datos.total_procesos ?? 1) > 1" class="seg-tabs-wrap">
@@ -49,15 +78,42 @@
             class="timeline-item"
             *ngFor="let paso of pasosAlumno"
             [class.completado]="paso.completado"
+            [class.ultimo-completado]="paso.ultimoCompletado"
             [class.activo]="paso.activo && !paso.completado"
+            [class.timeline-item--compacto]="pasoEstaCompacto(paso)"
+            [class.timeline-item--expandible]="esPasoAnteriorCompactable(paso)"
+            [class.timeline-item--expandido]="esPasoAnteriorCompactable(paso) && pasosAnterioresExpandidos.has(paso.numero)"
           >
-            <div class="timeline-marker"></div>
+            <div
+              class="timeline-marker"
+              [class.timeline-marker--check]="paso.completado"
+              [class.timeline-marker--activo]="paso.activo && !paso.completado"
+              [class.timeline-marker--clic]="esPasoAnteriorCompactable(paso)"
+              (click)="onClickPasoResumen(paso, $event)"
+            ></div>
             <div class="timeline-content">
-              <div class="timeline-fecha">{{ paso.fecha }}</div>
-              <div class="timeline-texto">
-                <span class="timeline-titulo-paso">
-                  <strong>{{ paso.numero }}. {{ paso.titulo }}</strong>
-                </span>
+              <div
+                class="timeline-resumen"
+                [class.timeline-resumen--clic]="esPasoAnteriorCompactable(paso)"
+                [attr.role]="esPasoAnteriorCompactable(paso) ? 'button' : null"
+                [attr.tabindex]="esPasoAnteriorCompactable(paso) ? 0 : null"
+                [attr.aria-expanded]="esPasoAnteriorCompactable(paso) ? pasosAnterioresExpandidos.has(paso.numero) : null"
+                (click)="onClickPasoResumen(paso, $event)"
+                (keydown)="onKeydownPasoResumen(paso, $event)"
+              >
+                <div class="timeline-content-cab">
+                  <div class="timeline-fecha">{{ paso.fecha }}</div>
+                  <span class="timeline-etiqueta timeline-etiqueta--completado" *ngIf="paso.ultimoCompletado">Completado</span>
+                  <span class="timeline-etiqueta timeline-etiqueta--actual" *ngIf="paso.activo && !paso.completado">Paso actual</span>
+                </div>
+                <div class="timeline-texto">
+                  <span class="timeline-titulo-paso">
+                    <strong>{{ paso.numero }}. {{ paso.titulo }}</strong>
+                  </span>
+                </div>
+              </div>
+
+              <div class="timeline-cuerpo" *ngIf="!pasoEstaCompacto(paso)">
                 <p class="timeline-detalle-alumno" *ngIf="paso.detalle || paso.fechaDetalleResaltada">
                   {{ paso.detalle }}
                   <strong *ngIf="paso.fechaDetalleResaltada" class="timeline-fecha-destacada">{{
@@ -113,7 +169,7 @@
                     <input
                       type="file"
                       accept=".pdf,application/pdf"
-                      class="timeline-doc-escaneada-input"
+                      class="timeline-doc-escaneada-input seg-file-input"
                       [disabled]="enviandoCorreccionExpediente || procesoBloqueadoPorVencimientoPlazoAlumno"
                       (change)="onArchivoCorreccionExpediente($event)"
                     />
@@ -123,7 +179,7 @@
                     <p *ngIf="mensajeCorreccionExpediente" class="timeline-doc-escaneada-msg">{{ mensajeCorreccionExpediente }}</p>
                     <button
                       type="button"
-                      class="timeline-doc-escaneada-btn"
+                      class="btn-seguimiento"
                       [disabled]="
                         !archivoCorreccionExpediente || enviandoCorreccionExpediente || procesoBloqueadoPorVencimientoPlazoAlumno
                       "
@@ -173,7 +229,7 @@
                   <input
                     type="file"
                     accept="application/pdf,.pdf"
-                    class="timeline-doc-escaneada-input"
+                    class="timeline-doc-escaneada-input seg-file-input"
                     [disabled]="procesoBloqueadoPorVencimientoPlazoAlumno"
                     (change)="onArchivosDocEscaneadaSeleccionados($event)"
                   />
@@ -183,7 +239,7 @@
                   <p *ngIf="mensajeDocEscaneada" class="timeline-doc-escaneada-msg">{{ mensajeDocEscaneada }}</p>
                   <button
                     type="button"
-                    class="timeline-doc-escaneada-btn"
+                    class="btn-seguimiento"
                     [disabled]="enviandoDocEscaneada || !archivosPdfEscaneados.length || procesoBloqueadoPorVencimientoPlazoAlumno"
                     (click)="enviarDocumentacionEscaneadaAlumno()"
                   >
@@ -249,6 +305,7 @@
           id="revisiones-apoyo"
           *ngIf="mostrarPanelRevisiones"
           class="seguimiento-card seguimiento-card-notificaciones"
+          [class.seguimiento-card-notificaciones--destacada]="mostrarPanelRevisiones"
         >
           <h3 class="seguimiento-card-titulo">Revisiones</h3>
           <p *ngIf="errorDescargaRevision" class="seguimiento-error-descarga">{{ errorDescargaRevision }}</p>
