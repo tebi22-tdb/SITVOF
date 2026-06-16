@@ -271,7 +271,7 @@
                   [(ngModel)]="fechaActo93"
                   readonly
                   [disabled]="accionesProcesoBloqueadas"
-                  (click)="abrirCalendarioActo93SiPermitido()"
+                  (click)="abrirCalendarioActo93SiPermitido($event)"
                 />
                 <button type="button" class="seg-btn" [disabled]="accionesProcesoBloqueadas" (click)="agendarActo93()">
                   {{ detalleSeleccionado.fecha_agenda_acto_9_3 ? 'Reagendar' : 'Agendar' }}
