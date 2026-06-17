@@ -1451,49 +1451,41 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     return `${dd}/${mm}/${yyyy}`;
   }
 
-  abrirCalendarioActo93SiPermitido(): void {
+  abrirCalendarioActo93SiPermitido(ev: Event): void {
     if (this.accionesProcesoBloqueadas) return;
-    this.abrirCalendarioActo93();
+    const wrap = ev.currentTarget as HTMLElement;
+    const el = wrap.querySelector<HTMLInputElement>('input[name="fechaActo93"]');
+    if (!el) return;
+    if (!this.agenda93Picker) {
+      this.initAgendaActo93Picker(el);
+      if (!this.agenda93Cargada && !this.agenda93Cargando) {
+        this.cargarOcupadosActo93();
+      }
+    }
+    const fp = this.agenda93Picker;
+    window.setTimeout(() => fp?.open(), 0);
   }
 
-  abrirCalendarioActo93(): void {
-    const abrirPicker = (): void => {
-      window.setTimeout(() => {
-        this.initAgendaActo93Picker();
-        this.agenda93Picker?.open();
-      }, 0);
-    };
-
-    if (!this.agenda93Cargada && !this.agenda93Cargando) {
-      this.agenda93Cargando = true;
-      this.egresadoService
-        .getAgendaActo93Ocupados()
-        .pipe(
-          timeout(12000),
-          catchError(() => of({ ocupados: [] as string[] })),
-          finalize(() => {
-            this.agenda93Cargando = false;
-            this.agenda93Cargada = true;
-          }),
-        )
-        .subscribe({
-          next: (res) => {
-            this.rellenarClavesOcupadasAgenda93(res);
-            abrirPicker();
-          },
-        });
-      return;
-    }
-
-    if (this.agenda93Picker) {
-      window.setTimeout(() => {
-        this.agenda93Picker?.open();
-        this.pintarDiasOcupadosEnFlatpickr(this.agenda93Picker!);
-      }, 0);
-      return;
-    }
-
-    abrirPicker();
+  private cargarOcupadosActo93(): void {
+    this.agenda93Cargando = true;
+    this.egresadoService
+      .getAgendaActo93Ocupados()
+      .pipe(
+        timeout(12000),
+        catchError(() => of({ ocupados: [] as string[] })),
+        finalize(() => {
+          this.agenda93Cargando = false;
+          this.agenda93Cargada = true;
+        }),
+      )
+      .subscribe({
+        next: (res) => {
+          this.rellenarClavesOcupadasAgenda93(res);
+          if (this.agenda93Picker) {
+            window.requestAnimationFrame(() => this.pintarDiasOcupadosEnFlatpickr(this.agenda93Picker!));
+          }
+        },
+      });
   }
 
   private rellenarClavesOcupadasAgenda93(res: { ocupados?: string[] }): void {
@@ -1520,9 +1512,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     });
   }
 
-  private initAgendaActo93Picker(): void {
-    const el = this.fechaActo93Input?.nativeElement;
-    if (!el) return;
+  private initAgendaActo93Picker(el: HTMLInputElement): void {
     this.agenda93Picker?.destroy();
     this.agenda93Picker = flatpickr(el, {
       enableTime: true,
@@ -1531,6 +1521,21 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       dateFormat: 'Y-m-d\\TH:i',
       minTime: '09:00',
       maxTime: '14:00',
+      disableMobile: true,
+      appendTo: document.body,
+      position: (fp2, posEl) => {
+        const inputEl = (posEl ?? fp2.input) as HTMLElement;
+        const rect = inputEl.getBoundingClientRect();
+        const calH = fp2.calendarContainer.offsetHeight || 300;
+        const below = window.innerHeight - rect.bottom > calH || rect.top < calH;
+        Object.assign(fp2.calendarContainer.style, {
+          position: 'fixed',
+          top: below ? `${rect.bottom + 2}px` : `${rect.top - calH - 2}px`,
+          left: `${Math.max(0, rect.left)}px`,
+          right: 'auto',
+          zIndex: '999999',
+        });
+      },
       disable: [(date) => date.getDay() === 0 || date.getDay() === 6],
       onChange: (_dates, dateStr) => {
         this.fechaActo93 = dateStr;

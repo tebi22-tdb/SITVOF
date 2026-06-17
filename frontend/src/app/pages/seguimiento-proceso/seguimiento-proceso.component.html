@@ -261,7 +261,7 @@
               <button *ngIf="paso.key === 'fecha_confirmacion_recibido_anexo_9_2' && detalleSeleccionado.fecha_aceptacion_servicios_escolares_anexo_9_2 && !detalleSeleccionado.fecha_confirmacion_recibido_anexo_9_2" type="button" class="seg-btn" [disabled]="accionesProcesoBloqueadas" (click)="confirmarRecibido92()">Confirmar</button>
               <button *ngIf="paso.key === 'fecha_solicitud_sinodales' && prerequisitoSinodalesCumplido(detalleSeleccionado) && !detalleSeleccionado.fecha_solicitud_sinodales" type="button" class="seg-btn" [disabled]="accionesProcesoBloqueadas" (click)="solicitarSinodales()">Solicitar</button>
               <button *ngIf="paso.key === 'fecha_confirmacion_sinodales_recibidos' && detalleSeleccionado.fecha_asignacion_sinodales && !detalleSeleccionado.fecha_confirmacion_sinodales_recibidos" type="button" class="seg-btn" [disabled]="accionesProcesoBloqueadas" (click)="confirmarSinodalesRecibidos()">Confirmar</button>
-              <div *ngIf="paso.key === 'fecha_agenda_acto_9_3' && detalleSeleccionado.fecha_confirmacion_sinodales_recibidos" class="seg-agenda-wrap">
+              <div *ngIf="paso.key === 'fecha_agenda_acto_9_3' && detalleSeleccionado.fecha_confirmacion_sinodales_recibidos" class="seg-agenda-wrap" (click)="abrirCalendarioActo93SiPermitido($event)">
                 <input
                   #fechaActo93Input
                   type="text"
@@ -271,9 +271,8 @@
                   [(ngModel)]="fechaActo93"
                   readonly
                   [disabled]="accionesProcesoBloqueadas"
-                  (click)="abrirCalendarioActo93SiPermitido()"
                 />
-                <button type="button" class="seg-btn" [disabled]="accionesProcesoBloqueadas" (click)="agendarActo93()">
+                <button type="button" class="seg-btn" [disabled]="accionesProcesoBloqueadas" (click)="agendarActo93(); $event.stopPropagation()">
                   {{ detalleSeleccionado.fecha_agenda_acto_9_3 ? 'Reagendar' : 'Agendar' }}
                 </button>
               </div>
