@@ -1209,6 +1209,7 @@ class EgresadoService(
                         pdfBytes = bytes,
                         fileName = "Anexo-9.3-${e.numero_control}.pdf",
                         incluirFormatoPreguntas = requiereFormatoPreguntasSinodales(p),
+                        certId = certId,
                     )
                 } else {
                     log.warn("Anexo 9.3: ningún sinodal tiene correo registrado en la colección de docentes (egresado {})", e.numero_control)
