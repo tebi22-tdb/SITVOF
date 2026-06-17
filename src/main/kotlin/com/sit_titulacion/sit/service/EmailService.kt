@@ -8,6 +8,7 @@ import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import org.apache.poi.util.Units
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment
 import org.apache.poi.xwpf.usermodel.XWPFDocument
+import org.apache.poi.xwpf.usermodel.XWPFTable
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
@@ -35,7 +36,7 @@ data class SinodalCorreoDestino(
 class EmailService(
     @Autowired(required = false) private val mailSender: JavaMailSender?,
     @Value("\${spring.mail.username:}") private val fromEmail: String,
-    @Value("\${sit.base-url:https://sitvo.net}") private val baseUrl: String,
+    @Value("\${sit.cert.base-url:https://sitvo.net}") private val baseUrl: String,
 ) {
     private val log = LoggerFactory.getLogger(EmailService::class.java)
 
@@ -140,6 +141,7 @@ class EmailService(
         pdfBytes: ByteArray,
         fileName: String,
         incluirFormatoPreguntas: Boolean = false,
+        certId: String = numeroControl,
     ): Int {
         if (mailSender == null || fromEmail.isBlank()) {
             log.warn("Spring Mail no configurado. No se enviaron correos del Anexo 9.3 a sinodales.")
@@ -231,7 +233,7 @@ class EmailService(
                 }
                 helper.addAttachment(fileName, ByteArrayResource(pdfBytes))
                 if (incluirFormatoPreguntas) {
-                    adjuntoFormatoPreguntas(dest.rol, numeroControl)?.let { (nombre, bytes) ->
+                    adjuntoFormatoPreguntas(dest.rol, certId)?.let { (nombre, bytes) ->
                         helper.addAttachment(nombre, ByteArrayResource(bytes))
                     }
                 }
@@ -259,20 +261,17 @@ class EmailService(
                 return null
             }
             val qrUrl = "${baseUrl.trimEnd('/')}/#/verificar/$certId"
-            val qrPng = generarQrPngBytes(qrUrl)
+            val qrPng = generarQrPngBytes(qrUrl, 300)
             val doc = XWPFDocument(res.inputStream)
-            val qrPara = doc.createParagraph()
-            qrPara.alignment = ParagraphAlignment.CENTER
+            val primeraTabla = doc.bodyElements.filterIsInstance<XWPFTable>().firstOrNull()
+            val cursor = primeraTabla?.ctTbl?.newCursor()
+            val qrPara = if (cursor != null) doc.insertNewParagraph(cursor) else doc.createParagraph()
+            qrPara.alignment = ParagraphAlignment.LEFT
             qrPara.createRun().addPicture(
                 ByteArrayInputStream(qrPng),
                 XWPFDocument.PICTURE_TYPE_PNG, "qr.png",
-                Units.toEMU(200.0), Units.toEMU(200.0),
+                Units.toEMU(70.0), Units.toEMU(70.0),
             )
-            val txtPara = doc.createParagraph()
-            txtPara.alignment = ParagraphAlignment.CENTER
-            val txtRun = txtPara.createRun()
-            txtRun.fontSize = 8
-            txtRun.setText("Verifica la autenticidad: $qrUrl")
             val out = java.io.ByteArrayOutputStream()
             doc.write(out)
             val nombre = res.filename ?: "FORMATO_PREGUNTAS.docx"

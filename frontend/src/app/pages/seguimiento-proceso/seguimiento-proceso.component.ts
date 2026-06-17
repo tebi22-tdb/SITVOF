@@ -1453,7 +1453,8 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
 
   abrirCalendarioActo93SiPermitido(ev: Event): void {
     if (this.accionesProcesoBloqueadas) return;
-    const el = ev.currentTarget as HTMLInputElement;
+    const wrap = ev.currentTarget as HTMLElement;
+    const el = wrap.querySelector<HTMLInputElement>('input[name="fechaActo93"]');
     if (!el) return;
     if (!this.agenda93Picker) {
       this.initAgendaActo93Picker(el);
@@ -1522,6 +1523,19 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       maxTime: '14:00',
       disableMobile: true,
       appendTo: document.body,
+      position: (fp2, posEl) => {
+        const inputEl = (posEl ?? fp2.input) as HTMLElement;
+        const rect = inputEl.getBoundingClientRect();
+        const calH = fp2.calendarContainer.offsetHeight || 300;
+        const below = window.innerHeight - rect.bottom > calH || rect.top < calH;
+        Object.assign(fp2.calendarContainer.style, {
+          position: 'fixed',
+          top: below ? `${rect.bottom + 2}px` : `${rect.top - calH - 2}px`,
+          left: `${Math.max(0, rect.left)}px`,
+          right: 'auto',
+          zIndex: '999999',
+        });
+      },
       disable: [(date) => date.getDay() === 0 || date.getDay() === 6],
       onChange: (_dates, dateStr) => {
         this.fechaActo93 = dateStr;
