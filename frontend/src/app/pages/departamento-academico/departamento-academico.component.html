@@ -395,9 +395,22 @@
               {{ item.sinodales_asignados ? 'Asignados' : 'Por asignar' }}
             </span>
           </td>
-          <td class="departamento-td departamento-td--accion">
+          <td class="departamento-td departamento-td--accion departamento-td--acciones-sinodales">
             <button type="button" class="departamento-btn-sinodales" (click)="abrirModalSinodales(item, $event)">
               {{ item.sinodales_asignados ? 'Editar' : 'Asignar' }}
+            </button>
+            <button
+              *ngIf="item.sinodales_asignados"
+              type="button"
+              class="departamento-btn-descarga-oficio"
+              (click)="descargarOficioSinodales(item, $event)"
+              [disabled]="descargandoOficioSinodalesId === item.id"
+              title="Descargar oficio de asignación de sinodales"
+              aria-label="Descargar oficio de asignación de sinodales"
+            >
+              <svg class="departamento-icon-descarga" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 3v10.55l3.3-3.3 1.4 1.42L12 17.4l-4.7-4.73 1.42-1.41L11 13.55V3h1zm-7 14h14v2H5v-2z" fill="currentColor"/>
+              </svg>
             </button>
           </td>
         </tr>
@@ -536,6 +549,15 @@
       </label>
     </div>
     <div class="departamento-modal-acciones">
+      <button
+        *ngIf="sinodalesModalItem?.sinodales_asignados"
+        type="button"
+        class="departamento-modal-btn departamento-modal-btn--sec"
+        (click)="descargarOficioSinodales(sinodalesModalItem!)"
+        [disabled]="sinodalesGuardando || descargandoOficioSinodalesId === sinodalesModalItem?.id"
+      >
+        {{ descargandoOficioSinodalesId === sinodalesModalItem?.id ? 'Generando…' : 'Descargar oficio' }}
+      </button>
       <button type="button" class="departamento-modal-btn departamento-modal-btn--sec" (click)="cerrarModalSinodales()" [disabled]="sinodalesGuardando">
         Cancelar
       </button>

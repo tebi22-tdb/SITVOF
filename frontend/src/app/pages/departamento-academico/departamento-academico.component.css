@@ -528,6 +528,41 @@
   background: #ebf8ff;
 }
 
+.departamento-td--acciones-sinodales {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.departamento-btn-descarga-oficio {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid #2f7bcb;
+  border-radius: 5px;
+  background: #eef6ff;
+  color: #1f4c8f;
+  cursor: pointer;
+}
+
+.departamento-btn-descarga-oficio:hover:not(:disabled) {
+  background: #dbeafe;
+}
+
+.departamento-btn-descarga-oficio:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.departamento-icon-descarga {
+  width: 16px;
+  height: 16px;
+}
+
 .departamento-modal-scrim {
   position: fixed;
   inset: 0;

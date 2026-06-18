@@ -477,6 +477,10 @@ export class EgresadoService {
     return this.http.post(`${API}/${egresadoId}/sinodales`, body);
   }
 
+  descargarOficioAsignacionSinodales(egresadoId: string): Observable<Blob> {
+    return this.http.get(`${API}/${egresadoId}/oficio-asignacion-sinodales`, { responseType: 'blob' });
+  }
+
   reemplazarDocumentoAdjunto(id: string, archivo: File): Observable<unknown> {
     const formData = new FormData();
     formData.append('archivo', archivo, archivo.name);

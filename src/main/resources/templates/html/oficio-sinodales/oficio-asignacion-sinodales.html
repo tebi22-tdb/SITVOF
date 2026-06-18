@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es" xml:lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>Oficio asignaci&#243;n de sinodales</title>
+<style type="text/css">
+@page { size: letter; margin: 0; background-color: #ffffff; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background-color: #ffffff; }
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 11pt;
+  font-weight: normal;
+  color: #000000;
+  line-height: 1.26;
+  padding: 0.3cm 2.5cm 1.28in 2.5cm;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.membrete-top-wrap { margin: 0 0 4px; line-height: 0; width: 100%; }
+.membrete-top { width: 100%; height: auto; display: block; }
+.hdr-inst { text-align: right; padding: 0; margin: 0 0 2em; font-size: 11pt; line-height: 1.26; font-weight: normal; }
+.hdr-inst .inst { font-weight: bold; text-transform: uppercase; }
+.hdr-inst .depto { font-weight: bold; }
+.meta-block { text-align: right; padding: 0 0 14px; font-size: 11pt; line-height: 1.32; font-weight: normal; }
+.meta-block p { margin: 0; }
+.meta-val {
+  font-weight: bold;
+  background-color: #000000;
+  color: #ffffff;
+  padding: 0 2px;
+}
+.destinatario { margin: 0 0 14px; font-weight: bold; text-transform: uppercase; line-height: 1.32; font-size: 11pt; }
+.destinatario .linea { display: block; }
+.presente { display: block; margin-top: 2px; letter-spacing: 0.14em; }
+.para { text-align: justify; margin: 0 0 14px; line-height: 1.36; font-size: 11pt; font-weight: normal; }
+.jurado { margin: 4px 0 14px; }
+.jurado-line { margin: 0 0 3px; font-weight: bold; text-transform: uppercase; font-size: 11pt; line-height: 1.28; }
+.cierre { margin-top: 4px; }
+.atentamente { font-weight: bold; margin: 0; letter-spacing: 0.06em; font-size: 11pt; }
+.slogan { font-weight: bold; font-style: normal; font-size: 10pt; margin: 0; font-family: Arial, Helvetica, sans-serif; }
+.firma-nombre { font-weight: bold; text-transform: uppercase; margin: 2.75em 0 2px; font-size: 11pt; }
+.firma-cargo { font-weight: bold; text-transform: uppercase; margin: 0 0 1em; font-size: 11pt; }
+.ccp { font-size: 10pt; margin: 0 0 1em; line-height: 1.28; font-weight: normal; }
+.ccp:last-of-type { margin-bottom: 0; }
+.membrete-foot {
+  position: fixed;
+  bottom: 0.06in;
+  left: 2.5cm;
+  width: 16.59cm;
+  line-height: 0;
+  z-index: 10;
+}
+.membrete-foot img { width: 100%; height: auto; display: block; margin: 0; padding: 0; }
+.b { font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div class="membrete-top-wrap">
+  <img class="membrete-top" src="membrete-arriba.png" alt=""/>
+</div>
+
+<div class="hdr-inst">
+  <div class="inst">{{NOMBRE_INSTITUTO}}</div>
+  <div class="depto">{{NOMBRE_DEPARTAMENTO}}</div>
+</div>
+
+<div class="meta-block">
+  <p>Expediente: <span class="meta-val">{{EXPEDIENTE}}</span></p>
+  <p>Oficio No. <span class="meta-val">{{OFICIO_NUMERO}}</span></p>
+  <p>{{LUGAR}}, <span class="meta-val">{{FECHA_OFICIO}}</span></p>
+  <p>Asunto: <span class="meta-val">{{ASUNTO}}</span></p>
+</div>
+
+<div class="destinatario">
+  <span class="linea">{{JEFE_DIVISION_NOMBRE}}</span>
+  <span class="linea">{{JEFE_DIVISION_CARGO}}</span>
+  <span class="linea presente">P R E S E N T E</span>
+</div>
+
+<p class="para">
+  En atenci&#243;n a su oficio remitido a este Departamento Acad&#233;mico, para la asignaci&#243;n de vocal y vocal
+  suplente para el Acto de Recepci&#243;n Profesional de la C.C. <span class="b">{{NOMBRE}}</span>, con n&#250;mero de
+  control <span class="b">{{NUMERO_CONTROL}}</span>, de la carrera de <span class="b">{{CARRERA}}</span>, por la
+  opci&#243;n de titulaci&#243;n integral (<span class="b">{{TEXTO_OPCION_TI}}</span>), con el tema
+  <span class="b">&#34;{{PROYECTO}}&#34;</span>.
+</p>
+
+<p class="para">Tengo a bien nombrar a los miembros del jurado.</p>
+
+<div class="jurado">
+  <p class="jurado-line">PRESIDENTE: {{PRESIDENTE}}</p>
+  <p class="jurado-line">SECRETARIO: {{SECRETARIO}}</p>
+  <p class="jurado-line">VOCAL: {{VOCAL}}</p>
+  <p class="jurado-line">VOCAL SUPLENTE: {{VOCAL_SUPLENTE}}</p>
+</div>
+
+<div class="cierre">
+  <p class="para">Sin otro particular, le env&#237;o un cordial saludo.</p>
+  <p class="atentamente">ATENTAMENTE</p>
+  <p class="slogan">Excelencia en Educaci&#243;n Tecnol&#243;gica&#174;</p>
+  <p class="slogan">Ciencia y tecnolog&#237;a para el campo&#174;</p>
+  <p class="firma-nombre">{{JEFA_DEPARTAMENTO_NOMBRE}}</p>
+  <p class="firma-cargo">{{JEFA_DEPARTAMENTO_CARGO}}</p>
+  <p class="ccp">C.c.p. Expediente</p>
+  <p class="ccp">{{INICIALES_FIRMA}}</p>
+</div>
+
+<div class="membrete-foot">
+  <img src="membrete-abajo.png" alt=""/>
+</div>
+
+</body>
+</html>

@@ -697,6 +697,26 @@ class EgresadoController(
         }
     }
 
+    @GetMapping("/{id}/oficio-asignacion-sinodales")
+    fun descargarOficioAsignacionSinodales(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (principal == null || !puedeVerBandejaDepartamento(principal.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        }
+        respuestaSiNoAccesoEgresadoBandeja(id, principal)?.let { return it }
+        val bytes = egresadoService.crearOficioAsignacionSinodales(id)
+            ?: return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                mapOf("error" to "No se pudo generar el oficio. Asigna los cuatro sinodales primero."),
+            )
+        val fileName = "Oficio-asignacion-sinodales-$id.pdf"
+        return ResponseEntity.ok()
+            .contentType(MediaType.APPLICATION_PDF)
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"$fileName\"")
+            .body(bytes)
+    }
+
     @PostMapping("/{id}/confirmar-sinodales-recibidos")
     fun confirmarSinodalesRecibidos(
         @PathVariable id: String,
