@@ -75,6 +75,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   sinodalesCargando = false;
   sinodalesGuardando = false;
   sinodalesError = '';
+  descargandoOficioSinodalesId: string | null = null;
   docentesLista: DocenteItem[] = [];
 
   /** Filas simuladas mientras carga la tabla. */
@@ -606,5 +607,25 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
           this.sinodalesError = msg ? String(msg) : 'No se pudo guardar.';
         },
       });
+  }
+
+  descargarOficioSinodales(item: DepartamentoListItem, ev?: Event): void {
+    ev?.stopPropagation();
+    if (!item.sinodales_asignados) return;
+    this.descargandoOficioSinodalesId = item.id;
+    this.egresadoService.descargarOficioAsignacionSinodales(item.id).subscribe({
+      next: (blob) => {
+        this.descargandoOficioSinodalesId = null;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Oficio-sinodales-${item.numero_control || item.id}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => {
+        this.descargandoOficioSinodalesId = null;
+      },
+    });
   }
 }
