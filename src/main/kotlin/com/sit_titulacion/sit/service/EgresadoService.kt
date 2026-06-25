@@ -1703,13 +1703,7 @@ class EgresadoService(
         return inicio.atZone(zone).toLocalDate().plusMonths(meses)
     }
 
-    private fun mesesDesarrolloProyectoNoRes(modalidad: String): Long {
-        val m = modalidad.trim().lowercase()
-        return when {
-            m.contains("monograf") -> 18L
-            else -> 12L
-        }
-    }
+    private fun mesesDesarrolloProyectoNoRes(modalidad: String): Long = 12L
 
     private fun verificarYMarcarVencido(e: Egresado): Egresado {
         val p = e.procesoActivoOrNull() ?: return e
@@ -1762,7 +1756,7 @@ class EgresadoService(
         val m = modalidad.trim().lowercase()
         return when {
             m.contains("residencia") -> 6L
-            m.contains("monograf") -> 18L
+            m.contains("monograf") -> 12L
             m.contains("tesina") -> 12L
             m.contains("tesis") -> 12L
             m.contains("curso") -> 12L
