@@ -9,4 +9,5 @@ data class SinodalesTribunal(
     val secretario: String = "",
     val vocal: String = "",
     val vocal_suplente: String = "",
+    val numero_oficio: String = "",
 )

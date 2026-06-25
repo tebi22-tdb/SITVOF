@@ -4,17 +4,6 @@
     <header class="seguimiento-header">
       <div class="seguimiento-header-inner">
         <h2 class="seguimiento-titulo">Seguimiento de tu proceso de titulación</h2>
-        <div
-          *ngIf="!cargando && !error && datos"
-          class="seguimiento-progreso"
-          role="progressbar"
-          [attr.aria-valuenow]="porcentajeAvancePasos"
-          aria-valuemin="0"
-          aria-valuemax="100"
-          [attr.aria-label]="'Avance del proceso: ' + porcentajeAvancePasos + ' por ciento'"
-        >
-          <div class="seguimiento-progreso-fill" [style.width.%]="porcentajeAvancePasos"></div>
-        </div>
       </div>
     </header>
 
@@ -73,17 +62,36 @@
           El plazo de desarrollo de tu proyecto venció. Tu proceso queda detenido en el sistema y no podrás enviar más avances hasta regularizar tu situación con división de estudios profesionales.
         </p>
 
-        <div class="timeline">
+        <div class="timeline-con-progreso">
+          <div class="timeline-progreso-cab">
+            <span class="seguimiento-progreso-lateral-pct">{{ porcentajeAvancePasos }}%</span>
+            <span class="seguimiento-progreso-lateral-label">Avance del proceso</span>
+          </div>
+
           <div
-            class="timeline-item"
-            *ngFor="let paso of pasosAlumno"
+            class="timeline-fila"
+            *ngFor="let paso of pasosAlumno; let ultimo = last"
             [class.completado]="paso.completado"
             [class.ultimo-completado]="paso.ultimoCompletado"
             [class.activo]="paso.activo && !paso.completado"
-            [class.timeline-item--compacto]="pasoEstaCompacto(paso)"
-            [class.timeline-item--expandible]="esPasoAnteriorCompactable(paso)"
-            [class.timeline-item--expandido]="esPasoAnteriorCompactable(paso) && pasosAnterioresExpandidos.has(paso.numero)"
+            [class.timeline-fila--compacto]="pasoEstaCompacto(paso)"
+            [class.timeline-fila--expandible]="esPasoAnteriorCompactable(paso)"
+            [class.timeline-fila--expandido]="esPasoAnteriorCompactable(paso) && pasosAnterioresExpandidos.has(paso.numero)"
           >
+            <div class="timeline-fila-progreso" aria-hidden="true">
+              <span
+                class="timeline-fila-punto"
+                [class.completado]="paso.completado"
+                [class.activo]="paso.activo && !paso.completado"
+                [class.timeline-fila-punto--clic]="esPasoAnteriorCompactable(paso)"
+                (click)="onClickPasoResumen(paso, $event)"
+              ></span>
+              <span class="timeline-fila-linea" *ngIf="!ultimo" [class.completado]="paso.completado"></span>
+            </div>
+
+            <div
+              class="timeline-item"
+            >
             <div
               class="timeline-marker"
               [class.timeline-marker--check]="paso.completado"
@@ -249,6 +257,18 @@
 
               </div>
             </div>
+            </div>
+          </div>
+
+          <div
+            class="timeline-progreso-rail"
+            role="progressbar"
+            [attr.aria-valuenow]="porcentajeAvancePasos"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            [attr.aria-label]="'Avance del proceso: ' + porcentajeAvancePasos + ' por ciento'"
+          >
+            <div class="timeline-progreso-rail-fill" [style.height.%]="porcentajeAvancePasos"></div>
           </div>
         </div>
       </div>

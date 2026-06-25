@@ -20,11 +20,13 @@
         <div *ngIf="cargandoDocumento" class="revision-cargando">Cargando documento…</div>
         <div *ngIf="!cargandoDocumento && errorDocumento" class="revision-error">{{ errorDocumento }}</div>
 
-        <ng-container *ngIf="!cargandoDocumento && !errorDocumento && documentoUrlSeguro">
+        <ng-container *ngIf="!cargandoDocumento && !errorDocumento && documentoUrlSeguro && documentoIframeKey">
           <iframe
             *ngIf="esPDF"
             [src]="documentoUrlSeguro"
+            [attr.data-doc-version]="documentoIframeKey"
             class="revision-iframe-doc"
+            title="Vista previa del documento"
           ></iframe>
 
           <div *ngIf="!esPDF" class="revision-no-pdf">

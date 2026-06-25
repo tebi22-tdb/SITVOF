@@ -1100,7 +1100,14 @@ class EgresadoService(
         return e.procesoActivoOrNull()?.sinodalesTribunal
     }
 
-    fun asignarSinodales(id: String, presidente: String, secretario: String, vocal: String, vocalSuplente: String): Boolean {
+    fun asignarSinodales(
+        id: String,
+        presidente: String,
+        secretario: String,
+        vocal: String,
+        vocalSuplente: String,
+        numeroOficio: String,
+    ): Boolean {
         val e = cargarEgresadoPorId(id) ?: return false
         val p = e.procesoActivoOrNull() ?: return false
         if (p.fechaSolicitudSinodales == null) return false
@@ -1111,6 +1118,7 @@ class EgresadoService(
                 secretario = secretario.trim(),
                 vocal = vocal.trim(),
                 vocal_suplente = vocalSuplente.trim(),
+                numero_oficio = numeroOficio.trim(),
             ),
             fechaAsignacionSinodales = ahora,
             fecha_actualizacion = ahora,
@@ -1155,10 +1163,12 @@ class EgresadoService(
             listOf(
                 "NOMBRE" to nombreCompleto(e).uppercase(Locale.forLanguageTag("es-MX")),
                 "CARRERA" to e.datos_personales.carrera.trim().uppercase(Locale.forLanguageTag("es-MX")),
-                "PROYECTO" to p.datos_proyecto.nombre_proyecto.trim().ifBlank { "—" }
+                "PROYECTO" to textoProyectoDocumentosTitulacion(e, p)
                     .uppercase(Locale.forLanguageTag("es-MX")),
                 "EXPEDIENTE" to expediente,
-                "OFICIO_NUMERO" to numeroOficioSinodales(e, siglas, instant),
+                "OFICIO_NUMERO" to tribunal.numero_oficio.trim().ifBlank {
+                    numeroOficioSinodales(e, siglas, instant)
+                },
                 "LUGAR" to lugar,
                 "FECHA_OFICIO" to fechaOficioSlash(fechaGeneracion),
                 "ASUNTO" to "Vocal y vocal suplente",
@@ -1222,6 +1232,7 @@ class EgresadoService(
         val certId = p.cert_uuid?.trim().takeUnless { it.isNullOrBlank() } ?: e.id?.toHexString() ?: e.numero_control
         val qrDataUri = generarQrDataUri("${baseUrlCert().trimEnd('/')}/#/verificar/$certId")
         val valores = construirValoresPlantillaHtml(e, listOf(
+            "PROYECTO" to textoProyectoDocumentosTitulacion(e, p),
             "ACTO_93" to actoLegible,
             "FECHA_CARTA" to fechaCartaEspanolaAnexo93(Instant.now()),
             "TEXTO_OPCION_TI" to textoOpcionTitulacionIntegral(p.datos_proyecto.modalidad),
@@ -1382,8 +1393,7 @@ class EgresadoService(
 
     private fun cumplePrerequisitoDocumentacionEscaneada(e: Egresado, p: ProcesoTitulacion): Boolean {
         if (p.fechaCreacionAnexo93 == null) return false
-        if (esResidenciaProfesional(e) || esCeneval(e)) return p.fechaConfirmacionEntregaAnexo93 != null
-        return true
+        return p.fechaConfirmacionEntregaAnexo93 != null
     }
 
     private fun eliminarEntregaEscaneadaAnterior(egresadoId: ObjectId) {
@@ -1877,6 +1887,12 @@ class EgresadoService(
             m.contains("ceneval") -> "EXAMEN CENEVAL"
             else -> modalidad.uppercase(Locale.forLanguageTag("es-MX"))
         }
+    }
+
+    /** CENEVAL no tiene tema de proyecto; en oficio de sinodales y anexo 9.3 se muestra «SIN TEMA». */
+    private fun textoProyectoDocumentosTitulacion(e: Egresado, p: ProcesoTitulacion): String {
+        if (esCeneval(e)) return "SIN TEMA"
+        return p.datos_proyecto.nombre_proyecto.trim().ifBlank { "—" }
     }
 
     private fun generarPdfAnexo(titulo: String, templateProperty: String, defaultTemplateClasspath: String, e: Egresado, extras: List<Pair<String, String>>): ByteArray? {

@@ -50,6 +50,11 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
   /** Panel secundario: reemplazo de archivo (colapsado por defecto). */
   panelReemplazoExpandido = false;
 
+  /** Fuerza recreación del iframe PDF tras reemplazar el archivo. */
+  documentoIframeKey = 0;
+
+  private documentoLoadId = 0;
+
   private subs = new Subscription();
 
   constructor(
@@ -74,43 +79,72 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
   }
 
   cargarDocumento(): void {
-    this.cargandoDocumento = true;
-    this.errorDocumento = '';
-    if (this.documentoUrl) URL.revokeObjectURL(this.documentoUrl);
-    this.documentoUrl = null;
-    this.documentoUrlSeguro = null;
-    this.documentoHrefSeguro = null;
-    this.documentoEsTesisLiberacion = false;
+    const loadId = ++this.documentoLoadId;
+    this.iniciarCargaDocumento();
     this.subs.add(
-      this.egresadoService.getTesisLiberacion(this.id).subscribe({
+      this.egresadoService.getDocumento(this.id, Date.now()).subscribe({
         next: ({ blob, contentType, fileName }) => {
-          this.documentoEsTesisLiberacion = true;
-          this.mostrarDocumentoCargado(blob, contentType, fileName || 'tesis-liberacion.pdf');
+          if (loadId !== this.documentoLoadId) return;
+          this.documentoEsTesisLiberacion = false;
+          this.mostrarDocumentoCargado(blob, contentType, fileName || 'documento');
         },
-        error: (err: { status?: number }) => {
+        error: (err: { status?: number; error?: { error?: string }; message?: string }) => {
+          if (loadId !== this.documentoLoadId) return;
           if (err?.status === 404) {
-            this.cargarDocumentoExpediente();
+            this.cargarTesisLiberacion(loadId);
             return;
           }
           this.cargandoDocumento = false;
-          const msg =
-            (err as { error?: { error?: string }; message?: string }).error?.error ??
-            (err as { message?: string }).message;
+          const msg = err?.error?.error ?? err?.message;
           this.errorDocumento = msg ? `No se pudo cargar el documento: ${msg}` : 'No se pudo cargar el documento.';
         },
       }),
     );
   }
 
-  /** Documento adjunto del expediente (residencia o flujos sin liberación de producto). */
-  private cargarDocumentoExpediente(): void {
+  /** Tras reemplazar expediente: recarga solo documento_adjunto (no tesis de liberación). */
+  private recargarExpedienteTrasReemplazo(): void {
+    const loadId = ++this.documentoLoadId;
+    this.iniciarCargaDocumento();
+    this.documentoEsTesisLiberacion = false;
     this.subs.add(
-      this.egresadoService.getDocumento(this.id).subscribe({
+      this.egresadoService.getDocumento(this.id, Date.now()).subscribe({
         next: ({ blob, contentType, fileName }) => {
-          this.documentoEsTesisLiberacion = false;
+          if (loadId !== this.documentoLoadId) return;
           this.mostrarDocumentoCargado(blob, contentType, fileName || 'documento');
         },
         error: (err) => {
+          if (loadId !== this.documentoLoadId) return;
+          this.cargandoDocumento = false;
+          const msg = err?.error?.error ?? err?.error?.message ?? err?.message ?? err?.statusText;
+          this.errorDocumento = msg
+            ? `No se pudo mostrar el archivo nuevo: ${msg}`
+            : 'No se pudo mostrar el archivo nuevo.';
+        },
+      }),
+    );
+  }
+
+  private iniciarCargaDocumento(): void {
+    this.cargandoDocumento = true;
+    this.errorDocumento = '';
+    if (this.documentoUrl) URL.revokeObjectURL(this.documentoUrl);
+    this.documentoUrl = null;
+    this.documentoUrlSeguro = null;
+    this.documentoHrefSeguro = null;
+    this.documentoIframeKey = 0;
+  }
+
+  private cargarTesisLiberacion(loadId: number): void {
+    this.subs.add(
+      this.egresadoService.getTesisLiberacion(this.id, Date.now()).subscribe({
+        next: ({ blob, contentType, fileName }) => {
+          if (loadId !== this.documentoLoadId) return;
+          this.documentoEsTesisLiberacion = true;
+          this.mostrarDocumentoCargado(blob, contentType, fileName || 'tesis-liberacion.pdf');
+        },
+        error: (err) => {
+          if (loadId !== this.documentoLoadId) return;
           this.cargandoDocumento = false;
           const msg = err?.error?.error ?? err?.error?.message ?? err?.message ?? err?.statusText;
           this.errorDocumento = msg ? `No se pudo cargar el documento: ${msg}` : 'No se pudo cargar el documento.';
@@ -125,7 +159,9 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
     this.documentoFileName = fileName;
     const url = URL.createObjectURL(blob);
     this.documentoUrl = url;
-    this.documentoUrlSeguro = this.sanitizer.bypassSecurityTrustResourceUrl(url);
+    this.documentoIframeKey++;
+    const iframeSrc = `${url}#toolbar=1&navpanes=0&view=FitH&v=${this.documentoIframeKey}`;
+    this.documentoUrlSeguro = this.sanitizer.bypassSecurityTrustResourceUrl(iframeSrc);
     this.documentoHrefSeguro = this.sanitizer.bypassSecurityTrustUrl(url);
   }
 
@@ -222,7 +258,7 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
           this.errorSubidaArchivo = false;
           this.mensajeSubidaArchivo = 'Documento reemplazado. Se muestra el archivo nuevo arriba.';
           input.value = '';
-          this.cargarDocumento();
+          this.recargarExpedienteTrasReemplazo();
         },
         error: (err) => {
           this.subiendoDocumento = false;

@@ -103,6 +103,7 @@ data class AsignarSinodalesRequestDto(
     @JsonProperty("secretario") val secretario: String = "",
     @JsonProperty("vocal") val vocal: String = "",
     @JsonProperty("vocal_suplente") val vocalSuplente: String = "",
+    @JsonProperty("numero_oficio") val numeroOficio: String = "",
 )
 
 /** Respuesta GET/POST sinodales (no se incluye en detalle de seguimiento del egresado). */
@@ -112,6 +113,7 @@ data class SinodalesRespuestaDto(
     @JsonProperty("secretario") val secretario: String = "",
     @JsonProperty("vocal") val vocal: String = "",
     @JsonProperty("vocal_suplente") val vocalSuplente: String = "",
+    @JsonProperty("numero_oficio") val numeroOficio: String = "",
 )
 
 /** Revisión guardada (respuesta de listar y al crear). */

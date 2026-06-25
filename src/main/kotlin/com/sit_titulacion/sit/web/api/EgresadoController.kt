@@ -676,6 +676,7 @@ class EgresadoController(
                 secretario = s?.secretario ?: "",
                 vocal = s?.vocal ?: "",
                 vocalSuplente = s?.vocal_suplente ?: "",
+                numeroOficio = s?.numero_oficio ?: "",
             ),
         )
     }
@@ -690,7 +691,14 @@ class EgresadoController(
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
         }
         respuestaSiNoAccesoEgresadoBandeja(id, principal)?.let { return it }
-        return if (egresadoService.asignarSinodales(id, body.presidente, body.secretario, body.vocal, body.vocalSuplente)) {
+        return if (egresadoService.asignarSinodales(
+            id,
+            body.presidente,
+            body.secretario,
+            body.vocal,
+            body.vocalSuplente,
+            body.numeroOficio,
+        )) {
             ResponseEntity.ok().build<Void>()
         } else {
             ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("error" to "No se pudieron guardar los sinodales."))

@@ -119,7 +119,7 @@
 
           <div class="se-acciones" *ngIf="tabActivo === 'pendientes' && !detalle.fecha_aceptacion_servicios_escolares_anexo_9_2">
             <button type="button" class="se-btn se-btn--aceptar" [disabled]="confirmando" (click)="aceptarPendiente()">
-              {{ confirmando ? 'Confirmando…' : 'Confirmar' }}
+              {{ confirmando ? 'Confirmando…' : 'Solicitud atendida' }}
             </button>
           </div>
           <p
