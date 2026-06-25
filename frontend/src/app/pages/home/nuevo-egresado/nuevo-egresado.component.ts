@@ -128,7 +128,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
     return this.catalogoService.esCeneval((this.form.get('modalidad')?.value as string) || '');
   }
 
-  /** Lista del `<select>` de modalidad: catálogo completo o solo curso de titulación. */
+  /** Sin curso: todas las modalidades; con curso: solo Monografía, Proyecto de Investigación y Tesina. */
   get opcionesModalidad(): string[] {
     const curso = this.form?.get('curso_titulacion')?.value === true;
     if (curso) {

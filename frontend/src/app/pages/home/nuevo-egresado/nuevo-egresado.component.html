@@ -83,6 +83,12 @@
 
   <div class="form-seccion">
     <h3 class="form-seccion-titulo">Datos del proyecto</h3>
+    <div class="form-campo form-campo-checkbox">
+      <label class="form-label-checkbox">
+        <input type="checkbox" formControlName="curso_titulacion" />
+        <span>Curso de titulación</span>
+      </label>
+    </div>
     <div class="form-campo" [class.form-campo-error]="campoInvalido('modalidad')">
       <label for="modalidad">Modalidad <span class="form-obligatorio">*</span></label>
       <select id="modalidad" formControlName="modalidad">
@@ -114,12 +120,6 @@
           </div>
           <span *ngIf="tituloCompartidoConfirmado === true" class="orig-libre">Confirmado: puede registrar con este título.</span>
         </div>
-      </div>
-      <div class="form-campo form-campo-checkbox">
-        <label class="form-label-checkbox">
-          <input type="checkbox" formControlName="curso_titulacion" />
-          <span>Curso de titulación</span>
-        </label>
       </div>
     </ng-container>
     <ng-container *ngIf="catalogoService.tipoMentoresPorNombre(form.get('modalidad')?.value || '') === 'residencia'">
