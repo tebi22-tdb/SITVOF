@@ -442,7 +442,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
     this.actualizarValidadoresPorModalidad();
   }
 
-  /** Según modalidad: mentores, fechas de documentos (CENEVAL solo archivo). */
+  /** Según modalidad: mentores, fechas de documentos (CENEVAL: carta de no inconveniencia y archivo). */
   private actualizarValidadoresPorModalidad(): void {
     const modalidad = this.form.get('modalidad')?.value as string;
     const esCeneval = this.catalogoService.esCeneval(modalidad ?? '');
@@ -471,13 +471,12 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
     if (esCeneval) {
       this.form.get('nombre_proyecto')?.clearValidators();
       this.form.get('fecha_registro_anexo')?.clearValidators();
-      this.form.get('fecha_expedicion_constancia')?.clearValidators();
+      this.form.get('fecha_expedicion_constancia')?.setValidators(required);
       this.form.patchValue(
         {
           nombre_proyecto: 'EXAMEN CENEVAL',
           curso_titulacion: false,
           fecha_registro_anexo: '',
-          fecha_expedicion_constancia: '',
         },
         { emitEvent: false },
       );

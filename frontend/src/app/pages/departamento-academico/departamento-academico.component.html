@@ -547,6 +547,21 @@
           <option *ngFor="let d of docentesLista" [value]="d.nombreCompleto">{{ d.nombreCompleto }}</option>
         </select>
       </label>
+      <div class="departamento-modal-oficio">
+        <label class="departamento-modal-oficio-label" for="sinodales-numero-oficio">
+          Número de oficio
+          <span class="departamento-modal-oficio-hint">Se imprimirá en el PDF del oficio de asignación</span>
+        </label>
+        <input
+          id="sinodales-numero-oficio"
+          type="text"
+          class="departamento-modal-oficio-input"
+          [(ngModel)]="sinodalesNumeroOficio"
+          placeholder="Ej. DEA/583/2026"
+          autocomplete="off"
+          maxlength="40"
+        />
+      </div>
     </div>
     <div class="departamento-modal-acciones">
       <button

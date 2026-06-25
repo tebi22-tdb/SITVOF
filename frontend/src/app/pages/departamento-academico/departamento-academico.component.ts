@@ -72,6 +72,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   sinodalesSecretario = '';
   sinodalesVocal = '';
   sinodalesVocalSuplente = '';
+  sinodalesNumeroOficio = '';
   sinodalesCargando = false;
   sinodalesGuardando = false;
   sinodalesError = '';
@@ -553,6 +554,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     this.sinodalesSecretario = '';
     this.sinodalesVocal = '';
     this.sinodalesVocalSuplente = '';
+    this.sinodalesNumeroOficio = '';
     this.sinodalesCargando = true;
     if (this.docentesLista.length === 0) {
       this.docenteService.listar().subscribe({
@@ -561,12 +563,19 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
       });
     }
     this.egresadoService.getSinodalesAcademico(item.id).subscribe({
-      next: (r: { presidente?: string; secretario?: string; vocal?: string; vocal_suplente?: string }) => {
+      next: (r: {
+        presidente?: string;
+        secretario?: string;
+        vocal?: string;
+        vocal_suplente?: string;
+        numero_oficio?: string;
+      }) => {
         this.sinodalesCargando = false;
         this.sinodalesPresidente = r.presidente?.trim() ?? '';
         this.sinodalesSecretario = r.secretario?.trim() ?? '';
         this.sinodalesVocal = r.vocal?.trim() ?? '';
         this.sinodalesVocalSuplente = r.vocal_suplente?.trim() ?? '';
+        this.sinodalesNumeroOficio = r.numero_oficio?.trim() ?? '';
       },
       error: () => {
         this.sinodalesCargando = false;
@@ -585,6 +594,11 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   guardarSinodales(): void {
     const item = this.sinodalesModalItem;
     if (!item) return;
+    const numeroOficio = this.sinodalesNumeroOficio.trim();
+    if (!numeroOficio) {
+      this.sinodalesError = 'Indica el número de oficio.';
+      return;
+    }
     this.sinodalesGuardando = true;
     this.sinodalesError = '';
     this.egresadoService
@@ -593,6 +607,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
         secretario: this.sinodalesSecretario.trim(),
         vocal: this.sinodalesVocal.trim(),
         vocal_suplente: this.sinodalesVocalSuplente.trim(),
+        numero_oficio: numeroOficio,
       })
       .subscribe({
         next: () => {
