@@ -9,9 +9,9 @@
 html, body { margin: 0; padding: 0; }
 body {
   font-family: Arial, Helvetica, sans-serif;
-  font-size: 10pt;
+  font-size: 11pt;
   color: #000;
-  line-height: 1.4;
+  line-height: 1.25;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -83,47 +83,48 @@ body {
 }
 .titulo-doc {
   text-align: center;
-  font-size: 10pt;
-  font-weight: normal;
-  margin: 0 0 6px;
-  line-height: 1.35;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: bold;
+  line-height: 16.1pt;
+  margin: 4.6pt 0 0;
 }
+.t14 { font-size: 14pt; font-weight: bold; font-family: Arial, Helvetica, sans-serif; }
+.t11 { font-size: 11pt; font-weight: bold; font-family: Arial, Helvetica, sans-serif; }
 .asunto-line {
   text-align: right;
-  font-size: 10pt;
+  font-size: 11pt;
   font-weight: normal;
-  margin: 12px 0 14px;
-  text-decoration: none;
+  margin: 6px 0 8px;
 }
 .destinatario-bloque {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
 }
 .destinatario-bloque p {
   margin: 0;
   padding: 0;
   font-weight: bold;
-  font-size: 10pt;
-  line-height: 1.4;
-  text-transform: uppercase;
+  font-size: 11pt;
+  line-height: 1.25;
 }
 .info-line {
-  font-size: 10pt;
+  font-size: 11pt;
   margin: 0 0 2px;
   line-height: 1.4;
 }
 .info-line .val { text-decoration: underline; text-underline-offset: 2px; }
+.val { text-decoration: underline; text-underline-offset: 2px; }
 .lugar-fecha-row {
   width: 100%;
   border-collapse: collapse;
-  margin: 0 0 12px;
-  font-size: 10pt;
-  line-height: 1.4;
+  margin: 0 0 6px;
+  font-size: 11pt;
+  line-height: 1.25;
 }
 .tabla-proyecto {
   width: 100%;
   border-collapse: collapse;
-  margin: 4px 0 10px;
-  font-size: 10pt;
+  margin: 4px 0 6px;
+  font-size: 11pt;
 }
 .tabla-proyecto td {
   border: 1px solid #000;
@@ -137,15 +138,15 @@ body {
   white-space: nowrap;
 }
 .seccion-estudiantes {
-  font-size: 10pt;
+  font-size: 11pt;
   font-weight: normal;
-  margin: 14px 0 6px;
+  margin: 8px 0 4px;
 }
 .tabla-estudiantes {
   width: 100%;
   border-collapse: collapse;
-  margin: 0 0 14px;
-  font-size: 10pt;
+  margin: 0 0 8px;
+  font-size: 11pt;
 }
 .tabla-estudiantes th {
   border: 1px solid #000;
@@ -165,52 +166,58 @@ body {
 .tabla-estudiantes td.nombre { text-align: left; }
 .observaciones-box {
   border: 1px solid #000;
-  min-height: 1.8cm;
+  min-height: 1.0cm;
   padding: 4px 6px;
-  font-size: 10pt;
-  margin: 0 0 14px;
+  font-size: 11pt;
+  margin: 0 0 8px;
 }
 .observaciones-lbl {
-  font-size: 10pt;
+  font-size: 11pt;
   font-weight: normal;
-  margin: 0 0 6px;
+  margin: 0;
 }
 .atentamente {
-  font-size: 10.5pt;
+  font-size: 11pt;
   font-weight: bold;
-  letter-spacing: 0.05em;
-  margin: 12px 0 2px;
+  text-align: center;
+  margin: 6px 0 2px;
 }
-.motto {
-  font-size: 9pt;
-  font-weight: bold;
-  font-style: normal;
-  margin: 0;
-  line-height: 1.35;
+.firma-linea {
+  border-top: 1px solid #000;
+  width: 11cm;
+  margin: 0 auto 4px;
 }
 .firmante-nombre {
-  font-size: 10pt;
+  font-size: 11pt;
   font-weight: bold;
   text-transform: uppercase;
-  margin: 20px 0 0;
+  text-align: center;
+  margin: 4px 0 0;
   line-height: 1.3;
 }
 .firmante-cargo {
-  font-size: 10pt;
+  font-size: 11pt;
   font-weight: bold;
   text-transform: uppercase;
+  text-align: center;
   margin: 0 0 8px;
   line-height: 1.3;
 }
+.ccp-fixed {
+  position: fixed;
+  top: 25.0cm;
+  left: 1.5cm;
+}
 .ccp-line {
   font-size: 9pt;
-  margin: 2px 0 0;
+  margin: 0;
   line-height: 1.3;
+  text-align: left;
 }
 .firma-qr-tabla { width: 100%; border-collapse: collapse; margin-top: 0.3cm; }
-.firma-qr-left { width: 60%; vertical-align: top; }
-.firma-qr-right { width: 40%; vertical-align: middle; text-align: center; }
-.qr-img-firma { width: 100pt; height: 100pt; display: block; margin: 0 auto; }
+.firma-qr-left { width: 80%; vertical-align: top; text-align: center; padding-left: 3cm; }
+.firma-qr-right { width: 20%; vertical-align: middle; text-align: center; }
+.qr-img-firma { width: 72pt; height: 72pt; display: block; margin: 0 auto; }
 .qr-msg { margin: 3pt 0 0; font-size: 6.5pt; font-family: Arial, Helvetica, sans-serif;
            color: #444; text-align: center; line-height: 1.25; }
 </style>
@@ -252,12 +259,14 @@ body {
 <!-- CUERPO -->
 <div class="doc-body">
 
-  <p class="titulo-doc">ANEXO XXXII. FORMATO DE REGISTRO DE PROYECTO PARA LA TITULACI&#211;N INTEGRAL</p>
-  <p class="asunto-line">ASUNTO: Registro de proyecto para la titulaci&#243;n integral.</p>
+  <p class="titulo-doc"><span class="t14">A</span><span class="t11">NEXO&#160;</span><span class="t14">XXXII</span><span class="t11">.&#160;</span><span class="t14">F</span><span class="t11">ORMATO DE REGISTRO DE PROYECTO PARA LA</span></p>
+  <p class="titulo-doc" style="margin-top:0; margin-bottom:6px;"><span class="t14">T</span><span class="t11">ITULACI&#211;N&#160;</span><span class="t14">I</span><span class="t11">NTEGRAL</span></p>
+  <p style="text-align:center; font-size:12pt; font-weight:normal; margin:8px 0 4px;">&#8220;Hoja membretada oficial&#8221;</p>
+  <p class="asunto-line">Asunto: Registro de proyecto para la titulaci&#243;n integral.</p>
 
   <div class="destinatario-bloque">
-    <p>{{JEFE_DIVISION_NOMBRE}}</p>
-    <p>{{JEFE_DIVISION_TITULO}} DE LA DIVISI&#211;N DE ESTUDIOS PROFESIONALES</p>
+    <p>C. <span class="val">{{JEFE_DIVISION_NOMBRE}}</span></p>
+    <p>{{JEFE_DIVISION_TITULO_LOWER}} de la Divisi&#243;n de Estudios Profesionales o su equivalente en los Institutos Tecnol&#243;gicos Descentralizados</p>
     <p>PRESENTE</p>
   </div>
 
@@ -273,15 +282,15 @@ body {
 
   <table class="tabla-proyecto">
     <tr>
-      <td>Nombre del Proyecto:</td>
+      <td>Nombre del proyecto:</td>
       <td>{{NOMBRE_PROYECTO}}</td>
     </tr>
     <tr>
-      <td>Nombre (s) del (de los) asesor (es):</td>
-      <td>{{NOMBRE_ASESORES}}</td>
+      <td>Nombre(s) del (de los) asesor(es):</td>
+      <td style="white-space:pre-line;">{{NOMBRE_ASESORES}}</td>
     </tr>
     <tr>
-      <td>N&#250;mero de estudiantes</td>
+      <td>N&#250;mero de estudiantes:</td>
       <td>{{NUM_ESTUDIANTES}}</td>
     </tr>
   </table>
@@ -305,19 +314,17 @@ body {
   </table>
 
   <div class="observaciones-box">
-    <p class="observaciones-lbl">Observaciones</p>
+    <p class="observaciones-lbl">Observaciones:</p>
   </div>
 
+  <p class="atentamente">ATENTAMENTE</p>
   <table class="firma-qr-tabla">
     <tr>
       <td class="firma-qr-left">
-        <p class="atentamente">A T E N T A M E N T E</p>
-        <p class="motto">Excelencia en Educaci&#243;n Tecnol&#243;gica&#174;</p>
-        <p class="motto">Ciencia y tecnolog&#237;a para el campo&#174;.</p>
+        <div style="height:0.8cm;"></div>
+        <div class="firma-linea"></div>
         <p class="firmante-nombre">{{JEFE_DEPTO_NOMBRE}}</p>
         <p class="firmante-cargo">{{JEFE_DEPTO_CARGO}}</p>
-        <p class="ccp-line">ccp. Expediente</p>
-        <p class="ccp-line">{{JEFE_DEPTO_INICIALES}}</p>
       </td>
       <td class="firma-qr-right">
         <img class="qr-img-firma" src="{{QR_CODE}}" alt=""/>
@@ -327,5 +334,11 @@ body {
   </table>
 
 </div>
+
+<div class="ccp-fixed">
+  <p class="ccp-line">c.c.p.- Expediente</p>
+  <p class="ccp-line">{{JEFE_DEPTO_INICIALES}}</p>
+</div>
+
 </body>
 </html>
