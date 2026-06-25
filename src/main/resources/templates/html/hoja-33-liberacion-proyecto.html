@@ -9,9 +9,9 @@
 html, body { margin: 0; padding: 0; }
 body {
   font-family: Arial, Helvetica, sans-serif;
-  font-size: 10pt;
+  font-size: 11pt;
   color: #000;
-  line-height: 1.4;
+  line-height: 1.25;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -77,111 +77,102 @@ body {
   width: 100%;
   height: 3.5cm;
 }
-/* ── Cuerpo del documento ────────────────────────────────────── */
+/* ── Cuerpo ──────────────────────────────────────────────────── */
 .doc-body {
   padding: 4.1cm 1.5cm 3.9cm 1.5cm;
 }
 .titulo-doc {
   text-align: center;
-  font-size: 10pt;
-  font-weight: normal;
-  margin: 0 0 6px;
-  line-height: 1.35;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: bold;
+  line-height: 16.1pt;
+  margin: 4.6pt 0 0;
 }
+.t14 { font-size: 14pt; font-weight: bold; font-family: Arial, Helvetica, sans-serif; }
+.t11 { font-size: 11pt; font-weight: bold; font-family: Arial, Helvetica, sans-serif; }
+.val { text-decoration: underline; text-underline-offset: 2px; }
 .lugar-fecha-line {
   text-align: right;
-  font-size: 10pt;
-  margin: 0 0 4px;
-  line-height: 1.4;
-}
-.fecha-resaltada {
-  background: #000;
-  color: #fff;
-  padding: 1px 5px;
+  font-size: 11pt;
+  margin: 6px 0 4px;
+  line-height: 1.25;
 }
 .asunto-line {
   text-align: right;
-  font-size: 10pt;
+  font-size: 11pt;
   font-weight: normal;
-  margin: 12px 0 14px;
-  text-decoration: none;
-}
-.asunto-resaltado {
-  background: #000;
-  color: #fff;
-  padding: 1px 5px;
+  margin: 4px 0 8px;
 }
 .destinatario-bloque {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
 }
 .destinatario-bloque p {
   margin: 0;
   padding: 0;
   font-weight: bold;
-  font-size: 10pt;
-  line-height: 1.4;
-  text-transform: uppercase;
+  font-size: 11pt;
+  line-height: 1.25;
 }
 .cuerpo-texto {
-  font-size: 10pt;
-  margin: 0 0 8px;
-  line-height: 1.4;
+  font-size: 11pt;
+  margin: 0 0 6px;
+  line-height: 1.25;
   text-align: justify;
 }
 .tabla-datos {
   width: 100%;
   border-collapse: collapse;
-  margin: 0 0 10px;
-  font-size: 10pt;
+  margin: 0 0 8px;
+  font-size: 11pt;
 }
 .tabla-datos td {
   border: 1px solid #000;
   padding: 3px 7px;
   vertical-align: top;
-  line-height: 1.35;
+  line-height: 1.25;
 }
 .tabla-datos td:first-child {
-  width: 32%;
+  width: 38%;
   font-weight: normal;
   white-space: nowrap;
 }
 .agradecimiento {
-  font-size: 10pt;
-  margin: 0 0 12px;
-  line-height: 1.4;
+  font-size: 11pt;
+  margin: 0 0 8px;
+  line-height: 1.25;
   text-align: justify;
 }
 .atentamente {
-  font-size: 10.5pt;
+  font-size: 11pt;
   font-weight: bold;
-  letter-spacing: 0.05em;
-  margin: 8px 0 2px;
+  text-align: center;
+  margin: 6px 0 2px;
 }
-.motto {
-  font-size: 9pt;
-  font-weight: bold;
-  font-style: normal;
-  margin: 0;
-  line-height: 1.35;
+.firma-linea {
+  border-top: 1px solid #000;
+  width: 11cm;
+  margin: 0 auto 4px;
 }
 .firmante-nombre {
-  font-size: 10pt;
+  font-size: 11pt;
   font-weight: bold;
   text-transform: uppercase;
-  margin: 18px 0 0;
+  text-align: center;
+  margin: 4px 0 0;
   line-height: 1.3;
 }
 .firmante-cargo {
-  font-size: 10pt;
+  font-size: 11pt;
   font-weight: bold;
   text-transform: uppercase;
-  margin: 0 0 14px;
+  text-align: center;
+  margin: 0 0 6px;
   line-height: 1.3;
 }
 .tabla-firmas {
   width: 100%;
   border-collapse: collapse;
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   font-size: 9pt;
 }
 .tabla-firmas td {
@@ -191,7 +182,7 @@ body {
   line-height: 1.3;
 }
 .tabla-firmas .fila-nombres td {
-  padding: 18px 6px 4px;
+  padding: 16px 6px 4px;
   vertical-align: bottom;
   font-weight: bold;
   font-size: 9pt;
@@ -202,15 +193,25 @@ body {
   font-size: 8.5pt;
   font-weight: normal;
 }
-.ccp-line {
+.nota-asterisco {
   font-size: 9pt;
   margin: 2px 0 0;
   line-height: 1.3;
 }
-.firma-qr-tabla { width: 100%; border-collapse: collapse; margin-top: 0.3cm; }
-.firma-qr-left { width: 60%; vertical-align: top; }
-.firma-qr-right { width: 40%; vertical-align: middle; text-align: center; }
-.qr-img-firma { width: 100pt; height: 100pt; display: block; margin: 0 auto; }
+.ccp-fixed {
+  position: fixed;
+  top: 25.0cm;
+  left: 1.5cm;
+}
+.ccp-line {
+  font-size: 9pt;
+  margin: 0;
+  line-height: 1.3;
+}
+.firma-qr-tabla { width: 100%; border-collapse: collapse; margin-top: 0.2cm; }
+.firma-qr-left { width: 80%; vertical-align: top; text-align: center; padding-left: 3cm; }
+.firma-qr-right { width: 20%; vertical-align: middle; text-align: center; }
+.qr-img-firma { width: 72pt; height: 72pt; display: block; margin: 0 auto; }
 .qr-msg { margin: 3pt 0 0; font-size: 6.5pt; font-family: Arial, Helvetica, sans-serif;
            color: #444; text-align: center; line-height: 1.25; }
 </style>
@@ -252,41 +253,42 @@ body {
 <!-- CUERPO -->
 <div class="doc-body">
 
-  <p class="titulo-doc" style="margin-bottom:0;">ANEXO XXXIII</p>
-  <p class="titulo-doc">FORMATO DE LIBERACI&#211;N DE PROYECTO PARA LA TITULACI&#211;N INTEGRAL</p>
+  <p class="titulo-doc"><span class="t14">A</span><span class="t11">NEXO </span><span class="t14">XXXIII</span><span class="t11">. </span><span class="t14">F</span><span class="t11">ORMATO DE </span><span class="t14">L</span><span class="t11">IBERACI&#211;N DE PROYECTO PARA LA</span></p>
+  <p class="titulo-doc" style="margin-top:0; margin-bottom:6px;"><span class="t14">T</span><span class="t11">ITULACI&#211;N </span><span class="t14">I</span><span class="t11">NTEGRAL</span></p>
 
-  <p class="lugar-fecha-line">ExHacienda de Nazareno, Xoxocotl&#225;n, Oaxaca&#160;<span class="fecha-resaltada">{{FECHA_CARTA}}</span></p>
-  <p class="asunto-line">Asunto:&#160;<span class="asunto-resaltado">Liberaci&#243;n de proyecto para la titulaci&#243;n integral.</span></p>
+  <p style="text-align:center; font-size:11pt; font-weight:normal; margin:8px 0 4px;">&#8220;Hoja membretada oficial&#8221;</p>
+  <p class="lugar-fecha-line">Lugar y fecha:&#160;<span class="val">{{FECHA_CARTA}}</span></p>
+  <p class="asunto-line">Asunto: Liberaci&#243;n de proyecto para la titulaci&#243;n integral.</p>
 
   <div class="destinatario-bloque">
-    <p>{{JEFE_DIVISION_NOMBRE}}</p>
-    <p>JEFE DE LA DIVISI&#211;N DE ESTUDIOS PROFESIONALES</p>
+    <p>C. <span class="val">{{JEFE_DIVISION_NOMBRE}}</span></p>
+    <p>{{JEFE_DIVISION_TITULO_LOWER}} de la Divisi&#243;n de Estudios Profesionales o su equivalente en los Institutos Tecnol&#243;gicos Descentralizados</p>
     <p>PRESENTE</p>
   </div>
 
   <p class="cuerpo-texto">
-    Por medio le informo que ha sido liberado el siguiente proyecto para la Titulaci&#243;n Integral:
+    Por este medio informo que ha sido liberado el siguiente proyecto para la titulaci&#243;n integral:
   </p>
 
   <table class="tabla-datos">
     <tr>
-      <td>a) Nombre del Egresado</td>
+      <td>Nombre del estudiante y/o egresado:</td>
       <td>{{NOMBRE}}</td>
     </tr>
     <tr>
-      <td>b) Carrera</td>
+      <td>Carrera:</td>
       <td>{{CARRERA}}</td>
     </tr>
     <tr>
-      <td>c) No. de Control</td>
+      <td>No. de control:</td>
       <td>{{NUMERO_CONTROL}}</td>
     </tr>
     <tr>
-      <td>d) Nombre del proyecto</td>
+      <td>Nombre del proyecto:</td>
       <td>{{NOMBRE_PROYECTO}}</td>
     </tr>
     <tr>
-      <td>e) Producto</td>
+      <td>Producto:</td>
       <td>{{PRODUCTO}}</td>
     </tr>
   </table>
@@ -295,12 +297,21 @@ body {
     Agradezco de antemano su valioso apoyo en esta importante actividad para la formaci&#243;n profesional de nuestros egresados.
   </p>
 
-  <p class="atentamente">A T E N T A M E N T E</p>
-  <p class="motto">Excelencia en Educaci&#243;n Tecnol&#243;gica&#174;</p>
-  <p class="motto">Ciencia y tecnolog&#237;a para el campo&#174;.</p>
-
-  <p class="firmante-nombre">{{JEFE_DEPTO_NOMBRE}}</p>
-  <p class="firmante-cargo">{{JEFE_DEPTO_CARGO}}</p>
+  <p class="atentamente">ATENTAMENTE</p>
+  <table class="firma-qr-tabla">
+    <tr>
+      <td class="firma-qr-left">
+        <div style="height:0.8cm;"></div>
+        <div class="firma-linea"></div>
+        <p class="firmante-nombre">{{JEFE_DEPTO_NOMBRE}}</p>
+        <p class="firmante-cargo">{{JEFE_DEPTO_CARGO}}</p>
+      </td>
+      <td class="firma-qr-right">
+        <img class="qr-img-firma" src="{{QR_CODE}}" alt=""/>
+        <p class="qr-msg">Documento certificado:<br/>Verifica la autenticidad.</p>
+      </td>
+    </tr>
+  </table>
 
   <table class="tabla-firmas">
     <tr class="fila-nombres">
@@ -314,20 +325,14 @@ body {
       <td>{{FIRMA_LABEL_3}}</td>
     </tr>
   </table>
-
-  <table class="firma-qr-tabla">
-    <tr>
-      <td class="firma-qr-left">
-        <p class="ccp-line">ccp. Expediente</p>
-        <p class="ccp-line">{{JEFE_DEPTO_INICIALES}}</p>
-      </td>
-      <td class="firma-qr-right">
-        <img class="qr-img-firma" src="{{QR_CODE}}" alt=""/>
-        <p class="qr-msg">Documento certificado:<br/>Verifica la autenticidad.</p>
-      </td>
-    </tr>
-  </table>
+  <p class="nota-asterisco">* solo aplica para el caso de tesis o tesina</p>
 
 </div>
+
+<div class="ccp-fixed">
+  <p class="ccp-line">c.c.p.- Expediente.</p>
+  <p class="ccp-line">{{JEFE_DEPTO_INICIALES}}</p>
+</div>
+
 </body>
 </html>

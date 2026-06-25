@@ -1749,7 +1749,7 @@ class EgresadoService(
             "INGENIERIA INFORMÁTICA" to "Ingeniería Informática",
             "INGENIERIA EN TECNOLOGIA DE LA INFORMACION Y COMUNICACION" to "Ingeniería en Tecnología de la Información y Comunicación",
             "INGENIERIA EN CIENCIA DE DATOS" to "Ingeniería en Ciencia de Datos",
-            "INGENIERIA SISTEMAS COMPUTACIONALES" to "Ingeniería Sistemas Computacionales",
+            "INGENIERIA SISTEMAS COMPUTACIONALES" to "Ingeniería en Sistemas Computacionales",
             "INGENIERIA AMBIENTAL" to "Ingeniería Ambiental",
             "INGENIERIA EN GESTIÓN EMPRESARIAL (VIRTUAL)" to "Ingeniería en Gestión Empresarial (Virtual)",
         )
@@ -2022,16 +2022,19 @@ class EgresadoService(
             p.datos_proyecto.director,
             p.datos_proyecto.asesor_1,
             p.datos_proyecto.asesor_2,
-        ).filter { it.isNotBlank() }.joinToString(", ")
+        ).filter { it.isNotBlank() }.joinToString("\n")
         val deptNombre = catalogoRepository.findByTipoAndActivoTrue("departamento")
             .firstOrNull { d -> d.carreras.any { it.trim().equals(e.datos_personales.carrera.trim(), ignoreCase = true) } }
             ?.nombre ?: ""
+        val tituloLower = configInstitucionalService.obtenerJefeDivisionTitulo()
+            .lowercase().replaceFirstChar { it.uppercase() }
         val valores = construirValoresPlantillaHtml(e, listOf(
             "FECHA_CARTA" to fechaCartaEspanolaAnexo93(Instant.now()),
             "CARRERA" to toTitleCaseCarrera(e.datos_personales.carrera),
             "DEPARTAMENTO_NOMBRE" to deptNombre,
             "JEFE_DIVISION_NOMBRE" to configInstitucionalService.obtenerJefeDivisionNombre(),
             "JEFE_DIVISION_TITULO" to configInstitucionalService.obtenerJefeDivisionTitulo(),
+            "JEFE_DIVISION_TITULO_LOWER" to tituloLower,
             "NOMBRE_PROYECTO" to p.datos_proyecto.nombre_proyecto,
             "NOMBRE_ASESORES" to asesores,
             "NUM_ESTUDIANTES" to "1",
@@ -2064,22 +2067,25 @@ class EgresadoService(
             firmaNombre1 = p.datos_proyecto.asesor_interno?.takeIf { it.isNotBlank() } ?: ""
             firmaNombre2 = ""
             firmaNombre3 = ""
-            firmaLabel1 = "Nombre y firma de Asesor"
-            firmaLabel2 = "Nombre y firma del Revisor*"
-            firmaLabel3 = "Nombre y firma del Revisor*"
+            firmaLabel1 = "Nombre y firma del asesor"
+            firmaLabel2 = "Nombre y firma del revisor*"
+            firmaLabel3 = "Nombre y firma del revisor*"
         } else {
             firmaNombre1 = p.datos_proyecto.director?.takeIf { it.isNotBlank() } ?: ""
             firmaNombre2 = p.datos_proyecto.asesor_1?.takeIf { it.isNotBlank() } ?: ""
             firmaNombre3 = p.datos_proyecto.asesor_2?.takeIf { it.isNotBlank() } ?: ""
-            firmaLabel1 = "Director"
-            firmaLabel2 = "Asesor"
-            firmaLabel3 = "Asesor"
+            firmaLabel1 = "Nombre y firma del asesor"
+            firmaLabel2 = "Nombre y firma del revisor*"
+            firmaLabel3 = "Nombre y firma del revisor*"
         }
+        val tituloLower33 = configInstitucionalService.obtenerJefeDivisionTitulo()
+            .lowercase().replaceFirstChar { it.uppercase() }
         val valores = construirValoresPlantillaHtml(e, listOf(
             "FECHA_CARTA" to fechaCartaEspanolaAnexo93(Instant.now()),
             "CARRERA" to toTitleCaseCarrera(e.datos_personales.carrera),
             "DEPARTAMENTO_NOMBRE" to deptNombre33,
             "JEFE_DIVISION_NOMBRE" to configInstitucionalService.obtenerJefeDivisionNombre(),
+            "JEFE_DIVISION_TITULO_LOWER" to tituloLower33,
             "NOMBRE_PROYECTO" to p.datos_proyecto.nombre_proyecto,
             "PRODUCTO" to textoOpcionTitulacionIntegral(p.datos_proyecto.modalidad),
             "FIRMA_NOMBRE_1" to firmaNombre1,
