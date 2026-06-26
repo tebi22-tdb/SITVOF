@@ -183,6 +183,8 @@ export interface DepartamentoListItem {
   fecha_liberacion_producto?: string;
   /** Residencia: fecha en que el departamento generó por primera (o última) vez los Anexos XXXII y XXXIII. */
   fecha_generacion_anexos_xxxii_xxxiii?: string;
+  fecha_generacion_hoja_32?: string;
+  fecha_generacion_hoja_33?: string;
 }
 
 /** Revisión guardada (del backend). */

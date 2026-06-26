@@ -419,7 +419,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     this.router.navigate(['/home']);
   }
 
-  /** Descarga el Anexo XXXII sin cambiar estado. */
+  /** Descarga el Anexo XXXII y marca primera generación en el item local. */
   descargarAnexo32(id: string, ev?: Event): void {
     ev?.stopPropagation();
     if (this.descargando32Id === id) return;
@@ -431,12 +431,17 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
         a.href = url; a.download = fileName; a.click();
         URL.revokeObjectURL(url);
         this.descargando32Id = null;
+        const item = this.lista.find(i => i.id === id);
+        if (item && !item.fecha_generacion_hoja_32) {
+          item.fecha_generacion_hoja_32 = new Date().toISOString();
+          if (this.seleccionado?.id === id) this.seleccionado = { ...item };
+        }
       },
       error: () => { this.descargando32Id = null; },
     });
   }
 
-  /** Descarga el Anexo XXXIII sin cambiar estado. */
+  /** Descarga el Anexo XXXIII y marca primera generación en el item local. */
   descargarAnexo33(id: string, ev?: Event): void {
     ev?.stopPropagation();
     if (this.descargando33Id === id) return;
@@ -448,6 +453,11 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
         a.href = url; a.download = fileName; a.click();
         URL.revokeObjectURL(url);
         this.descargando33Id = null;
+        const item = this.lista.find(i => i.id === id);
+        if (item && !item.fecha_generacion_hoja_33) {
+          item.fecha_generacion_hoja_33 = new Date().toISOString();
+          if (this.seleccionado?.id === id) this.seleccionado = { ...item };
+        }
       },
       error: () => { this.descargando33Id = null; },
     });

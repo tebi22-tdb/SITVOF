@@ -487,6 +487,8 @@ class EgresadoService(
                 fechaRegistradoDepartamento = pr.fechaRegistradoDepartamento?.let { formatter.format(it) },
                 fechaLiberacionProducto = pr.fechaSolicitudRegistroLiberacionDeptoAcademico?.let { formatter.format(it) },
                 fechaGeneracionAnexosXxxiiXxxxiii = pr.fechaGeneracionAnexosXxxiiXxxxiii?.let { formatter.format(it) },
+                fechaGeneracionHoja32 = pr.fechaGeneracionHoja32?.let { formatter.format(it) },
+                fechaGeneracionHoja33 = pr.fechaGeneracionHoja33?.let { formatter.format(it) },
             )
         }
     }
@@ -2165,7 +2167,11 @@ class EgresadoService(
             "JEFE_DEPTO_INICIALES" to (deptConfig?.jefeIniciales ?: ""),
             "QR_CODE" to qrDataUri32,
         ))
-        return htmlAnexoPdfService.generarDesdeClasspath("templates/html/hoja-32-registro-proyecto.html", valores)
+        val pdf = htmlAnexoPdfService.generarDesdeClasspath("templates/html/hoja-32-registro-proyecto.html", valores)
+        if (pdf != null && p.fechaGeneracionHoja32 == null) {
+            egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaGeneracionHoja32 = Instant.now(), fecha_actualizacion = Instant.now())))
+        }
+        return pdf
     }
 
     fun crearHoja33(id: String): ByteArray? {
@@ -2221,7 +2227,11 @@ class EgresadoService(
             "JEFE_DEPTO_INICIALES" to (deptConfig?.jefeIniciales ?: ""),
             "QR_CODE" to qrDataUri33,
         ))
-        return htmlAnexoPdfService.generarDesdeClasspath("templates/html/hoja-33-liberacion-proyecto.html", valores)
+        val pdf = htmlAnexoPdfService.generarDesdeClasspath("templates/html/hoja-33-liberacion-proyecto.html", valores)
+        if (pdf != null && p.fechaGeneracionHoja33 == null) {
+            egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaGeneracionHoja33 = Instant.now(), fecha_actualizacion = Instant.now())))
+        }
+        return pdf
     }
 
     fun obtenerNumeroControl(id: String): String? = cargarEgresadoPorId(id)?.numero_control
