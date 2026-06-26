@@ -19,7 +19,7 @@ import {
         [showVolverInicioButton]="true" (volverInicioClick)="volver()"></app-header>
       <div class="contenido">
         <h1 class="titulo">Configuración Institucional</h1>
-        <p class="subtitulo">Administra los datos que cambian anualmente en los formatos.</p>
+        <p class="subtitulo">Administra los datos que cambian anualmente en los formatos XXXII y XXXIII (hojas 32 y 33).</p>
 
         <!-- ── Sección Global ─────────────────────────────────────────────── -->
         <section class="seccion">

@@ -595,6 +595,7 @@ export class SeguimientoComponent implements OnInit {
     const c9 = !!d.fecha_confirmacion_sinodales_recibidos;
     const c10 = !!d.fecha_agenda_acto_9_3;
     const c11 = !!d.fecha_creacion_anexo_9_3;
+    const c11b = !!d.fecha_confirmacion_entrega_anexo_9_3;
     const c12s = !!d.fecha_solicitud_documentacion_escaneada;
     const c12e = !!d.fecha_envio_documentacion_escaneada_egresado;
     const c12r = !!d.fecha_confirmacion_documentacion_escaneada_recibida;
@@ -687,7 +688,16 @@ export class SeguimientoComponent implements OnInit {
         completado: c11,
       },
       {
-        numero: 12,
+        numero: 13,
+        titulo: 'Recoger y firmar anexo 9.3',
+        detalle: c11b
+          ? 'Quedó registrada la entrega de tu anexo 9.3 en división de estudios profesionales.'
+          : 'Acude a división de estudios profesionales para recoger y firmar tu anexo 9.3 antes de continuar con la documentación escaneada.',
+        fecha: fh(d.fecha_confirmacion_entrega_anexo_9_3),
+        completado: c11b,
+      },
+      {
+        numero: 14,
         clave: 'doc_escaneada_subir',
         titulo: 'La división de estudios profesionales solicita que subas al SITVO la documentación escaneada.',
         detalle: c12e
@@ -707,7 +717,7 @@ export class SeguimientoComponent implements OnInit {
         completado: c12e,
       },
       {
-        numero: 13,
+        numero: 15,
         clave: 'doc_escaneada_espera',
         titulo: 'Tu proceso por esta opción quedó concluida.',
         detalle: c12r
@@ -758,6 +768,7 @@ export class SeguimientoComponent implements OnInit {
     const c14 = !!d.fecha_confirmacion_sinodales_recibidos;
     const c15 = !!d.fecha_agenda_acto_9_3;
     const c16 = !!d.fecha_creacion_anexo_9_3;
+    const c16b = !!d.fecha_confirmacion_entrega_anexo_9_3;
     const c17s = !!d.fecha_solicitud_documentacion_escaneada;
     const c17e = !!d.fecha_envio_documentacion_escaneada_egresado;
     const c17r = !!d.fecha_confirmacion_documentacion_escaneada_recibida;
@@ -904,6 +915,15 @@ export class SeguimientoComponent implements OnInit {
       },
       {
         numero: 18,
+        titulo: 'Recoger y firmar anexo 9.3',
+        detalle: c16b
+          ? 'Quedó registrada la entrega de tu anexo 9.3 en división de estudios profesionales.'
+          : 'Acude a división de estudios profesionales para recoger y firmar tu anexo 9.3 antes de continuar con la documentación escaneada.',
+        fecha: fh(d.fecha_confirmacion_entrega_anexo_9_3),
+        completado: c16b,
+      },
+      {
+        numero: 19,
         clave: 'doc_escaneada_subir',
         titulo: 'La división de estudios profesionales solicita que subas al SITVO la documentación escaneada.',
         detalle: c17e
@@ -923,7 +943,7 @@ export class SeguimientoComponent implements OnInit {
         completado: c17e,
       },
       {
-        numero: 19,
+        numero: 20,
         clave: 'doc_escaneada_espera',
         titulo: 'Tu proceso por esta opción quedó concluida.',
         detalle: c17r
@@ -1049,7 +1069,7 @@ export class SeguimientoComponent implements OnInit {
     return (partes[0][0] + partes[1][0]).toUpperCase();
   }
 
-  /** Porcentaje visual de pasos completados (barra de progreso, sin texto nuevo). */
+  /** Porcentaje de pasos completados (barra de progreso del alumno). */
   get porcentajeAvancePasos(): number {
     const pasos = this.pasosAlumno;
     if (!pasos.length) return 0;

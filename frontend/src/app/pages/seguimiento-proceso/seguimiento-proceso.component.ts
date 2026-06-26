@@ -223,9 +223,9 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     return this.catalogoService.esCeneval(m);
   }
 
-  /** Residencia y CENEVAL exigen confirmar entrega del 9.3 antes de solicitar documentación escaneada. */
+  /** Todos los flujos con acto 9.3 exigen confirmar entrega antes de documentación escaneada. */
   get requiereEntregaAnexo93AntesDocEscaneada(): boolean {
-    return this.esResidenciaProfesionalSeguimiento || this.esCenevalSeguimiento;
+    return true;
   }
 
   prerequisitoSinodalesCumplido(d: EgresadoDetail): boolean {
@@ -586,7 +586,14 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         descripcion: 'La DEP confirma la recepción de los documentos del departamento académico.',
       },
     ];
-    const steps = [...pasosInicio, ...this.pasosTitulacionCompartidosDef(), ...this.pasosDocumentacionEscaneadaDef()];
+    const pasoEntrega93: PasoTitulacionDef[] = [
+      {
+        key: 'fecha_confirmacion_entrega_anexo_9_3',
+        titulo: 'Entrega de anexo 9.3 a sinodales y sustentante',
+        descripcion: 'La DEP confirma la entrega del aviso al jurado y al sustentante.',
+      },
+    ];
+    const steps = [...pasosInicio, ...this.pasosTitulacionCompartidosDef(), ...pasoEntrega93, ...this.pasosDocumentacionEscaneadaDef()];
     return this.mapearDefsAUiPasos(steps);
   }
 
@@ -646,6 +653,11 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
           `La DEP envía ${modalidadTitulo} a Coordinación de Apoyo a la Titulación para la revisión según las normas de presentación para trabajos profesionales.`,
       },
       ...this.pasosTitulacionCompartidosDef(),
+      {
+        key: 'fecha_confirmacion_entrega_anexo_9_3',
+        titulo: 'Entrega de anexo 9.3 a sinodales y sustentante',
+        descripcion: 'La DEP confirma la entrega del aviso al jurado y al sustentante.',
+      },
       ...this.pasosDocumentacionEscaneadaDef(),
     ];
     let todosPreviosCompletados = true;

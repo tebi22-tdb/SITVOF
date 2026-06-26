@@ -1,10 +1,12 @@
 package com.sit_titulacion.sit.service
 
+import com.openhtmltopdf.outputdevice.helper.BaseRendererBuilder
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder
 import org.slf4j.LoggerFactory
 import org.springframework.core.io.ClassPathResource
 import org.springframework.stereotype.Service
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 
@@ -22,7 +24,10 @@ class HtmlAnexoPdfService {
             val baseUri = baseUriDirectorioPlantilla(templateClasspath)
             ByteArrayOutputStream().use { os ->
                 val builder = PdfRendererBuilder()
-                builder.useFastMode()
+                if (!templateClasspath.contains("oficio-sinodales")) {
+                    builder.useFastMode()
+                }
+                registrarFuentes(builder)
                 builder.withHtmlContent(html, baseUri)
                 builder.toStream(os)
                 builder.run()
@@ -74,16 +79,51 @@ class HtmlAnexoPdfService {
     private fun aplicarPlaceholders(html: String, valores: Map<String, String>): String {
         var out = html
         valores.forEach { (k, v) ->
-            // No escapar valores que ya son data URIs — no contienen caracteres HTML especiales
-            val safe = if (v.startsWith("data:")) v else escapeHtml(v.ifBlank { "—" })
+            val safe = if (v.startsWith("data:")) {
+                v
+            } else {
+                escapeHtml(normalizarTextoUtf8(v.ifBlank { "—" }))
+            }
             out = out.replace("{{$k}}", safe, ignoreCase = false)
         }
         return Regex("""\{\{([A-Z0-9_]+)}}""").replace(out) { "—" }
     }
 
-    private fun escapeHtml(s: String): String =
-        s.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace("\"", "&quot;")
+    /**
+     * Corrige texto UTF-8 leído como ISO-8859-1 (p. ej. TecnolÃ³gico → Tecnológico).
+     */
+    internal fun normalizarTextoUtf8(s: String): String {
+        if (!s.contains('Ã') && !s.contains('Â')) return s
+        return runCatching {
+            val fixed = String(s.toByteArray(Charsets.ISO_8859_1), Charsets.UTF_8)
+            if (fixed.contains('\uFFFD')) s else fixed
+        }.getOrDefault(s)
+    }
+
+    private fun registrarFuentes(builder: PdfRendererBuilder) {
+        val windir = System.getenv("WINDIR") ?: "C:\\Windows"
+        val arial = File(windir, "Fonts\\arial.ttf")
+        val arialBold = File(windir, "Fonts\\arialbd.ttf")
+        if (arial.isFile) {
+            builder.useFont(arial, "Arial", 400, BaseRendererBuilder.FontStyle.NORMAL, true)
+        }
+        if (arialBold.isFile) {
+            builder.useFont(arialBold, "Arial", 700, BaseRendererBuilder.FontStyle.NORMAL, true)
+        }
+    }
+
+    private fun escapeHtml(s: String): String {
+        val sb = StringBuilder(s.length)
+        for (ch in s) {
+            when (ch) {
+                '&' -> sb.append("&amp;")
+                '<' -> sb.append("&lt;")
+                '>' -> sb.append("&gt;")
+                '"' -> sb.append("&quot;")
+                in '\u0000'..'\u007F' -> sb.append(ch)
+                else -> sb.append("&#").append(ch.code).append(';')
+            }
+        }
+        return sb.toString()
+    }
 }

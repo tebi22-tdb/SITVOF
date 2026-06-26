@@ -164,7 +164,7 @@ export class CatalogoService {
     // Fallback idéntico al backend
     const lower = nombreModalidad.trim().toLowerCase();
     if (lower.includes('residencia')) return 6;
-    if (lower.includes('monograf'))   return 18;
+    if (lower.includes('monograf'))   return 12;
     if (lower.includes('tesina'))     return 12;
     if (lower.includes('tesis'))      return 12;
     if (lower.includes('curso'))      return 12;
