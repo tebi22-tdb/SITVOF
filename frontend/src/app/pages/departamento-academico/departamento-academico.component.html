@@ -198,9 +198,9 @@
                     type="button"
                     class="departamento-btn-liberar departamento-btn-liberar--panel"
                     (click)="descargarAnexo32(seleccionado.id)"
-                    [disabled]="descargando32Id === seleccionado.id"
+                    [disabled]="descargando32Id === seleccionado.id || !!seleccionado.fecha_generacion_hoja_32"
                   >
-                    {{ descargando32Id === seleccionado.id ? 'Descargando…' : 'Generar Anexo XXXII' }}
+                    {{ descargando32Id === seleccionado.id ? 'Descargando…' : seleccionado.fecha_generacion_hoja_32 ? 'XXXII generado' : 'Generar Anexo XXXII' }}
                   </button>
                   <button
                     *ngIf="!seleccionado.fecha_registrado_departamento"
@@ -217,9 +217,9 @@
                     type="button"
                     class="departamento-btn-liberar departamento-btn-liberar--panel"
                     (click)="descargarAnexo33(seleccionado.id)"
-                    [disabled]="descargando33Id === seleccionado.id"
+                    [disabled]="descargando33Id === seleccionado.id || !!seleccionado.fecha_generacion_hoja_33"
                   >
-                    {{ descargando33Id === seleccionado.id ? 'Descargando…' : 'Generar Anexo XXXIII' }}
+                    {{ descargando33Id === seleccionado.id ? 'Descargando…' : seleccionado.fecha_generacion_hoja_33 ? 'XXXIII generado' : 'Generar Anexo XXXIII' }}
                   </button>
                   <p class="departamento-anteproyecto-nota">
                     Sube el PDF de {{ seleccionado.modalidad || 'la tesis' }} y pulsa <strong>Liberar</strong> para enviar la liberación a la DEP.

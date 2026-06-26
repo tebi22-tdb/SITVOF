@@ -95,6 +95,8 @@ data class DepartamentoListItemDto(
     @JsonProperty("fecha_liberacion_producto") val fechaLiberacionProducto: String? = null,
     /** Residencia: fecha en que el departamento generó por primera (o última) vez los Anexos XXXII y XXXIII. */
     @JsonProperty("fecha_generacion_anexos_xxxii_xxxiii") val fechaGeneracionAnexosXxxiiXxxxiii: String? = null,
+    @JsonProperty("fecha_generacion_hoja_32") val fechaGeneracionHoja32: String? = null,
+    @JsonProperty("fecha_generacion_hoja_33") val fechaGeneracionHoja33: String? = null,
 )
 
 /** Cuerpo para asignar o actualizar sinodales (departamento académico). */
