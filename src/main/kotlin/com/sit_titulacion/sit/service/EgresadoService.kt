@@ -1894,6 +1894,11 @@ class EgresadoService(
         }
     }
 
+    private fun textoProyectoDocumentosTitulacion(e: Egresado, p: ProcesoTitulacion): String {
+        if (esCeneval(e)) return "SIN TEMA"
+        return p.datos_proyecto.nombre_proyecto.trim().ifBlank { "—" }
+    }
+
     private fun generarPdfAnexo(titulo: String, templateProperty: String, defaultTemplateClasspath: String, e: Egresado, extras: List<Pair<String, String>>): ByteArray? {
         val pr = e.procesoActivoOrNull()
         val valores = mutableMapOf(
