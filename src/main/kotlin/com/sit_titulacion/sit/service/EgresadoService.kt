@@ -51,6 +51,7 @@ import java.io.InputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -1394,23 +1395,25 @@ class EgresadoService(
             fecha_actualizacion = ahora,
         )))
 
+        // El correo se envía en segundo plano para no bloquear la respuesta HTTP mientras el SMTP responde.
         val correo = e.datos_personales.correo_electronico?.trim().orEmpty()
         if (correo.isNotBlank()) {
             val fechaHoraTexto = DateTimeFormatter.ofPattern("dd/MM/yyyy, HH:mm")
                 .withZone(zonaActo93)
                 .format(inicio)
-            val enviado = emailService.enviarAvisoActoProtocolarioAgendado(
-                correoDestino = correo,
-                nombreEgresado = nombreCompleto(e),
-                numeroControl = e.numero_control,
-                fechaHoraActoTexto = fechaHoraTexto,
-            )
-            if (!enviado) {
-                log.warn(
-                    "Acto 9.3 agendado para {} pero no se envió correo al egresado ({})",
-                    e.numero_control,
-                    correo,
-                )
+            val nc = e.numero_control
+            CompletableFuture.runAsync {
+                try {
+                    val enviado = emailService.enviarAvisoActoProtocolarioAgendado(
+                        correoDestino = correo,
+                        nombreEgresado = nombreCompleto(e),
+                        numeroControl = nc,
+                        fechaHoraActoTexto = fechaHoraTexto,
+                    )
+                    if (!enviado) log.warn("Acto 9.3 agendado para {} pero no se envió correo al egresado ({})", nc, correo)
+                } catch (ex: Exception) {
+                    log.warn("Acto 9.3 agendado para {} — error enviando correo al egresado: {}", nc, ex.message)
+                }
             }
         } else {
             log.warn("Acto 9.3 agendado para {} sin correo del egresado; aviso por correo omitido", e.numero_control)

@@ -1,12 +1,11 @@
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
-import flatpickr from 'flatpickr';
-import { Instance as FlatpickrInstance } from 'flatpickr/dist/types/instance';
-import { catchError, EMPTY, finalize, of, throwError, timeout } from 'rxjs';
+import { catchError, EMPTY, finalize, throwError, timeout } from 'rxjs';
+import { AgendarActoComponent, ActoAgendadoDto } from './agendar-acto/agendar-acto.component';
 import { HeaderComponent } from '../../layout/header/header.component';
 import { mensajeErrorApiConBlob } from '../../core/http-blob-error';
 import { EgresadoService, EgresadoDetail, EgresadoItem } from '../../services/egresado.service';
@@ -75,13 +74,11 @@ interface PasoProcesoUi {
 @Component({
   selector: 'app-seguimiento-proceso',
   standalone: true,
-  imports: [CommonModule, FormsModule, HeaderComponent],
+  imports: [CommonModule, FormsModule, HeaderComponent, AgendarActoComponent],
   templateUrl: './seguimiento-proceso.component.html',
   styleUrl: './seguimiento-proceso.component.css',
 })
 export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
-  @ViewChild('fechaActo93Input') fechaActo93Input?: ElementRef<HTMLInputElement>;
-
   cargando = true;
   error = '';
   items: SeguimientoItem[] = [];
@@ -102,14 +99,9 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
   /** Mensaje si falla la descarga del PDF (timeout, red, 401, etc.). */
   errorCargaDocEscaneada = '';
   vistaDocEscaneadaUrl: SafeResourceUrl | null = null;
-  fechaActo93 = '';
+  mostrarModalActo93 = false;
   /** Pasos del proceso: propiedad estable (no getter) para no destruir el DOM en cada ciclo de detección de cambios. */
   pasosProcesoTitulacionCache: PasoProcesoUi[] = [];
-  /** Días (clave yyyy-MM-dd locales) que ya tienen acto 9.3 agendado; solo para color en flatpickr. */
-  agendaActo93OcupadosKeys = new Set<string>();
-  agenda93Picker: FlatpickrInstance | null = null;
-  agenda93Cargada = false;
-  agenda93Cargando = false;
   private detalleRequestSeq = 0;
   private vistaDocEscaneadaObjectUrl: string | null = null;
 
@@ -188,7 +180,6 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.destruirAgendaActo93Picker();
     this.limpiarVistaDocEscaneada();
   }
 
@@ -260,8 +251,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     this.pasosProcesoTitulacionCache = [];
     this.observacionesReenvioDocEscaneada = '';
     this.limpiarVistaDocEscaneada();
-    this.fechaActo93 = '';
-    this.destruirAgendaActo93Picker();
+    this.mostrarModalActo93 = false;
     const requestSeq = ++this.detalleRequestSeq;
     const guard = window.setTimeout(() => {
       if (requestSeq === this.detalleRequestSeq && this.cargandoDetalle) {
@@ -897,27 +887,6 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       });
   }
 
-  /** Lee la fecha/hora elegida (flatpickr puede no sincronizar a tiempo con ngModel al pulsar Reagendar). */
-  private leerFechaHoraActo93ParaEnviar(): string {
-    const fp = this.agenda93Picker;
-    if (fp?.selectedDates?.length) {
-      return fp.formatDate(fp.selectedDates[0], 'Y-m-d\\TH:i');
-    }
-    const el = this.fechaActo93Input?.nativeElement;
-    const desdeInput = el?.value?.trim();
-    if (desdeInput) return desdeInput;
-    return (this.fechaActo93 ?? '').trim();
-  }
-
-  /** Valor local `YYYY-MM-DDTHH:mm` (u opcional `:ss`) → ISO UTC coherente con el backend. */
-  private parseDatetimeLocalToIso(valor: string): string | null {
-    const raw = valor.trim().replace(/^(\d{4}-\d{2}-\d{2})\s+/, '$1T');
-    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(raw);
-    if (!m) return null;
-    const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] ?? 0), 0);
-    return isNaN(d.getTime()) ? null : d.toISOString();
-  }
-
   private sincronizarFilaListaConDetalle(d: EgresadoDetail): void {
     const row = this.items.find((i) => i.id === d.id);
     if (!row) return;
@@ -1185,22 +1154,24 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       });
   }
 
-  agendarActo93(): void {
+  onActoAgendado(dto: ActoAgendadoDto): void {
     if (!this.detalleSeleccionado || this.procesandoPaso) return;
-    const valor = this.leerFechaHoraActo93ParaEnviar();
-    if (!valor) {
-      this.mensajeProceso = 'Selecciona fecha y hora para el acto 9.3.';
-      return;
-    }
+    this.mostrarModalActo93 = false;
+    const fechaHora = `${dto.fecha}T${dto.horaInicio}`;
     this.procesandoPaso = true;
     this.mensajeProceso = '';
     this.egresadoService
-      .agendarActo93(this.detalleSeleccionado.id, valor)
+      .agendarActo93(this.detalleSeleccionado.id, fechaHora)
       .pipe(
-        timeout(25000),
+        timeout(45000),
         catchError((err) => {
           if (err?.name === 'TimeoutError') {
-            return throwError(() => ({ error: { error: 'El servidor no respondió al agendar. Revisa conexión o intenta de nuevo.' } }));
+            // El servidor sí procesa el guardado pero el envío de correos a sinodales puede tardar.
+            // Refrescamos desde BD para mostrar la fecha real en lugar de mostrar un error falso.
+            this.procesandoPaso = false;
+            this.mensajeProceso = 'Acto agendado. Cargando datos actualizados...';
+            this.refrescarDetalle();
+            return EMPTY;
           }
           return throwError(() => err);
         }),
@@ -1209,10 +1180,9 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         next: () => {
           this.procesandoPaso = false;
           this.mensajeProceso = 'Acto 9.3 agendado.';
-          this.fechaActo93 = '';
-          this.destruirAgendaActo93Picker();
-          const iso = this.parseDatetimeLocalToIso(valor);
-          if (iso && this.detalleSeleccionado) {
+          const d = new Date(`${dto.fecha}T${dto.horaInicio}`);
+          const iso = isNaN(d.getTime()) ? fechaHora : d.toISOString();
+          if (this.detalleSeleccionado) {
             this.detalleSeleccionado = { ...this.detalleSeleccionado, fecha_agenda_acto_9_3: iso };
             this.actualizarPasosProcesoTitulacion();
           }
@@ -1451,126 +1421,5 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     return `${dd}/${mm}/${yyyy}`;
   }
 
-  abrirCalendarioActo93SiPermitido(ev: Event): void {
-    if (this.accionesProcesoBloqueadas) return;
-    const wrap = ev.currentTarget as HTMLElement;
-    const el = wrap.querySelector<HTMLInputElement>('input[name="fechaActo93"]');
-    if (!el) return;
-    if (!this.agenda93Picker) {
-      this.initAgendaActo93Picker(el);
-      if (!this.agenda93Cargada && !this.agenda93Cargando) {
-        this.cargarOcupadosActo93();
-      }
-    }
-    const fp = this.agenda93Picker;
-    window.setTimeout(() => fp?.open(), 0);
-  }
-
-  private cargarOcupadosActo93(): void {
-    this.agenda93Cargando = true;
-    this.egresadoService
-      .getAgendaActo93Ocupados()
-      .pipe(
-        timeout(12000),
-        catchError(() => of({ ocupados: [] as string[] })),
-        finalize(() => {
-          this.agenda93Cargando = false;
-          this.agenda93Cargada = true;
-        }),
-      )
-      .subscribe({
-        next: (res) => {
-          this.rellenarClavesOcupadasAgenda93(res);
-          if (this.agenda93Picker) {
-            window.requestAnimationFrame(() => this.pintarDiasOcupadosEnFlatpickr(this.agenda93Picker!));
-          }
-        },
-      });
-  }
-
-  private rellenarClavesOcupadasAgenda93(res: { ocupados?: string[] }): void {
-    const fechas = (res?.ocupados ?? [])
-      .map((s) => new Date(s))
-      .filter((d) => !isNaN(d.getTime()));
-    this.agendaActo93OcupadosKeys = new Set(fechas.map((d) => this.toLocalDateKey(d)));
-  }
-
-  /** Repinta amarillo: onDayCreate a veces corre antes de tener claves; redraw no siempre vuelve a crear celdas. */
-  private pintarDiasOcupadosEnFlatpickr(fp: FlatpickrInstance): void {
-    const root = fp.daysContainer;
-    if (!root) return;
-    root.querySelectorAll('.flatpickr-day').forEach((node) => {
-      const el = node as HTMLElement & { dateObj?: Date };
-      if (el.classList.contains('flatpickr-disabled')) return;
-      el.classList.remove('agenda-dia-ocupado');
-      const dateObj = el.dateObj;
-      if (!dateObj) return;
-      if (this.agendaActo93OcupadosKeys.has(this.toLocalDateKey(dateObj))) {
-        el.classList.add('agenda-dia-ocupado');
-        el.title = 'Ya hay acto protocolario agendado este día';
-      }
-    });
-  }
-
-  private initAgendaActo93Picker(el: HTMLInputElement): void {
-    this.agenda93Picker?.destroy();
-    this.agenda93Picker = flatpickr(el, {
-      enableTime: true,
-      time_24hr: true,
-      minuteIncrement: 15,
-      dateFormat: 'Y-m-d\\TH:i',
-      minTime: '09:00',
-      maxTime: '14:00',
-      disableMobile: true,
-      appendTo: document.body,
-      position: (fp2, posEl) => {
-        const inputEl = (posEl ?? fp2.input) as HTMLElement;
-        const rect = inputEl.getBoundingClientRect();
-        const calH = fp2.calendarContainer.offsetHeight || 300;
-        const below = window.innerHeight - rect.bottom > calH || rect.top < calH;
-        Object.assign(fp2.calendarContainer.style, {
-          position: 'fixed',
-          top: below ? `${rect.bottom + 2}px` : `${rect.top - calH - 2}px`,
-          left: `${Math.max(0, rect.left)}px`,
-          right: 'auto',
-          zIndex: '999999',
-        });
-      },
-      disable: [(date) => date.getDay() === 0 || date.getDay() === 6],
-      onChange: (_dates, dateStr) => {
-        this.fechaActo93 = dateStr;
-      },
-      onDayCreate: (_dObj, _dStr, fp, dayElem) => {
-        const dateObj = (dayElem as unknown as { dateObj?: Date }).dateObj;
-        if (!dateObj) return;
-        const key = this.toLocalDateKey(dateObj);
-        if (this.agendaActo93OcupadosKeys.has(key)) {
-          dayElem.classList.add('agenda-dia-ocupado');
-          dayElem.title = 'Ya hay acto protocolario agendado este día';
-        }
-      },
-      onOpen: (_d, _s, fp) => {
-        window.requestAnimationFrame(() => this.pintarDiasOcupadosEnFlatpickr(fp));
-      },
-      onMonthChange: (_d, _s, fp) => {
-        window.requestAnimationFrame(() => this.pintarDiasOcupadosEnFlatpickr(fp));
-      },
-    });
-  }
-
-  private toLocalDateKey(d: Date): string {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  }
-
-  private destruirAgendaActo93Picker(): void {
-    this.agenda93Picker?.destroy();
-    this.agenda93Picker = null;
-    this.agendaActo93OcupadosKeys.clear();
-    this.agenda93Cargada = false;
-    this.agenda93Cargando = false;
-  }
 }
 
