@@ -48,6 +48,7 @@ class DepartamentoBandejaTest {
     @Mock private lateinit var htmlAnexoPdfService: HtmlAnexoPdfService
     @Mock private lateinit var revisionService: RevisionService
     @Mock private lateinit var certService: CertificacionPdfService
+    @Mock private lateinit var configInstitucionalService: ConfiguracionInstitucionalService
 
     private lateinit var service: EgresadoService
 
@@ -79,6 +80,7 @@ class DepartamentoBandejaTest {
             htmlAnexoPdfService,
             revisionService,
             certService,
+            configInstitucionalService,
         )
 
         // lenient() evita UnnecessaryStubbingException en tests donde no se llaman todos los stubs

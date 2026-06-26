@@ -72,9 +72,11 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   sinodalesSecretario = '';
   sinodalesVocal = '';
   sinodalesVocalSuplente = '';
+  sinodalesNumeroOficio = '';
   sinodalesCargando = false;
   sinodalesGuardando = false;
   sinodalesError = '';
+  descargandoOficioSinodalesId: string | null = null;
   docentesLista: DocenteItem[] = [];
 
   /** Filas simuladas mientras carga la tabla. */
@@ -552,6 +554,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     this.sinodalesSecretario = '';
     this.sinodalesVocal = '';
     this.sinodalesVocalSuplente = '';
+    this.sinodalesNumeroOficio = '';
     this.sinodalesCargando = true;
     if (this.docentesLista.length === 0) {
       this.docenteService.listar().subscribe({
@@ -560,12 +563,13 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
       });
     }
     this.egresadoService.getSinodalesAcademico(item.id).subscribe({
-      next: (r: { presidente?: string; secretario?: string; vocal?: string; vocal_suplente?: string }) => {
+      next: (r: { presidente?: string; secretario?: string; vocal?: string; vocal_suplente?: string; numero_oficio?: string }) => {
         this.sinodalesCargando = false;
         this.sinodalesPresidente = r.presidente?.trim() ?? '';
         this.sinodalesSecretario = r.secretario?.trim() ?? '';
         this.sinodalesVocal = r.vocal?.trim() ?? '';
         this.sinodalesVocalSuplente = r.vocal_suplente?.trim() ?? '';
+        this.sinodalesNumeroOficio = r.numero_oficio?.trim() ?? '';
       },
       error: () => {
         this.sinodalesCargando = false;
@@ -586,12 +590,19 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     if (!item) return;
     this.sinodalesGuardando = true;
     this.sinodalesError = '';
+    const numeroOficio = this.sinodalesNumeroOficio.trim();
+    if (!numeroOficio) {
+      this.sinodalesError = 'Indica el número de oficio.';
+      this.sinodalesGuardando = false;
+      return;
+    }
     this.egresadoService
       .asignarSinodales(item.id, {
         presidente: this.sinodalesPresidente.trim(),
         secretario: this.sinodalesSecretario.trim(),
         vocal: this.sinodalesVocal.trim(),
         vocal_suplente: this.sinodalesVocalSuplente.trim(),
+        numero_oficio: numeroOficio,
       })
       .subscribe({
         next: () => {
@@ -606,5 +617,25 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
           this.sinodalesError = msg ? String(msg) : 'No se pudo guardar.';
         },
       });
+  }
+
+  descargarOficioSinodales(item: DepartamentoListItem, ev?: Event): void {
+    ev?.stopPropagation();
+    if (!item.sinodales_asignados) return;
+    this.descargandoOficioSinodalesId = item.id;
+    this.egresadoService.descargarOficioAsignacionSinodales(item.id).subscribe({
+      next: (blob) => {
+        this.descargandoOficioSinodalesId = null;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Oficio-sinodales-${item.numero_control || item.id}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => {
+        this.descargandoOficioSinodalesId = null;
+      },
+    });
   }
 }

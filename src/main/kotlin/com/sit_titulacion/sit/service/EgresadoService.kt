@@ -1101,7 +1101,14 @@ class EgresadoService(
         return e.procesoActivoOrNull()?.sinodalesTribunal
     }
 
-    fun asignarSinodales(id: String, presidente: String, secretario: String, vocal: String, vocalSuplente: String): Boolean {
+    fun asignarSinodales(
+        id: String,
+        presidente: String,
+        secretario: String,
+        vocal: String,
+        vocalSuplente: String,
+        numeroOficio: String,
+    ): Boolean {
         val e = cargarEgresadoPorId(id) ?: return false
         val p = e.procesoActivoOrNull() ?: return false
         if (p.fechaSolicitudSinodales == null) return false
@@ -1112,11 +1119,76 @@ class EgresadoService(
                 secretario = secretario.trim(),
                 vocal = vocal.trim(),
                 vocal_suplente = vocalSuplente.trim(),
+                numero_oficio = numeroOficio.trim(),
             ),
             fechaAsignacionSinodales = ahora,
             fecha_actualizacion = ahora,
         )))
         return true
+    }
+
+    fun crearOficioAsignacionSinodales(id: String): ByteArray? {
+        val e = cargarEgresadoPorId(id) ?: return null
+        val p = e.procesoActivoOrNull() ?: return null
+        val tribunal = p.sinodalesTribunal ?: return null
+        if (p.fechaAsignacionSinodales == null) return null
+        if (tribunal.presidente.isBlank() || tribunal.secretario.isBlank() ||
+            tribunal.vocal.isBlank() || tribunal.vocal_suplente.isBlank()
+        ) {
+            return null
+        }
+        val depto = resolverDepartamentoPorCarrera(e.datos_personales.carrera)
+        val nombreDepto = depto?.second ?: "Departamento académico"
+        val siglas = siglasOficioDepartamento(depto?.first, nombreDepto)
+        val instant = p.fechaAsignacionSinodales!!
+        val fechaGeneracion = Instant.now()
+        val jefeDivision = env.getProperty(
+            "sit.oficio-sinodales.jefe-division-nombre",
+            env.getProperty("sit.anexo93.jefe-division-nombre", "MANUEL FABIAN ROJAS"),
+        ).trim()
+        val jefeDivisionCargo = env.getProperty(
+            "sit.oficio-sinodales.jefe-division-cargo",
+            "JEFE DE LA DIVISIÓN DE ESTUDIOS PROFESIONALES",
+        ).trim()
+        val jefaNombre = env.getProperty("sit.oficio-sinodales.jefa-departamento-nombre", "MARIANA DÍAZ JARQUÍN").trim()
+        val lugar = env.getProperty("sit.oficio-sinodales.lugar", "Nazareno, Xoxocotlán, Oaxaca").trim()
+        val instituto = env.getProperty("sit.oficio-sinodales.instituto", "Instituto Tecnológico del Valle de Oaxaca").trim()
+        val iniciales = env.getProperty("sit.oficio-sinodales.iniciales-firma", "MDJ/mcgl").trim()
+        val expediente = p.cert_uuid?.trim()?.uppercase()?.ifBlank { null }
+            ?: e.id?.toHexString()?.uppercase()
+            ?: e.numero_control.trim().uppercase(Locale.ROOT)
+        val valores = construirValoresPlantillaHtml(
+            e,
+            listOf(
+                "NOMBRE" to nombreCompleto(e).uppercase(Locale.forLanguageTag("es-MX")),
+                "CARRERA" to e.datos_personales.carrera.trim().uppercase(Locale.forLanguageTag("es-MX")),
+                "PROYECTO" to textoProyectoDocumentosTitulacion(e, p)
+                    .uppercase(Locale.forLanguageTag("es-MX")),
+                "EXPEDIENTE" to expediente,
+                "OFICIO_NUMERO" to tribunal.numero_oficio.trim().ifBlank {
+                    numeroOficioSinodales(e, siglas, instant)
+                },
+                "LUGAR" to lugar,
+                "FECHA_OFICIO" to fechaOficioSlash(fechaGeneracion),
+                "ASUNTO" to "Vocal y vocal suplente",
+                "JEFE_DIVISION_NOMBRE" to jefeDivision,
+                "JEFE_DIVISION_CARGO" to jefeDivisionCargo,
+                "TEXTO_OPCION_TI" to textoOpcionTitulacionIntegral(p.datos_proyecto.modalidad),
+                "PRESIDENTE" to tribunal.presidente.trim().uppercase(Locale.forLanguageTag("es-MX")),
+                "SECRETARIO" to tribunal.secretario.trim().uppercase(Locale.forLanguageTag("es-MX")),
+                "VOCAL" to tribunal.vocal.trim().uppercase(Locale.forLanguageTag("es-MX")),
+                "VOCAL_SUPLENTE" to tribunal.vocal_suplente.trim().uppercase(Locale.forLanguageTag("es-MX")),
+                "JEFA_DEPARTAMENTO_NOMBRE" to jefaNombre.uppercase(Locale.forLanguageTag("es-MX")),
+                "JEFA_DEPARTAMENTO_CARGO" to cargoJefaDepartamentoOficio(nombreDepto),
+                "NOMBRE_DEPARTAMENTO" to nombreDepto,
+                "INICIALES_FIRMA" to iniciales,
+                "NOMBRE_INSTITUTO" to instituto,
+            ),
+        )
+        return htmlAnexoPdfService.generarDesdeClasspath(
+            "templates/html/oficio-sinodales/oficio-asignacion-sinodales.html",
+            valores,
+        )
     }
 
     fun confirmarSinodalesRecibidos(id: String): Boolean {
@@ -1319,8 +1391,7 @@ class EgresadoService(
 
     private fun cumplePrerequisitoDocumentacionEscaneada(e: Egresado, p: ProcesoTitulacion): Boolean {
         if (p.fechaCreacionAnexo93 == null) return false
-        if (esResidenciaProfesional(e) || esCeneval(e)) return p.fechaConfirmacionEntregaAnexo93 != null
-        return true
+        return p.fechaConfirmacionEntregaAnexo93 != null
     }
 
     private fun eliminarEntregaEscaneadaAnterior(egresadoId: ObjectId) {
@@ -1768,6 +1839,49 @@ class EgresadoService(
     private fun nombreMesEspanol(monthValue1to12: Int): String {
         val meses = listOf("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre")
         return meses.getOrElse(monthValue1to12 - 1) { "—" }.replaceFirstChar { it.uppercaseChar() }
+    }
+
+    private fun fechaOficioSlash(instant: Instant): String {
+        val z = instant.atZone(ZoneId.systemDefault())
+        val mes = nombreMesEspanol(z.monthValue).lowercase(Locale.forLanguageTag("es-MX"))
+        return "${z.dayOfMonth}/$mes/${z.year}"
+    }
+
+    private fun siglasOficioDepartamento(slug: String?, nombreDepto: String): String {
+        val mapaRaw = env.getProperty(
+            "sit.oficio-sinodales.siglas-por-slug",
+            "ciencias_basicas:DCB,ingenierias:DEI,economico_administrativo:DEA,virtuales:DV",
+        )
+        val mapa = mapaRaw.split(",")
+            .mapNotNull { par ->
+                val idx = par.indexOf(':')
+                if (idx <= 0) return@mapNotNull null
+                par.substring(0, idx).trim().lowercase(Locale.ROOT) to par.substring(idx + 1).trim().uppercase(Locale.ROOT)
+            }
+            .toMap()
+        slug?.trim()?.lowercase(Locale.ROOT)?.ifBlank { null }?.let { mapa[it] }?.let { return it }
+        val n = nombreDepto.lowercase(Locale.ROOT)
+        return when {
+            n.contains("básicas") || n.contains("basicas") -> "DCB"
+            n.contains("ingenier") -> "DEI"
+            n.contains("económico") || n.contains("economico") || n.contains("administrativ") -> "DEA"
+            n.contains("virtual") -> "DV"
+            else -> "DCB"
+        }
+    }
+
+    private fun numeroOficioSinodales(e: Egresado, siglas: String, instant: Instant): String {
+        val anio = instant.atZone(ZoneId.systemDefault()).year
+        val base = e.id?.timestamp?.toLong() ?: instant.toEpochMilli()
+        val folio = (base % 998L + 1L).toInt()
+        return "$siglas/$folio/$anio"
+    }
+
+    private fun cargoJefaDepartamentoOficio(nombreDepto: String): String {
+        var n = nombreDepto.trim().uppercase(Locale.forLanguageTag("es-MX"))
+        n = n.replace("DEPARTAMENTO DE ", "DEPTO. DE ")
+        n = n.replace("DEPARTAMENTO DEL ", "DEPTO. DEL ")
+        return "JEFA DEL $n"
     }
 
     private fun textoOpcionTitulacionIntegral(modalidad: String): String {

@@ -83,6 +83,12 @@
 
   <div class="form-seccion">
     <h3 class="form-seccion-titulo">Datos del proyecto</h3>
+    <div class="form-campo form-campo-checkbox">
+      <label class="form-label-checkbox">
+        <input type="checkbox" formControlName="curso_titulacion" />
+        <span>Curso de titulación</span>
+      </label>
+    </div>
     <div class="form-campo" [class.form-campo-error]="campoInvalido('modalidad')">
       <label for="modalidad">Modalidad <span class="form-obligatorio">*</span></label>
       <select id="modalidad" formControlName="modalidad">
@@ -114,12 +120,6 @@
           </div>
           <span *ngIf="tituloCompartidoConfirmado === true" class="orig-libre">Confirmado: puede registrar con este título.</span>
         </div>
-      </div>
-      <div class="form-campo form-campo-checkbox">
-        <label class="form-label-checkbox">
-          <input type="checkbox" formControlName="curso_titulacion" />
-          <span>Curso de titulación</span>
-        </label>
       </div>
     </ng-container>
     <ng-container *ngIf="catalogoService.tipoMentoresPorNombre(form.get('modalidad')?.value || '') === 'residencia'">
@@ -188,18 +188,21 @@
           <span class="form-error-msg" *ngIf="campoInvalido('fecha_registro_anexo')">Campo obligatorio</span>
         </div>
       </div>
-      <div class="form-subseccion">
-        <h4>Constancia no inconveniencia</h4>
-        <div class="form-campo" [class.form-campo-error]="campoInvalido('fecha_expedicion_constancia') || errorFechaConstanciaPosterior">
-          <label for="fecha_expedicion_constancia">Fecha de expedición <span class="form-obligatorio">*</span></label>
-          <input #fechaConstancia id="fecha_expedicion_constancia" type="date" formControlName="fecha_expedicion_constancia" (click)="abrirPicker(fechaConstancia)" />
-          <span class="form-error-msg" *ngIf="campoInvalido('fecha_expedicion_constancia')">Campo obligatorio</span>
-          <span class="form-error-msg" *ngIf="errorFechaConstanciaPosterior">
-            La fecha de expedición no puede ser posterior a la fecha de registro del Anexo XXXI.
-          </span>
-        </div>
-      </div>
     </ng-container>
+    <div class="form-subseccion">
+      <h4>Constancia no inconveniencia</h4>
+      <div class="form-campo" [class.form-campo-error]="campoInvalido('fecha_expedicion_constancia') || errorFechaConstanciaPosterior">
+        <label for="fecha_expedicion_constancia">
+          {{ esCenevalModalidad ? 'Fecha de la carta de no inconveniencia' : 'Fecha de expedición' }}
+          <span class="form-obligatorio">*</span>
+        </label>
+        <input #fechaConstancia id="fecha_expedicion_constancia" type="date" formControlName="fecha_expedicion_constancia" (click)="abrirPicker(fechaConstancia)" />
+        <span class="form-error-msg" *ngIf="campoInvalido('fecha_expedicion_constancia')">Campo obligatorio</span>
+        <span class="form-error-msg" *ngIf="!esCenevalModalidad && errorFechaConstanciaPosterior">
+          La fecha de expedición no puede ser posterior a la fecha de registro del Anexo XXXI.
+        </span>
+      </div>
+    </div>
     <div class="form-subseccion">
       <h4>Documento adjunto (PDF)</h4>
       <div class="form-campo" [class.form-campo-error]="archivoRequeridoError">

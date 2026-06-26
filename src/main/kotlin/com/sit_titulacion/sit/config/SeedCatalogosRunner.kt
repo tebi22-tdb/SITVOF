@@ -71,7 +71,7 @@ class SeedCatalogosRunner(
         }
 
         // Migración: corregir esCursoTitulacion en modalidades ya existentes con valor incorrecto
-        listOf("Tesina", "Proyecto de Investigación").forEach { nombre ->
+        listOf("Tesina", "Proyecto de Investigación", "Monografía").forEach { nombre ->
             val cat = catalogoRepository.findFirstByTipoAndNombreIgnoreCase("modalidad", nombre)
             if (cat != null && !cat.esCursoTitulacion) {
                 catalogoRepository.save(cat.copy(esCursoTitulacion = true))

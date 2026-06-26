@@ -201,7 +201,7 @@ class EmailService(
                             <tr>
                               <td style="padding:36px 36px 32px;">
                                 <p style="margin:0 0 22px;font-size:15px;color:#1f2937;line-height:1.6;">
-                                  A quien corresponda:
+                                  Estimado Sinodal:
                                 </p>
                                 <p style="margin:0 0 28px;font-size:15px;font-weight:600;color:#1f4c8f;line-height:1.7;border-left:4px solid #1f4c8f;padding-left:14px;">
                                   La División de Estudios Profesionales le comunica la calendarización y horario del acto protocolario.
