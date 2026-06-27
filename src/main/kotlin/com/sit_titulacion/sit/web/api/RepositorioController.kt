@@ -29,6 +29,11 @@ class RepositorioController(
     @GetMapping
     fun listar(@AuthenticationPrincipal principal: UsuarioPrincipal?): ResponseEntity<List<TituladoPublicoDto>> {
         val titulados = egresadoRepository.findConDocumentacionConfirmada()
+            .filter { e ->
+                val modalidad = e.procesos.lastOrNull { it.fechaConfirmacionDocumentacionEscaneadaRecibida != null }
+                    ?.datos_proyecto?.modalidad ?: e.procesoActivoOrNull()?.datos_proyecto?.modalidad ?: ""
+                !modalidad.contains("ceneval", ignoreCase = true)
+            }
             .sortedByDescending { it.procesos.lastOrNull { p -> p.fechaConfirmacionDocumentacionEscaneadaRecibida != null }?.fechaConfirmacionDocumentacionEscaneadaRecibida ?: it.fechaCreacion }
             .map { e ->
                 val p = e.datos_personales
