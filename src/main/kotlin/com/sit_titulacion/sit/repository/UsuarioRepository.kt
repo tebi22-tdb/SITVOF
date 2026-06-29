@@ -15,4 +15,6 @@ interface UsuarioRepository : MongoRepository<Usuario, ObjectId> {
     fun findByEgresadoId(egresadoId: ObjectId): Usuario?
 
     fun findByCorreoElectronico(correoElectronico: String): Usuario?
+
+    fun findByRolIgnoreCase(rol: String): List<Usuario>
 }

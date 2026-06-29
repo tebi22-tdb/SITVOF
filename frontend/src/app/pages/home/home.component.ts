@@ -250,6 +250,7 @@ export class HomeComponent implements OnInit {
       direccion: p.direccion || '',
       telefono: p.telefono || '',
       correo_electronico: p.correo_electronico || '',
+      genero: p.genero || '',
       nombre_proyecto: this.nuevoNombreProyecto,
       modalidad: this.nuevaModalidad,
       curso_titulacion: 'no',
@@ -406,6 +407,10 @@ export class HomeComponent implements OnInit {
     this.mensajeUsuario = '';
     if (!this.usuarioForm.correo_electronico?.trim()) {
       this.mensajeUsuario = 'El correo electrónico es obligatorio.';
+      return;
+    }
+    if (!this.usuarioForm.nombre?.trim()) {
+      this.mensajeUsuario = 'El nombre del usuario es obligatorio (aparece en oficios del departamento).';
       return;
     }
     if (

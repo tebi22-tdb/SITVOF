@@ -23,6 +23,7 @@ export class AltaDocentesComponent implements OnInit {
   formNombre = '';
   formCorreo = '';
   formCedula = '';
+  formGenero = '';
   guardando = false;
   eliminando = false;
   errorForm = '';
@@ -62,6 +63,7 @@ export class AltaDocentesComponent implements OnInit {
     this.formNombre = '';
     this.formCorreo = '';
     this.formCedula = '';
+    this.formGenero = '';
     this.errorForm = '';
     this.mensajeExito = '';
   }
@@ -72,6 +74,7 @@ export class AltaDocentesComponent implements OnInit {
     this.formNombre = docente.nombreCompleto;
     this.formCorreo = docente.correo;
     this.formCedula = docente.cedula;
+    this.formGenero = docente.genero || '';
     this.errorForm = '';
     this.mensajeExito = '';
   }
@@ -90,10 +93,12 @@ export class AltaDocentesComponent implements OnInit {
       nombreCompleto: this.formNombre.trim(),
       correo: this.formCorreo.trim(),
       cedula: this.formCedula.trim(),
+      genero: this.formGenero.trim(),
     };
     if (!req.nombreCompleto) { this.errorForm = 'El nombre completo es requerido.'; return; }
     if (!req.correo) { this.errorForm = 'El correo es requerido.'; return; }
     if (!req.cedula) { this.errorForm = 'La cédula es requerida.'; return; }
+    if (req.genero !== 'M' && req.genero !== 'F') { this.errorForm = 'Selecciona el género (M o F).'; return; }
 
     this.guardando = true;
     if (this.modoForm === 'nuevo') {

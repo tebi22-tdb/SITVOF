@@ -10,6 +10,7 @@ export interface DocenteItem {
   nombreCompleto: string;
   correo: string;
   cedula: string;
+  genero?: string | null;
   activo: boolean;
 }
 
@@ -17,6 +18,7 @@ export interface DocenteRequest {
   nombreCompleto: string;
   correo: string;
   cedula: string;
+  genero: string;
 }
 
 @Injectable({ providedIn: 'root' })

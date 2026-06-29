@@ -65,6 +65,28 @@ select:disabled {
   color: #b91c1c;
 }
 
+.form-campo-genero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+}
+
+.form-campo-genero > label:first-of-type {
+  width: 100%;
+  margin-bottom: 0.15rem;
+}
+
+.form-genero-opcion {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+}
+
 .form-aviso-requeridos {
   margin: 0 0 1rem;
   padding: 0.75rem 1rem;

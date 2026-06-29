@@ -42,6 +42,8 @@ export interface EgresadoForm {
   direccion: string;
   telefono: string;
   correo_electronico: string;
+  /** M = masculino, F = femenino */
+  genero: string;
   nombre_proyecto: string;
   modalidad: string;
   /** "si" o "no" - se envía al backend según si el checkbox está activado */

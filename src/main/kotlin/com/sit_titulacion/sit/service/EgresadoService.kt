@@ -18,6 +18,7 @@ import com.sit_titulacion.sit.domain.Egresado
 import com.sit_titulacion.sit.domain.HistorialEstado
 import com.sit_titulacion.sit.domain.ProcesoTitulacion
 import com.sit_titulacion.sit.domain.SinodalesTribunal
+import com.sit_titulacion.sit.domain.Usuario
 import com.sit_titulacion.sit.repository.CatalogoRepository
 import com.sit_titulacion.sit.repository.DocumentacionEscaneadaRepository
 import com.sit_titulacion.sit.repository.DocenteRepository
@@ -164,6 +165,7 @@ class EgresadoService(
                 direccion = datos.direccion,
                 telefono = datos.telefono,
                 correo_electronico = datos.correo_electronico,
+                genero = GeneroPorNombre.normalizarCodigo(datos.genero),
             ),
             fechaCreacion = ahora,
             fecha_actualizacion = ahora,
@@ -268,6 +270,7 @@ class EgresadoService(
                     direccion = datos.direccion,
                     telefono = datos.telefono,
                     correo_electronico = datos.correo_electronico,
+                    genero = GeneroPorNombre.normalizarCodigo(datos.genero),
                 ),
             )
         )
@@ -572,6 +575,51 @@ class EgresadoService(
         }
         return null
     }
+
+    /**
+     * Titular del departamento en el oficio de sinodales: usuario académico del segmento (interfaz del depto).
+     * Respaldo: configuración institucional por carrera; al final, propiedad de entorno (si está definida).
+     */
+    private fun resolverNombreTitularDepartamentoOficio(carrera: String, slugDepto: String?): String {
+        buscarUsuarioTitularDepartamento(slugDepto, carrera)?.let { u ->
+            nombreTitularDesdeUsuario(u)?.let { return it }
+            log.warn(
+                "Oficio sinodales: usuario académico del depto encontrado (username={}) pero sin nombre; " +
+                    "completa el campo «Nombre del usuario» en gestión de cuentas.",
+                u.username,
+            )
+        }
+        configInstitucionalService.resolverPorCarrera(carrera)?.jefeNombre?.trim()?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+        val envNombre = env.getProperty("sit.oficio-sinodales.jefa-departamento-nombre", "")?.trim().orEmpty()
+        if (envNombre.isNotBlank()) return envNombre
+        return "TITULAR DEL DEPARTAMENTO ACADÉMICO"
+    }
+
+    private fun buscarUsuarioTitularDepartamento(slugDepto: String?, carrera: String): Usuario? {
+        val slugNorm = slugDepto?.trim()?.lowercase(Locale.ROOT)?.ifBlank { null }
+        val keyCarrera = normalizarCarreraKey(carrera)
+        return usuarioRepository.findByRolIgnoreCase("academico")
+            .asSequence()
+            .filter { it.activo != false }
+            .filter { u ->
+                val seg = u.segmentoAcademico?.trim()?.lowercase(Locale.ROOT)?.ifBlank { null }
+                when {
+                    slugNorm != null && seg == slugNorm -> true
+                    keyCarrera.isNotEmpty() &&
+                        u.carrerasAsignadas.any { normalizarCarreraKey(it) == keyCarrera } -> true
+                    else -> false
+                }
+            }
+            .sortedWith(
+                compareByDescending<Usuario> { nombreTitularDesdeUsuario(it) != null }
+                    .thenByDescending { it.fechaCreacion },
+            )
+            .firstOrNull()
+    }
+
+    private fun nombreTitularDesdeUsuario(u: Usuario): String? =
+        u.nombre?.trim()?.takeIf { it.isNotBlank() }
 
     private fun carreraPermitidaParaAcademico(carrera: String, permitidas: Set<String>): Boolean {
         val key = normalizarCarreraKey(carrera)
@@ -1150,7 +1198,14 @@ class EgresadoService(
             "sit.oficio-sinodales.jefe-division-cargo",
             "JEFE DE LA DIVISIÓN DE ESTUDIOS PROFESIONALES",
         ).trim()
-        val jefaNombre = env.getProperty("sit.oficio-sinodales.jefa-departamento-nombre", "MARIANA DÍAZ JARQUÍN").trim()
+        val titularDeptoNombre = resolverNombreTitularDepartamentoOficio(e.datos_personales.carrera, depto?.first)
+        log.info(
+            "Oficio sinodales egresadoId={} carrera='{}' deptoSlug={} titular='{}'",
+            id,
+            e.datos_personales.carrera,
+            depto?.first,
+            titularDeptoNombre,
+        )
         val lugar = env.getProperty("sit.oficio-sinodales.lugar", "Nazareno, Xoxocotlán, Oaxaca").trim()
         val instituto = env.getProperty("sit.oficio-sinodales.instituto", "Instituto Tecnológico del Valle de Oaxaca").trim()
         val iniciales = env.getProperty("sit.oficio-sinodales.iniciales-firma", "MDJ/mcgl").trim()
@@ -1158,13 +1213,18 @@ class EgresadoService(
             ?: e.id?.toHexString()?.uppercase()
             ?: e.numero_control.trim().uppercase(Locale.ROOT)
 
+        val generoExtras = extrasGeneroDocumentos(
+            e, tribunal, nombreDepto, titularDeptoNombre, jefeDivision, jefeDivisionCargo,
+        )
+
         val valores = construirValoresPlantillaHtml(
             e,
-            listOf(
+            generoExtras + listOf(
                 "NOMBRE" to nombreCompleto(e).uppercase(Locale.forLanguageTag("es-MX")),
                 "CARRERA" to e.datos_personales.carrera.trim().uppercase(Locale.forLanguageTag("es-MX")),
                 "PROYECTO" to textoProyectoDocumentosTitulacion(e, p)
                     .uppercase(Locale.forLanguageTag("es-MX")),
+                "FRASE_TEMA_OFICIO" to fraseTemaOficioSinodales(e, p),
                 "EXPEDIENTE" to expediente,
                 "OFICIO_NUMERO" to tribunal.numero_oficio.trim().ifBlank {
                     numeroOficioSinodales(e, siglas, instant)
@@ -1173,14 +1233,12 @@ class EgresadoService(
                 "FECHA_OFICIO" to fechaOficioSlash(fechaGeneracion),
                 "ASUNTO" to "Vocal y vocal suplente",
                 "JEFE_DIVISION_NOMBRE" to jefeDivision,
-                "JEFE_DIVISION_CARGO" to jefeDivisionCargo,
                 "TEXTO_OPCION_TI" to textoOpcionTitulacionIntegral(p.datos_proyecto.modalidad),
                 "PRESIDENTE" to tribunal.presidente.trim().uppercase(Locale.forLanguageTag("es-MX")),
                 "SECRETARIO" to tribunal.secretario.trim().uppercase(Locale.forLanguageTag("es-MX")),
                 "VOCAL" to tribunal.vocal.trim().uppercase(Locale.forLanguageTag("es-MX")),
                 "VOCAL_SUPLENTE" to tribunal.vocal_suplente.trim().uppercase(Locale.forLanguageTag("es-MX")),
-                "JEFA_DEPARTAMENTO_NOMBRE" to jefaNombre.uppercase(Locale.forLanguageTag("es-MX")),
-                "JEFA_DEPARTAMENTO_CARGO" to cargoJefaDepartamentoOficio(nombreDepto),
+                "JEFA_DEPARTAMENTO_NOMBRE" to titularDeptoNombre.uppercase(Locale.forLanguageTag("es-MX")),
                 "NOMBRE_DEPARTAMENTO" to nombreDepto,
                 "INICIALES_FIRMA" to iniciales,
                 "NOMBRE_INSTITUTO" to instituto,
@@ -1229,18 +1287,30 @@ class EgresadoService(
         val anioActo = zActo.year.toString()
         val horaActo = String.format(Locale.ROOT, "%02d:%02d", zActo.hour, zActo.minute)
         val jefeDivisionNombre = env.getProperty("sit.anexo93.jefe-division-nombre", "MANUEL FABIAN ROJAS").trim()
+        val jefeDivisionCargo = env.getProperty(
+            "sit.oficio-sinodales.jefe-division-cargo",
+            "JEFE DE LA DIVISIÓN DE ESTUDIOS PROFESIONALES",
+        ).trim()
+        val depto = resolverDepartamentoPorCarrera(e.datos_personales.carrera)
+        val nombreDepto = depto?.second ?: "Departamento académico"
+        val titularDeptoNombre = resolverNombreTitularDepartamentoOficio(e.datos_personales.carrera, depto?.first)
+        val tribunal = p.sinodalesTribunal
+        val generoExtras = extrasGeneroDocumentos(
+            e, tribunal, nombreDepto, titularDeptoNombre, jefeDivisionNombre, jefeDivisionCargo,
+        )
         val certId = p.cert_uuid?.trim().takeUnless { it.isNullOrBlank() } ?: e.id?.toHexString() ?: e.numero_control
         val qrDataUri = generarQrDataUri("${baseUrlCert().trimEnd('/')}/#/verificar/$certId")
-        val valores = construirValoresPlantillaHtml(e, listOf(
+        val valores = construirValoresPlantillaHtml(e, generoExtras + listOf(
             "PROYECTO" to textoProyectoDocumentosTitulacion(e, p),
+            "FRASE_PROYECTO_93" to fraseProyectoAnexo93(e, p),
             "ACTO_93" to actoLegible,
             "FECHA_CARTA" to fechaCartaEspanolaAnexo93(Instant.now()),
             "TEXTO_OPCION_TI" to textoOpcionTitulacionIntegral(p.datos_proyecto.modalidad),
             "ACTO_DIA" to diaActo, "ACTO_MES" to mesActo, "ACTO_ANIO" to anioActo, "ACTO_HORA" to horaActo,
-            "PRESIDENTE" to (p.sinodalesTribunal?.presidente ?: ""),
-            "SECRETARIO" to (p.sinodalesTribunal?.secretario ?: ""),
-            "VOCAL" to (p.sinodalesTribunal?.vocal ?: ""),
-            "VOCAL_SUPLENTE" to (p.sinodalesTribunal?.vocal_suplente ?: ""),
+            "PRESIDENTE" to (tribunal?.presidente ?: ""),
+            "SECRETARIO" to (tribunal?.secretario ?: ""),
+            "VOCAL" to (tribunal?.vocal ?: ""),
+            "VOCAL_SUPLENTE" to (tribunal?.vocal_suplente ?: ""),
             "JEFE_DIVISION_NOMBRE" to jefeDivisionNombre,
             "QR_CODE" to qrDataUri,
         ))
@@ -1521,6 +1591,7 @@ class EgresadoService(
                 apellido_materno = p.apellido_materno ?: "", carrera = p.carrera,
                 nivel = p.nivel, direccion = p.direccion, telefono = p.telefono,
                 correo_electronico = p.correo_electronico,
+                genero = p.genero,
             ),
             datos_proyecto = pr?.let {
                 DatosProyectoDto(
@@ -1780,6 +1851,53 @@ class EgresadoService(
         listOf(e.datos_personales.nombre, e.datos_personales.apellido_paterno, e.datos_personales.apellido_materno)
             .filter { !it.isNullOrBlank() }.joinToString(" ").ifBlank { e.numero_control }
 
+    private fun generoDocumentoEgresado(e: Egresado): GeneroDocumento =
+        GeneroPorNombre.resolver(e.datos_personales.genero, nombreCompleto(e))
+
+    private fun mapaGeneroDocentesActivos(): Map<String, GeneroDocumento> =
+        docenteRepository.findByActivoTrue().associate { d ->
+            d.nombreCompleto.trim().uppercase(Locale.ROOT) to
+                GeneroPorNombre.resolver(d.genero, d.nombreCompleto)
+        }
+
+    private fun generoSinodal(nombre: String, mapa: Map<String, GeneroDocumento>): GeneroDocumento {
+        val key = nombre.trim().uppercase(Locale.ROOT)
+        return mapa[key] ?: GeneroPorNombre.inferir(nombre)
+    }
+
+    private fun extrasGeneroDocumentos(
+        e: Egresado,
+        tribunal: SinodalesTribunal?,
+        nombreDepto: String,
+        titularDeptoNombre: String,
+        jefeDivisionNombre: String,
+        jefeDivisionCargo: String,
+    ): List<Pair<String, String>> {
+        val generoEgresado = generoDocumentoEgresado(e)
+        val mapaDoc = mapaGeneroDocentesActivos()
+        val extras = mutableListOf(
+            "PREFIJO_EGRESADO" to GeneroPorNombre.etiquetaCiudadano(generoEgresado),
+            "TRATAMIENTO_EGRESADO" to GeneroPorNombre.tratamientoEgresadoOficio(generoEgresado),
+            "JEFE_DIVISION_CARGO" to GeneroPorNombre.cargoConGenero(
+                jefeDivisionCargo,
+                GeneroPorNombre.resolver(null, jefeDivisionNombre),
+            ),
+            "JEFA_DEPARTAMENTO_CARGO" to GeneroPorNombre.cargoTitularDepartamento(
+                nombreDepto,
+                GeneroPorNombre.resolver(null, titularDeptoNombre),
+            ),
+        )
+        tribunal?.let { t ->
+            extras += "ETIQUETA_PRESIDENTE" to GeneroPorNombre.etiquetaPresidente(
+                generoSinodal(t.presidente, mapaDoc),
+            )
+            extras += "ETIQUETA_SECRETARIO" to GeneroPorNombre.etiquetaSecretario(
+                generoSinodal(t.secretario, mapaDoc),
+            )
+        }
+        return extras
+    }
+
     private fun construirValoresPlantillaHtml(e: Egresado, extras: List<Pair<String, String>>): Map<String, String> {
         val pr = e.procesoActivoOrNull()
         val fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(ZoneId.systemDefault())
@@ -1867,13 +1985,6 @@ class EgresadoService(
         return "$siglas/$folio/$anio"
     }
 
-    private fun cargoJefaDepartamentoOficio(nombreDepto: String): String {
-        var n = nombreDepto.trim().uppercase(Locale.forLanguageTag("es-MX"))
-        n = n.replace("DEPARTAMENTO DE ", "DEPTO. DE ")
-        n = n.replace("DEPARTAMENTO DEL ", "DEPTO. DEL ")
-        return "JEFA DEL $n"
-    }
-
     private fun nombreMesEspanol(monthValue1to12: Int): String {
         val meses = listOf("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre")
         return meses.getOrElse(monthValue1to12 - 1) { "—" }.replaceFirstChar { it.uppercaseChar() }
@@ -1889,10 +2000,23 @@ class EgresadoService(
         }
     }
 
-    /** CENEVAL no tiene tema de proyecto; en oficio de sinodales y anexo 9.3 se muestra «SIN TEMA». */
+    /** CENEVAL: texto fijo en documentos; demás modalidades: nombre del proyecto. */
     private fun textoProyectoDocumentosTitulacion(e: Egresado, p: ProcesoTitulacion): String {
         if (esCeneval(e)) return "SIN TEMA"
         return p.datos_proyecto.nombre_proyecto.trim().ifBlank { "—" }
+    }
+
+    private fun fraseTemaOficioSinodales(e: Egresado, p: ProcesoTitulacion): String {
+        if (esCeneval(e)) return "SIN TEMA"
+        val proy = p.datos_proyecto.nombre_proyecto.trim().ifBlank { "—" }
+            .uppercase(Locale.forLanguageTag("es-MX"))
+        return "con el tema \"$proy\""
+    }
+
+    private fun fraseProyectoAnexo93(e: Egresado, p: ProcesoTitulacion): String {
+        if (esCeneval(e)) return "SIN NOMBRE DE PROYECTO"
+        val proy = p.datos_proyecto.nombre_proyecto.trim().ifBlank { "—" }
+        return "con el proyecto denominado: \"$proy\""
     }
 
     private fun generarPdfAnexo(titulo: String, templateProperty: String, defaultTemplateClasspath: String, e: Egresado, extras: List<Pair<String, String>>): ByteArray? {
