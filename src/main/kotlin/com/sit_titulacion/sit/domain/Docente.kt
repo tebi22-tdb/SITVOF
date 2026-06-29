@@ -11,6 +11,8 @@ data class Docente(
     val nombreCompleto: String,
     val correo: String,
     val cedula: String,
+    /** M = masculino, F = femenino (redacción de documentos oficiales). */
+    val genero: String? = null,
     val activo: Boolean = true,
     val fechaCreacion: Instant = Instant.now(),
     val fechaActualizacion: Instant = Instant.now(),

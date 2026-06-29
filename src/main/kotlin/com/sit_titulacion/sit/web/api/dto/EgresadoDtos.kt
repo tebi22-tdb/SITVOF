@@ -23,6 +23,8 @@ data class EgresadoRequestDto(
     @field:Size(max = 20)  val telefono: String? = null,
     /** Mismo nombre que en JSON (snake_case) para que Jackson lo deserialice bien en multipart. */
     @field:Size(max = 150) val correo_electronico: String? = null,
+    /** M = masculino, F = femenino */
+    @field:Size(max = 1) val genero: String? = null,
     @JsonProperty("nombre_proyecto") @field:Size(max = 300) val nombreProyecto: String? = null,
     @field:NotBlank @field:Size(max = 100)
     val modalidad: String,
@@ -253,6 +255,7 @@ data class DatosPersonalesDto(
     val direccion: String? = null,
     val telefono: String? = null,
     @JsonProperty("correo_electronico") val correo_electronico: String? = null,
+    val genero: String? = null,
 )
 
 data class DatosProyectoDto(

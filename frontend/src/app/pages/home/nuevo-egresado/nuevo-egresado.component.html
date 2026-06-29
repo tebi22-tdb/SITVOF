@@ -44,6 +44,18 @@
         <span class="form-error-msg" *ngIf="campoInvalido('apellido_materno')">Campo obligatorio</span>
       </div>
     </div>
+    <div class="form-campo form-campo-genero" [class.form-campo-error]="campoInvalido('genero')">
+      <span class="form-label-inline">Género <span class="form-obligatorio">*</span></span>
+      <label class="form-genero-opcion">
+        <input type="radio" formControlName="genero" value="M" />
+        <span>M — Masculino</span>
+      </label>
+      <label class="form-genero-opcion">
+        <input type="radio" formControlName="genero" value="F" />
+        <span>F — Femenino</span>
+      </label>
+      <span class="form-error-msg" *ngIf="campoInvalido('genero')">Selecciona el género</span>
+    </div>
     <div class="form-fila">
       <div class="form-campo" [class.form-campo-error]="campoInvalido('carrera')">
         <label for="carrera">Carrera <span class="form-obligatorio">*</span></label>

@@ -10,6 +10,7 @@ data class DocenteRequest(
     val nombreCompleto: String,
     val correo: String,
     val cedula: String,
+    val genero: String? = null,
 )
 
 data class DocenteResponse(
@@ -17,6 +18,7 @@ data class DocenteResponse(
     val nombreCompleto: String,
     val correo: String,
     val cedula: String,
+    val genero: String?,
     val activo: Boolean,
 )
 
@@ -32,19 +34,22 @@ class DocenteService(private val repo: DocenteRepository) {
         val nombre = req.nombreCompleto.trim()
         val correo = req.correo.trim()
         val cedula = req.cedula.trim()
+        val genero = validarGenero(req.genero) ?: return Result.failure(IllegalArgumentException("Selecciona el género (M o F)."))
         if (nombre.isBlank()) return Result.failure(IllegalArgumentException("El nombre completo es requerido"))
         if (correo.isBlank()) return Result.failure(IllegalArgumentException("El correo es requerido"))
         if (cedula.isBlank()) return Result.failure(IllegalArgumentException("La cédula es requerida"))
-        val doc = Docente(nombreCompleto = nombre, correo = correo, cedula = cedula)
+        val doc = Docente(nombreCompleto = nombre, correo = correo, cedula = cedula, genero = genero)
         return Result.success(repo.save(doc).toResponse())
     }
 
     fun actualizar(id: ObjectId, req: DocenteRequest): Result<DocenteResponse?> {
         val existing = repo.findById(id).orElse(null) ?: return Result.success(null)
+        val genero = validarGenero(req.genero) ?: return Result.failure(IllegalArgumentException("Selecciona el género (M o F)."))
         val updated = existing.copy(
             nombreCompleto = req.nombreCompleto.trim(),
             correo = req.correo.trim(),
             cedula = req.cedula.trim(),
+            genero = genero,
             fechaActualizacion = Instant.now(),
         )
         return Result.success(repo.save(updated).toResponse())
@@ -56,11 +61,14 @@ class DocenteService(private val repo: DocenteRepository) {
         return true
     }
 
+    private fun validarGenero(raw: String?): String? = GeneroPorNombre.normalizarCodigo(raw)
+
     private fun Docente.toResponse() = DocenteResponse(
         id = id!!.toHexString(),
         nombreCompleto = nombreCompleto,
         correo = correo,
         cedula = cedula,
+        genero = genero,
         activo = activo,
     )
 }

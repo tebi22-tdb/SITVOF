@@ -115,13 +115,14 @@
     <section *ngIf="esAdminUsuariosStaff && mostrarFormularioUsuario" class="sit-usuario-bloque">
       <h2 class="sit-usuario-titulo">Agregar usuario</h2>
       <form (ngSubmit)="guardarUsuario()" class="sit-usuario-form">
-        <label for="usuario-nombre">Nombre del usuario</label>
+        <label for="usuario-nombre">Nombre del usuario <span class="form-obligatorio">*</span></label>
         <input
           id="usuario-nombre"
           type="text"
           [(ngModel)]="usuarioForm.nombre"
           name="usuarioNombre"
           placeholder="Nombre completo"
+          required
         />
         <label for="usuario-perfil">Departamento / división</label>
         <select

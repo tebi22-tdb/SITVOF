@@ -188,19 +188,18 @@ table.ftr { width: 100%; border-collapse: collapse; }
 <p class="fecha-doc">Fecha: {{FECHA_CARTA}}.</p>
 
 <p class="sec-jurado">C. INTEGRANTES DEL JURADO</p>
-<p class="jurado-linea">PRESIDENTE: {{PRESIDENTE}}</p>
-<p class="jurado-linea">SECRETARIO: {{SECRETARIO}}</p>
+<p class="jurado-linea">{{ETIQUETA_PRESIDENTE}}: {{PRESIDENTE}}</p>
+<p class="jurado-linea">{{ETIQUETA_SECRETARIO}}: {{SECRETARIO}}</p>
 <p class="jurado-linea">VOCAL: {{VOCAL}}</p>
 <p class="jurado-linea">VOCAL SUPLENTE: {{VOCAL_SUPLENTE}}</p>
 <p class="presente-espaciado">P R E S E N T E</p>
 
 <p class="just para-principal">
   Por este medio le informo que el Acto de Recepci&#243;n Profesional de
-  <span class="b u">C. {{NOMBRE}}</span>, con No. de control
+  <span class="b u">{{PREFIJO_EGRESADO}} {{NOMBRE}}</span>, con No. de control
   <span class="b u">{{NUMERO_CONTROL}}</span>, egresado del Instituto Tecnol&#243;gico del Valle de Oaxaca,
   de la carrera de <span class="b u">{{CARRERA}}</span>, con la opci&#243;n
-  <span class="b u">TITULACI&#211;N INTEGRAL ({{TEXTO_OPCION_TI}})</span>,
-  con el proyecto denominado: &#8220;<span class="b u">{{PROYECTO}}</span>&#8221;,
+  <span class="b u">TITULACI&#211;N INTEGRAL ({{TEXTO_OPCION_TI}})</span>, <span class="b u">{{FRASE_PROYECTO_93}}</span>,
   que se realizar&#225; el d&#237;a <span class="b u">{{ACTO_DIA}}</span> de <span class="b u">{{ACTO_MES}}</span> del
   <span class="b u">{{ACTO_ANIO}}</span> a las <span class="b u">{{ACTO_HORA}}</span> horas.
 </p>

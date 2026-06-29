@@ -11,4 +11,6 @@ data class DatosPersonales(
     val direccion: String? = null,
     val telefono: String? = null,
     val correo_electronico: String? = null,
+    /** M = masculino, F = femenino (redacción de documentos oficiales). */
+    val genero: String? = null,
 )

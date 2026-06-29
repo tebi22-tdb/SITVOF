@@ -108,6 +108,7 @@ export interface DatosPersonalesDetail {
   direccion?: string;
   telefono?: string;
   correo_electronico?: string;
+  genero?: string;
 }
 
 // Datos del proyecto dentro del detalle

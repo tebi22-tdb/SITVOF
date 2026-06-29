@@ -76,7 +76,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
   modalidadesVencidas: string[] = [];
   docentesLista: DocenteItem[] = [];
   private egresadoVencidoNc: string | null = null;
-  private camposPersonales = ['nombre', 'apellido_paterno', 'apellido_materno', 'carrera', 'nivel', 'direccion', 'telefono', 'correo_electronico'];
+  private camposPersonales = ['nombre', 'apellido_paterno', 'apellido_materno', 'genero', 'carrera', 'nivel', 'direccion', 'telefono', 'correo_electronico'];
 
   private destroy$ = new Subject<void>();
 
@@ -96,6 +96,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       direccion: ['', Validators.required],
       telefono: ['', Validators.required],
       correo_electronico: ['', [Validators.required, Validators.email]],
+      genero: ['', Validators.required],
       nombre_proyecto: ['', Validators.required],
       modalidad: ['', Validators.required],
       curso_titulacion: [false],
@@ -293,6 +294,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
         direccion: d.datos_personales.direccion || '',
         telefono: d.datos_personales.telefono || '',
         correo_electronico: d.datos_personales.correo_electronico || '',
+        genero: d.datos_personales.genero || '',
         nombre_proyecto: d.datos_proyecto.nombre_proyecto || '',
         modalidad: d.datos_proyecto.modalidad || '',
         curso_titulacion: d.datos_proyecto.curso_titulacion === 'si',
