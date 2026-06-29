@@ -5,7 +5,6 @@ import {
   egresadoGuard,
   loginGuard,
   noApoyoTitulacionGuard,
-  repositorioGuard,
   serviciosEscolaresGuard,
   staffAdminGuard,
 } from './guards/auth.guard';
@@ -103,7 +102,6 @@ export const routes: Routes = [
     path: 'repositorio',
     loadComponent: () =>
       import('./pages/repositorio/repositorio.component').then((m) => m.RepositorioComponent),
-    canActivate: [repositorioGuard],
   },
   {
     path: 'verificar/:uuid',

@@ -433,6 +433,83 @@
   padding-left: 0.5rem;
 }
 
+.departamento-td--acciones-sinodales {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.departamento-btn-descarga-oficio {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid #2f7bcb;
+  border-radius: 5px;
+  background: #eef6ff;
+  color: #1f4c8f;
+  cursor: pointer;
+}
+
+.departamento-btn-descarga-oficio:hover:not(:disabled) {
+  background: #dbeafe;
+}
+
+.departamento-btn-descarga-oficio:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.departamento-icon-descarga {
+  width: 16px;
+  height: 16px;
+}
+
+.departamento-modal-oficio {
+  padding: 0.9rem 1rem;
+  background: linear-gradient(135deg, #ebf8ff 0%, #f7fafc 100%);
+  border: 1px solid #bee3f8;
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  margin-bottom: 0.75rem;
+}
+
+.departamento-modal-oficio-label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #2b4c7e;
+  margin-bottom: 0.5rem;
+}
+
+.departamento-modal-oficio-hint {
+  font-size: 0.76rem;
+  font-weight: 400;
+  color: #4a6fa5;
+  margin-top: 0.15rem;
+}
+
+.departamento-modal-oficio-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid #90cdf4;
+  border-radius: 7px;
+  font-size: 0.88rem;
+  background: #fff;
+  color: #1a202c;
+  outline: none;
+}
+
+.departamento-modal-oficio-input:focus {
+  border-color: #3182ce;
+  box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.25);
+}
+
 .departamento-btn-liberar {
   min-height: 26px;
   padding: 0.18rem 0.42rem;

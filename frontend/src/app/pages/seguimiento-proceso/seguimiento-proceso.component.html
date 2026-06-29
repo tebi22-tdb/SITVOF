@@ -261,21 +261,15 @@
               <button *ngIf="paso.key === 'fecha_confirmacion_recibido_anexo_9_2' && detalleSeleccionado.fecha_aceptacion_servicios_escolares_anexo_9_2 && !detalleSeleccionado.fecha_confirmacion_recibido_anexo_9_2" type="button" class="seg-btn" [disabled]="accionesProcesoBloqueadas" (click)="confirmarRecibido92()">Confirmar</button>
               <button *ngIf="paso.key === 'fecha_solicitud_sinodales' && prerequisitoSinodalesCumplido(detalleSeleccionado) && !detalleSeleccionado.fecha_solicitud_sinodales" type="button" class="seg-btn" [disabled]="accionesProcesoBloqueadas" (click)="solicitarSinodales()">Solicitar</button>
               <button *ngIf="paso.key === 'fecha_confirmacion_sinodales_recibidos' && detalleSeleccionado.fecha_asignacion_sinodales && !detalleSeleccionado.fecha_confirmacion_sinodales_recibidos" type="button" class="seg-btn" [disabled]="accionesProcesoBloqueadas" (click)="confirmarSinodalesRecibidos()">Confirmar</button>
-              <div *ngIf="paso.key === 'fecha_agenda_acto_9_3' && detalleSeleccionado.fecha_confirmacion_sinodales_recibidos" class="seg-agenda-wrap" (click)="abrirCalendarioActo93SiPermitido($event)">
-                <input
-                  #fechaActo93Input
-                  type="text"
-                  class="seg-input-dt"
-                  name="fechaActo93"
-                  placeholder="📅 Clic para elegir fecha y hora"
-                  [(ngModel)]="fechaActo93"
-                  readonly
-                  [disabled]="accionesProcesoBloqueadas"
-                />
-                <button type="button" class="seg-btn" [disabled]="accionesProcesoBloqueadas" (click)="agendarActo93(); $event.stopPropagation()">
-                  {{ detalleSeleccionado.fecha_agenda_acto_9_3 ? 'Reagendar' : 'Agendar' }}
-                </button>
-              </div>
+              <button
+                *ngIf="paso.key === 'fecha_agenda_acto_9_3' && detalleSeleccionado.fecha_confirmacion_sinodales_recibidos"
+                type="button"
+                class="seg-btn"
+                [disabled]="accionesProcesoBloqueadas"
+                (click)="mostrarModalActo93 = true"
+              >
+                {{ detalleSeleccionado.fecha_agenda_acto_9_3 ? 'Reagendar' : 'Agendar' }}
+              </button>
               <button *ngIf="paso.key === 'fecha_creacion_anexo_9_3' && detalleSeleccionado.fecha_agenda_acto_9_3" type="button" class="seg-btn" [disabled]="accionesProcesoBloqueadas" (click)="crearDescargar93()">
                 {{ detalleSeleccionado.fecha_creacion_anexo_9_3 ? 'Regenerar 9.3' : 'Crear 9.3' }}
               </button>
@@ -354,5 +348,11 @@
       </aside>
     </section>
   </main>
+
+  <app-agendar-acto
+    *ngIf="mostrarModalActo93"
+    (cerrar)="mostrarModalActo93 = false"
+    (agendado)="onActoAgendado($event)"
+  ></app-agendar-acto>
 </div>
 

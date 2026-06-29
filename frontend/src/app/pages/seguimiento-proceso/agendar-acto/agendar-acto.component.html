@@ -1,0 +1,94 @@
+<div class="modal-backdrop" (click)="cerrar.emit()">
+  <div class="modal-card" (click)="$event.stopPropagation()">
+
+    <div class="modal-header">
+      <div class="header-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+          <rect x="3" y="4.5" width="18" height="16" rx="2.5"/>
+          <path d="M3 9h18M8 2.5v4M16 2.5v4"/>
+        </svg>
+      </div>
+      <div class="header-text">
+        <h3>Agendar acto protocolario</h3>
+        <p>Selecciona el día y el horario · duración 1 hora · lunes a viernes 9:00–15:00</p>
+      </div>
+      <button class="close-btn" (click)="cerrar.emit()" aria-label="Cerrar">✕</button>
+    </div>
+
+    <div class="modal-body">
+
+      <!-- CALENDARIO -->
+      <div class="cal">
+        <div class="cal-nav">
+          <button (click)="prevMes()" aria-label="Mes anterior">‹</button>
+          <span>{{ mesLabel() }}</span>
+          <button (click)="nextMes()" aria-label="Mes siguiente">›</button>
+        </div>
+        <div class="cal-weekdays">
+          <span *ngFor="let w of weekdays">{{ w }}</span>
+        </div>
+        <div class="cal-grid">
+          <button
+            *ngFor="let c of celdas()"
+            class="cal-day"
+            [ngClass]="claseDia(c)"
+            [disabled]="!esSeleccionable(c)"
+            (click)="seleccionarDia(c)"
+            [attr.aria-label]="c.day ? (c.day + ' ' + meses[mes()]) : null"
+          >
+            <span *ngIf="c.day">{{ c.day }}</span>
+            <i class="dot"
+               *ngIf="c.day && esHabil(c) && !esPasado(c) && libre(c) > 0"
+               [ngClass]="libre(c) >= 4 ? 'dot-ok' : 'dot-low'"></i>
+          </button>
+        </div>
+        <div class="cal-legend">
+          <span><i class="lg dot-ok"></i> Disponible</span>
+          <span><i class="lg dot-low"></i> Pocos lugares</span>
+          <span><i class="lg dot-grey"></i> Lleno</span>
+        </div>
+      </div>
+
+      <!-- HORARIOS -->
+      <div class="slots">
+        <div class="slots-title">Horarios — {{ fechaLabel() }}</div>
+        <div class="slots-sub">
+          <span *ngIf="cargandoSlots()">Cargando horarios…</span>
+          <span *ngIf="!cargandoSlots() && fechaSel()">{{ libreLabel() }}</span>
+          <span *ngIf="!fechaSel()">Selecciona un día para ver disponibilidad</span>
+        </div>
+        <button
+          *ngFor="let s of slots()"
+          class="slot"
+          [ngClass]="claseSlot(s)"
+          [disabled]="s.ocupado || !fechaSel()"
+          (click)="seleccionarHora(s)"
+        >
+          <span class="slot-dot"></span>
+          <div class="slot-info">
+            <div class="slot-time">{{ s.hora }} – {{ s.fin }}</div>
+            <div class="slot-note">{{ s.ocupado ? 'No disponible' : 'Acto protocolario · 1 h' }}</div>
+          </div>
+          <span class="slot-badge">
+            {{ s.ocupado ? 'Ocupado' : (horaSel() === s.hora ? '✓ Seleccionado' : 'Disponible') }}
+          </span>
+        </button>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <div class="resumen">
+        <span class="r-label">Tu selección</span>
+        <span class="r-value">{{ resumen() }}</span>
+      </div>
+      <div class="acciones">
+        <button class="btn-cancel" (click)="cerrar.emit()">Cancelar</button>
+        <button class="btn-confirm" [disabled]="!puedeConfirmar()" (click)="confirmar()">
+          Confirmar acto
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
