@@ -159,14 +159,14 @@
                       type="button"
                       class="departamento-btn-liberar departamento-btn-liberar--panel"
                       (click)="descargarAnexo32(seleccionado.id)"
-                      [disabled]="descargando32Id === seleccionado.id"
-                    >{{ descargando32Id === seleccionado.id ? 'Descargando…' : 'Anexo XXXII' }}</button>
+                      [disabled]="descargando32Id === seleccionado.id || !!seleccionado.fecha_generacion_hoja_32"
+                    >{{ descargando32Id === seleccionado.id ? 'Descargando…' : seleccionado.fecha_generacion_hoja_32 ? 'XXXII generado' : 'Anexo XXXII' }}</button>
                     <button
                       type="button"
                       class="departamento-btn-liberar departamento-btn-liberar--panel"
                       (click)="descargarAnexo33(seleccionado.id)"
-                      [disabled]="descargando33Id === seleccionado.id"
-                    >{{ descargando33Id === seleccionado.id ? 'Descargando…' : 'Anexo XXXIII' }}</button>
+                      [disabled]="descargando33Id === seleccionado.id || !!seleccionado.fecha_generacion_hoja_33"
+                    >{{ descargando33Id === seleccionado.id ? 'Descargando…' : seleccionado.fecha_generacion_hoja_33 ? 'XXXIII generado' : 'Anexo XXXIII' }}</button>
                     <button
                       *ngIf="!seleccionado.fecha_generacion_anexos_xxxii_xxxiii"
                       type="button"
@@ -198,9 +198,9 @@
                     type="button"
                     class="departamento-btn-liberar departamento-btn-liberar--panel"
                     (click)="descargarAnexo32(seleccionado.id)"
-                    [disabled]="descargando32Id === seleccionado.id"
+                    [disabled]="descargando32Id === seleccionado.id || !!seleccionado.fecha_generacion_hoja_32"
                   >
-                    {{ descargando32Id === seleccionado.id ? 'Descargando…' : 'Generar Anexo XXXII' }}
+                    {{ descargando32Id === seleccionado.id ? 'Descargando…' : seleccionado.fecha_generacion_hoja_32 ? 'XXXII generado' : 'Generar Anexo XXXII' }}
                   </button>
                   <button
                     *ngIf="!seleccionado.fecha_registrado_departamento"
@@ -217,9 +217,9 @@
                     type="button"
                     class="departamento-btn-liberar departamento-btn-liberar--panel"
                     (click)="descargarAnexo33(seleccionado.id)"
-                    [disabled]="descargando33Id === seleccionado.id"
+                    [disabled]="descargando33Id === seleccionado.id || !!seleccionado.fecha_generacion_hoja_33"
                   >
-                    {{ descargando33Id === seleccionado.id ? 'Descargando…' : 'Generar Anexo XXXIII' }}
+                    {{ descargando33Id === seleccionado.id ? 'Descargando…' : seleccionado.fecha_generacion_hoja_33 ? 'XXXIII generado' : 'Generar Anexo XXXIII' }}
                   </button>
                   <p class="departamento-anteproyecto-nota">
                     Sube el PDF de {{ seleccionado.modalidad || 'la tesis' }} y pulsa <strong>Liberar</strong> para enviar la liberación a la DEP.
@@ -308,8 +308,8 @@
               type="button"
               class="departamento-btn-liberar"
               (click)="descargarAnexo32(item.id, $event)"
-              [disabled]="descargando32Id === item.id"
-            >{{ descargando32Id === item.id ? '…' : 'Anexo XXXII' }}</button>
+              [disabled]="descargando32Id === item.id || !!item.fecha_generacion_hoja_32"
+            >{{ descargando32Id === item.id ? '…' : item.fecha_generacion_hoja_32 ? 'XXXII ✓' : 'Anexo XXXII' }}</button>
             <button
               *ngIf="!item.fecha_registrado_departamento"
               type="button"
@@ -359,8 +359,8 @@
               type="button"
               class="departamento-btn-liberar"
               (click)="descargarAnexo33(item.id, $event)"
-              [disabled]="descargando33Id === item.id"
-            >{{ descargando33Id === item.id ? '…' : 'Anexo XXXIII' }}</button>
+              [disabled]="descargando33Id === item.id || !!item.fecha_generacion_hoja_33"
+            >{{ descargando33Id === item.id ? '…' : item.fecha_generacion_hoja_33 ? 'XXXIII ✓' : 'Anexo XXXIII' }}</button>
             <span *ngIf="item.fecha_liberacion_producto" class="departamento-badge departamento-badge--aprobado">{{ fechaLiberacionProducto(item) }}</span>
           </td>
         </tr>
@@ -463,14 +463,14 @@
                 type="button"
                 class="departamento-btn-liberar"
                 (click)="descargarAnexo32(item.id, $event)"
-                [disabled]="descargando32Id === item.id"
-              >{{ descargando32Id === item.id ? '…' : 'XXXII' }}</button>
+                [disabled]="descargando32Id === item.id || !!item.fecha_generacion_hoja_32"
+              >{{ descargando32Id === item.id ? '…' : item.fecha_generacion_hoja_32 ? 'XXXII ✓' : 'XXXII' }}</button>
               <button
                 type="button"
                 class="departamento-btn-liberar"
                 (click)="descargarAnexo33(item.id, $event)"
-                [disabled]="descargando33Id === item.id"
-              >{{ descargando33Id === item.id ? '…' : 'XXXIII' }}</button>
+                [disabled]="descargando33Id === item.id || !!item.fecha_generacion_hoja_33"
+              >{{ descargando33Id === item.id ? '…' : item.fecha_generacion_hoja_33 ? 'XXXIII ✓' : 'XXXIII' }}</button>
               <button
                 *ngIf="!item.fecha_generacion_anexos_xxxii_xxxiii"
                 type="button"
@@ -515,6 +515,21 @@
     <div *ngIf="sinodalesCargando" class="departamento-modal-cargando">Cargando…</div>
     <div *ngIf="sinodalesError" class="departamento-modal-error">{{ sinodalesError }}</div>
     <div *ngIf="!sinodalesCargando" class="departamento-modal-form">
+      <div class="departamento-modal-oficio">
+        <label class="departamento-modal-oficio-label" for="sinodales-numero-oficio">
+          Número de oficio
+          <span class="departamento-modal-oficio-hint">Se imprimirá en el PDF del oficio de asignación</span>
+        </label>
+        <input
+          id="sinodales-numero-oficio"
+          type="text"
+          class="departamento-modal-oficio-input"
+          [(ngModel)]="sinodalesNumeroOficio"
+          placeholder="Ej. DEA/583/2026"
+          autocomplete="off"
+          maxlength="40"
+        />
+      </div>
       <label class="departamento-modal-label">
         Presidente
         <select class="departamento-modal-input" [(ngModel)]="sinodalesPresidente">
@@ -575,6 +590,15 @@
       </button>
       <button type="button" class="departamento-modal-btn departamento-modal-btn--sec" (click)="cerrarModalSinodales()" [disabled]="sinodalesGuardando">
         Cancelar
+      </button>
+      <button
+        *ngIf="sinodalesModalItem?.sinodales_asignados"
+        type="button"
+        class="departamento-modal-btn departamento-modal-btn--sec"
+        (click)="descargarOficioSinodales(sinodalesModalItem!)"
+        [disabled]="sinodalesGuardando || descargandoOficioSinodalesId === sinodalesModalItem?.id"
+      >
+        {{ descargandoOficioSinodalesId === sinodalesModalItem?.id ? 'Generando…' : 'Descargar oficio' }}
       </button>
       <button
         type="button"

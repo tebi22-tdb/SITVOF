@@ -184,6 +184,8 @@ export interface DepartamentoListItem {
   fecha_liberacion_producto?: string;
   /** Residencia: fecha en que el departamento generó por primera (o última) vez los Anexos XXXII y XXXIII. */
   fecha_generacion_anexos_xxxii_xxxiii?: string;
+  fecha_generacion_hoja_32?: string;
+  fecha_generacion_hoja_33?: string;
 }
 
 /** Revisión guardada (del backend). */
@@ -340,10 +342,7 @@ export class EgresadoService {
     return this.http.post(`${API}/${id}/no-residencia/liberar-producto`, formData);
   }
 
-  getTesisLiberacion(
-    id: string,
-    cacheBust?: number,
-  ): Observable<{ blob: Blob; contentType: string; fileName: string }> {
+  getTesisLiberacion(id: string, cacheBust?: number): Observable<{ blob: Blob; contentType: string; fileName: string }> {
     let params = new HttpParams();
     if (cacheBust != null) params = params.set('_', String(cacheBust));
     return this.http
@@ -442,10 +441,7 @@ export class EgresadoService {
   }
 
   /** Obtiene el documento adjunto del egresado (PDF/Word) para visualización. Solo rol academico. */
-  getDocumento(
-    egresadoId: string,
-    cacheBust?: number,
-  ): Observable<{ blob: Blob; contentType: string; fileName: string }> {
+  getDocumento(egresadoId: string, cacheBust?: number): Observable<{ blob: Blob; contentType: string; fileName: string }> {
     let params = new HttpParams();
     if (cacheBust != null) params = params.set('_', String(cacheBust));
     return this.http
@@ -475,31 +471,15 @@ export class EgresadoService {
 
   getSinodalesAcademico(
     egresadoId: string,
-  ): Observable<{
-    presidente?: string;
-    secretario?: string;
-    vocal?: string;
-    vocal_suplente?: string;
-    numero_oficio?: string;
-  }> {
-    return this.http.get<{
-      presidente?: string;
-      secretario?: string;
-      vocal?: string;
-      vocal_suplente?: string;
-      numero_oficio?: string;
-    }>(`${API}/${egresadoId}/sinodales`);
+  ): Observable<{ presidente?: string; secretario?: string; vocal?: string; vocal_suplente?: string; numero_oficio?: string }> {
+    return this.http.get<{ presidente?: string; secretario?: string; vocal?: string; vocal_suplente?: string; numero_oficio?: string }>(
+      `${API}/${egresadoId}/sinodales`,
+    );
   }
 
   asignarSinodales(
     egresadoId: string,
-    body: {
-      presidente: string;
-      secretario: string;
-      vocal: string;
-      vocal_suplente: string;
-      numero_oficio: string;
-    },
+    body: { presidente: string; secretario: string; vocal: string; vocal_suplente: string; numero_oficio: string },
   ): Observable<unknown> {
     return this.http.post(`${API}/${egresadoId}/sinodales`, body);
   }

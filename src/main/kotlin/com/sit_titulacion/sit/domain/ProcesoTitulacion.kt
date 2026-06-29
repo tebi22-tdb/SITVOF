@@ -50,6 +50,10 @@ data class ProcesoTitulacion(
     val fechaRecibidoRegistroLiberacion: Instant? = null,
     @Field("fecha_generacion_anexos_xxxii_xxxiii")
     val fechaGeneracionAnexosXxxiiXxxxiii: Instant? = null,
+    @Field("fecha_generacion_hoja_32")
+    val fechaGeneracionHoja32: Instant? = null,
+    @Field("fecha_generacion_hoja_33")
+    val fechaGeneracionHoja33: Instant? = null,
 
     // ── División de estudios / Anexos ────────────────────────────────────────
     @Field("fecha_confirmacion_recibidos_anexo_xxxi_xxxii")

@@ -52,6 +52,7 @@ import java.io.InputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -489,6 +490,8 @@ class EgresadoService(
                 fechaRegistradoDepartamento = pr.fechaRegistradoDepartamento?.let { formatter.format(it) },
                 fechaLiberacionProducto = pr.fechaSolicitudRegistroLiberacionDeptoAcademico?.let { formatter.format(it) },
                 fechaGeneracionAnexosXxxiiXxxxiii = pr.fechaGeneracionAnexosXxxiiXxxxiii?.let { formatter.format(it) },
+                fechaGeneracionHoja32 = pr.fechaGeneracionHoja32?.let { formatter.format(it) },
+                fechaGeneracionHoja33 = pr.fechaGeneracionHoja33?.let { formatter.format(it) },
             )
         }
     }
@@ -1212,7 +1215,6 @@ class EgresadoService(
         val expediente = p.cert_uuid?.trim()?.uppercase()?.ifBlank { null }
             ?: e.id?.toHexString()?.uppercase()
             ?: e.numero_control.trim().uppercase(Locale.ROOT)
-
         val generoExtras = extrasGeneroDocumentos(
             e, tribunal, nombreDepto, titularDeptoNombre, jefeDivision, jefeDivisionCargo,
         )
@@ -1538,23 +1540,25 @@ class EgresadoService(
             fecha_actualizacion = ahora,
         )))
 
+        // El correo se envía en segundo plano para no bloquear la respuesta HTTP mientras el SMTP responde.
         val correo = e.datos_personales.correo_electronico?.trim().orEmpty()
         if (correo.isNotBlank()) {
             val fechaHoraTexto = DateTimeFormatter.ofPattern("dd/MM/yyyy, HH:mm")
                 .withZone(zonaActo93)
                 .format(inicio)
-            val enviado = emailService.enviarAvisoActoProtocolarioAgendado(
-                correoDestino = correo,
-                nombreEgresado = nombreCompleto(e),
-                numeroControl = e.numero_control,
-                fechaHoraActoTexto = fechaHoraTexto,
-            )
-            if (!enviado) {
-                log.warn(
-                    "Acto 9.3 agendado para {} pero no se envió correo al egresado ({})",
-                    e.numero_control,
-                    correo,
-                )
+            val nc = e.numero_control
+            CompletableFuture.runAsync {
+                try {
+                    val enviado = emailService.enviarAvisoActoProtocolarioAgendado(
+                        correoDestino = correo,
+                        nombreEgresado = nombreCompleto(e),
+                        numeroControl = nc,
+                        fechaHoraActoTexto = fechaHoraTexto,
+                    )
+                    if (!enviado) log.warn("Acto 9.3 agendado para {} pero no se envió correo al egresado ({})", nc, correo)
+                } catch (ex: Exception) {
+                    log.warn("Acto 9.3 agendado para {} — error enviando correo al egresado: {}", nc, ex.message)
+                }
             }
         } else {
             log.warn("Acto 9.3 agendado para {} sin correo del egresado; aviso por correo omitido", e.numero_control)
@@ -1935,7 +1939,7 @@ class EgresadoService(
             "INGENIERIA INFORMÁTICA" to "Ingeniería Informática",
             "INGENIERIA EN TECNOLOGIA DE LA INFORMACION Y COMUNICACION" to "Ingeniería en Tecnología de la Información y Comunicación",
             "INGENIERIA EN CIENCIA DE DATOS" to "Ingeniería en Ciencia de Datos",
-            "INGENIERIA SISTEMAS COMPUTACIONALES" to "Ingeniería Sistemas Computacionales",
+            "INGENIERIA SISTEMAS COMPUTACIONALES" to "Ingeniería en Sistemas Computacionales",
             "INGENIERIA AMBIENTAL" to "Ingeniería Ambiental",
             "INGENIERIA EN GESTIÓN EMPRESARIAL (VIRTUAL)" to "Ingeniería en Gestión Empresarial (Virtual)",
         )
@@ -1988,6 +1992,13 @@ class EgresadoService(
     private fun nombreMesEspanol(monthValue1to12: Int): String {
         val meses = listOf("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre")
         return meses.getOrElse(monthValue1to12 - 1) { "—" }.replaceFirstChar { it.uppercaseChar() }
+    }
+
+    private fun cargoJefaDepartamentoOficio(nombreDepto: String): String {
+        var n = nombreDepto.trim().uppercase(Locale.forLanguageTag("es-MX"))
+        n = n.replace("DEPARTAMENTO DE ", "DEPTO. DE ")
+        n = n.replace("DEPARTAMENTO DEL ", "DEPTO. DEL ")
+        return "JEFA DEL $n"
     }
 
     private fun textoOpcionTitulacionIntegral(modalidad: String): String {
@@ -2264,16 +2275,19 @@ class EgresadoService(
             p.datos_proyecto.director,
             p.datos_proyecto.asesor_1,
             p.datos_proyecto.asesor_2,
-        ).filter { it.isNotBlank() }.joinToString(", ")
+        ).filter { it.isNotBlank() }.joinToString("\n")
         val deptNombre = catalogoRepository.findByTipoAndActivoTrue("departamento")
             .firstOrNull { d -> d.carreras.any { it.trim().equals(e.datos_personales.carrera.trim(), ignoreCase = true) } }
             ?.nombre ?: ""
+        val tituloLower = configInstitucionalService.obtenerJefeDivisionTitulo()
+            .lowercase().replaceFirstChar { it.uppercase() }
         val valores = construirValoresPlantillaHtml(e, listOf(
             "FECHA_CARTA" to fechaCartaEspanolaAnexo93(Instant.now()),
             "CARRERA" to toTitleCaseCarrera(e.datos_personales.carrera),
             "DEPARTAMENTO_NOMBRE" to deptNombre,
             "JEFE_DIVISION_NOMBRE" to configInstitucionalService.obtenerJefeDivisionNombre(),
             "JEFE_DIVISION_TITULO" to configInstitucionalService.obtenerJefeDivisionTitulo(),
+            "JEFE_DIVISION_TITULO_LOWER" to tituloLower,
             "NOMBRE_PROYECTO" to p.datos_proyecto.nombre_proyecto,
             "NOMBRE_ASESORES" to asesores,
             "NUM_ESTUDIANTES" to "1",
@@ -2282,7 +2296,11 @@ class EgresadoService(
             "JEFE_DEPTO_INICIALES" to (deptConfig?.jefeIniciales ?: ""),
             "QR_CODE" to qrDataUri32,
         ))
-        return htmlAnexoPdfService.generarDesdeClasspath("templates/html/hoja-32-registro-proyecto.html", valores)
+        val pdf = htmlAnexoPdfService.generarDesdeClasspath("templates/html/hoja-32-registro-proyecto.html", valores)
+        if (pdf != null && p.fechaGeneracionHoja32 == null) {
+            egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaGeneracionHoja32 = Instant.now(), fecha_actualizacion = Instant.now())))
+        }
+        return pdf
     }
 
     fun crearHoja33(id: String): ByteArray? {
@@ -2306,22 +2324,25 @@ class EgresadoService(
             firmaNombre1 = p.datos_proyecto.asesor_interno?.takeIf { it.isNotBlank() } ?: ""
             firmaNombre2 = ""
             firmaNombre3 = ""
-            firmaLabel1 = "Nombre y firma de Asesor"
-            firmaLabel2 = "Nombre y firma del Revisor*"
-            firmaLabel3 = "Nombre y firma del Revisor*"
+            firmaLabel1 = "Nombre y firma del asesor"
+            firmaLabel2 = "Nombre y firma del revisor*"
+            firmaLabel3 = "Nombre y firma del revisor*"
         } else {
             firmaNombre1 = p.datos_proyecto.director?.takeIf { it.isNotBlank() } ?: ""
             firmaNombre2 = p.datos_proyecto.asesor_1?.takeIf { it.isNotBlank() } ?: ""
             firmaNombre3 = p.datos_proyecto.asesor_2?.takeIf { it.isNotBlank() } ?: ""
-            firmaLabel1 = "Director"
-            firmaLabel2 = "Asesor"
-            firmaLabel3 = "Asesor"
+            firmaLabel1 = "Nombre y firma del asesor"
+            firmaLabel2 = "Nombre y firma del revisor*"
+            firmaLabel3 = "Nombre y firma del revisor*"
         }
+        val tituloLower33 = configInstitucionalService.obtenerJefeDivisionTitulo()
+            .lowercase().replaceFirstChar { it.uppercase() }
         val valores = construirValoresPlantillaHtml(e, listOf(
             "FECHA_CARTA" to fechaCartaEspanolaAnexo93(Instant.now()),
             "CARRERA" to toTitleCaseCarrera(e.datos_personales.carrera),
             "DEPARTAMENTO_NOMBRE" to deptNombre33,
             "JEFE_DIVISION_NOMBRE" to configInstitucionalService.obtenerJefeDivisionNombre(),
+            "JEFE_DIVISION_TITULO_LOWER" to tituloLower33,
             "NOMBRE_PROYECTO" to p.datos_proyecto.nombre_proyecto,
             "PRODUCTO" to textoOpcionTitulacionIntegral(p.datos_proyecto.modalidad),
             "FIRMA_NOMBRE_1" to firmaNombre1,
@@ -2335,7 +2356,11 @@ class EgresadoService(
             "JEFE_DEPTO_INICIALES" to (deptConfig?.jefeIniciales ?: ""),
             "QR_CODE" to qrDataUri33,
         ))
-        return htmlAnexoPdfService.generarDesdeClasspath("templates/html/hoja-33-liberacion-proyecto.html", valores)
+        val pdf = htmlAnexoPdfService.generarDesdeClasspath("templates/html/hoja-33-liberacion-proyecto.html", valores)
+        if (pdf != null && p.fechaGeneracionHoja33 == null) {
+            egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaGeneracionHoja33 = Instant.now(), fecha_actualizacion = Instant.now())))
+        }
+        return pdf
     }
 
     fun obtenerNumeroControl(id: String): String? = cargarEgresadoPorId(id)?.numero_control
