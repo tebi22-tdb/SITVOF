@@ -5,7 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl, SafeUrl } from '@angular/platform-browser';
-import { Subscription } from 'rxjs';
+import { Subscription, forkJoin } from 'rxjs';
 import { HeaderComponent } from '../../layout/header/header.component';
 import { AuthService } from '../../services/auth.service';
 import { EgresadoService, DepartamentoListItem, DepartamentoCounts } from '../../services/egresado.service';
@@ -78,6 +78,8 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   sinodalesError = '';
   descargandoOficioSinodalesId: string | null = null;
   docentesLista: DocenteItem[] = [];
+  vocalDropdownAbierto = false;
+  vocalSuplenteDropdownAbierto = false;
 
   /** Filas simuladas mientras carga la tabla. */
   readonly skeletonPlaceholders = [0, 1, 2, 3, 4, 5];
@@ -556,6 +558,30 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     return !valor || this.docentesLista.some((d) => d.nombreCompleto === valor);
   }
 
+  filtrarDocentes(texto: string): DocenteItem[] {
+    const q = texto.trim().toLowerCase();
+    if (!q) return this.docentesLista;
+    return this.docentesLista.filter((d) => d.nombreCompleto.toLowerCase().includes(q));
+  }
+
+  seleccionarVocal(nombre: string): void {
+    this.sinodalesVocal = nombre;
+    this.vocalDropdownAbierto = false;
+  }
+
+  seleccionarVocalSuplente(nombre: string): void {
+    this.sinodalesVocalSuplente = nombre;
+    this.vocalSuplenteDropdownAbierto = false;
+  }
+
+  cerrarVocalDropdown(): void {
+    setTimeout(() => { this.vocalDropdownAbierto = false; }, 150);
+  }
+
+  cerrarVocalSuplenteDropdown(): void {
+    setTimeout(() => { this.vocalSuplenteDropdownAbierto = false; }, 150);
+  }
+
   abrirModalSinodales(item: DepartamentoListItem, ev?: Event): void {
     ev?.stopPropagation();
     this.sinodalesModalItem = item;
@@ -565,21 +591,21 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     this.sinodalesVocal = '';
     this.sinodalesVocalSuplente = '';
     this.sinodalesNumeroOficio = '';
+    this.vocalDropdownAbierto = false;
+    this.vocalSuplenteDropdownAbierto = false;
     this.sinodalesCargando = true;
-    if (this.docentesLista.length === 0) {
-      this.docenteService.listar().subscribe({
-        next: (lista) => { this.docentesLista = lista; },
-        error: () => {},
-      });
-    }
-    this.egresadoService.getSinodalesAcademico(item.id).subscribe({
-      next: (r: { presidente?: string; secretario?: string; vocal?: string; vocal_suplente?: string; numero_oficio?: string }) => {
+    forkJoin({
+      docentes: this.docenteService.listar(),
+      sinodales: this.egresadoService.getSinodalesAcademico(item.id),
+    }).subscribe({
+      next: ({ docentes, sinodales }) => {
+        this.docentesLista = docentes;
+        this.sinodalesPresidente = sinodales.presidente?.trim() ?? '';
+        this.sinodalesSecretario = sinodales.secretario?.trim() ?? '';
+        this.sinodalesVocal = sinodales.vocal?.trim() ?? '';
+        this.sinodalesVocalSuplente = sinodales.vocal_suplente?.trim() ?? '';
+        this.sinodalesNumeroOficio = sinodales.numero_oficio?.trim() ?? '';
         this.sinodalesCargando = false;
-        this.sinodalesPresidente = r.presidente?.trim() ?? '';
-        this.sinodalesSecretario = r.secretario?.trim() ?? '';
-        this.sinodalesVocal = r.vocal?.trim() ?? '';
-        this.sinodalesVocalSuplente = r.vocal_suplente?.trim() ?? '';
-        this.sinodalesNumeroOficio = r.numero_oficio?.trim() ?? '';
       },
       error: () => {
         this.sinodalesCargando = false;
@@ -593,6 +619,8 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     this.sinodalesError = '';
     this.sinodalesCargando = false;
     this.sinodalesGuardando = false;
+    this.vocalDropdownAbierto = false;
+    this.vocalSuplenteDropdownAbierto = false;
   }
 
   guardarSinodales(): void {
@@ -605,12 +633,6 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     }
     this.sinodalesGuardando = true;
     this.sinodalesError = '';
-    const numeroOficio = this.sinodalesNumeroOficio.trim();
-    if (!numeroOficio) {
-      this.sinodalesError = 'Indica el número de oficio.';
-      this.sinodalesGuardando = false;
-      return;
-    }
     this.egresadoService
       .asignarSinodales(item.id, {
         presidente: this.sinodalesPresidente.trim(),

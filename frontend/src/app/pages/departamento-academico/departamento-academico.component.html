@@ -548,35 +548,68 @@
       </label>
       <label class="departamento-modal-label">
         Vocal
-        <select class="departamento-modal-input" [(ngModel)]="sinodalesVocal">
-          <option value="">— Seleccionar —</option>
-          <option *ngIf="sinodalesVocal && !docenteEnLista(sinodalesVocal)" [value]="sinodalesVocal">{{ sinodalesVocal }}</option>
-          <option *ngFor="let d of docentesLista" [value]="d.nombreCompleto">{{ d.nombreCompleto }}</option>
-        </select>
+        <div class="departamento-combobox">
+          <input
+            class="departamento-modal-input departamento-combobox-input"
+            type="text"
+            [(ngModel)]="sinodalesVocal"
+            (focus)="vocalDropdownAbierto = true"
+            (input)="vocalDropdownAbierto = true"
+            (blur)="cerrarVocalDropdown()"
+            placeholder="Selecciona o escribe el nombre"
+            autocomplete="off"
+          />
+          <button
+            type="button"
+            class="departamento-combobox-toggle"
+            tabindex="-1"
+            aria-label="Ver docentes"
+            (mousedown)="$event.preventDefault(); vocalDropdownAbierto = !vocalDropdownAbierto"
+          >▾</button>
+          <ul *ngIf="vocalDropdownAbierto" class="departamento-combobox-list" role="listbox">
+            <li
+              *ngFor="let d of filtrarDocentes(sinodalesVocal)"
+              role="option"
+              (mousedown)="seleccionarVocal(d.nombreCompleto)"
+            >{{ d.nombreCompleto }}</li>
+            <li *ngIf="filtrarDocentes(sinodalesVocal).length === 0" class="departamento-combobox-vacio">
+              Sin coincidencias — puedes escribir el nombre
+            </li>
+          </ul>
+        </div>
       </label>
       <label class="departamento-modal-label">
         Vocal suplente
-        <select class="departamento-modal-input" [(ngModel)]="sinodalesVocalSuplente">
-          <option value="">— Seleccionar —</option>
-          <option *ngIf="sinodalesVocalSuplente && !docenteEnLista(sinodalesVocalSuplente)" [value]="sinodalesVocalSuplente">{{ sinodalesVocalSuplente }}</option>
-          <option *ngFor="let d of docentesLista" [value]="d.nombreCompleto">{{ d.nombreCompleto }}</option>
-        </select>
+        <div class="departamento-combobox">
+          <input
+            class="departamento-modal-input departamento-combobox-input"
+            type="text"
+            [(ngModel)]="sinodalesVocalSuplente"
+            (focus)="vocalSuplenteDropdownAbierto = true"
+            (input)="vocalSuplenteDropdownAbierto = true"
+            (blur)="cerrarVocalSuplenteDropdown()"
+            placeholder="Selecciona o escribe el nombre"
+            autocomplete="off"
+          />
+          <button
+            type="button"
+            class="departamento-combobox-toggle"
+            tabindex="-1"
+            aria-label="Ver docentes"
+            (mousedown)="$event.preventDefault(); vocalSuplenteDropdownAbierto = !vocalSuplenteDropdownAbierto"
+          >▾</button>
+          <ul *ngIf="vocalSuplenteDropdownAbierto" class="departamento-combobox-list" role="listbox">
+            <li
+              *ngFor="let d of filtrarDocentes(sinodalesVocalSuplente)"
+              role="option"
+              (mousedown)="seleccionarVocalSuplente(d.nombreCompleto)"
+            >{{ d.nombreCompleto }}</li>
+            <li *ngIf="filtrarDocentes(sinodalesVocalSuplente).length === 0" class="departamento-combobox-vacio">
+              Sin coincidencias — puedes escribir el nombre
+            </li>
+          </ul>
+        </div>
       </label>
-      <div class="departamento-modal-oficio">
-        <label class="departamento-modal-oficio-label" for="sinodales-numero-oficio">
-          Número de oficio
-          <span class="departamento-modal-oficio-hint">Se imprimirá en el PDF del oficio de asignación</span>
-        </label>
-        <input
-          id="sinodales-numero-oficio"
-          type="text"
-          class="departamento-modal-oficio-input"
-          [(ngModel)]="sinodalesNumeroOficio"
-          placeholder="Ej. DEA/583/2026"
-          autocomplete="off"
-          maxlength="40"
-        />
-      </div>
     </div>
     <div class="departamento-modal-acciones">
       <button
@@ -590,15 +623,6 @@
       </button>
       <button type="button" class="departamento-modal-btn departamento-modal-btn--sec" (click)="cerrarModalSinodales()" [disabled]="sinodalesGuardando">
         Cancelar
-      </button>
-      <button
-        *ngIf="sinodalesModalItem?.sinodales_asignados"
-        type="button"
-        class="departamento-modal-btn departamento-modal-btn--sec"
-        (click)="descargarOficioSinodales(sinodalesModalItem!)"
-        [disabled]="sinodalesGuardando || descargandoOficioSinodalesId === sinodalesModalItem?.id"
-      >
-        {{ descargandoOficioSinodalesId === sinodalesModalItem?.id ? 'Generando…' : 'Descargar oficio' }}
       </button>
       <button
         type="button"
