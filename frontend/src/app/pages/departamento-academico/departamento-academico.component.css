@@ -757,6 +757,8 @@
 }
 
 .departamento-modal-input {
+  width: 100%;
+  box-sizing: border-box;
   padding: 0.45rem 0.6rem;
   border: 1px solid #cbd5e0;
   border-radius: 8px;
@@ -767,6 +769,71 @@
   outline: none;
   border-color: #3182ce;
   box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.2);
+}
+
+.departamento-combobox {
+  position: relative;
+}
+
+.departamento-combobox-input {
+  padding-right: 2.25rem;
+}
+
+.departamento-combobox-toggle {
+  position: absolute;
+  right: 0.35rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: #4a5568;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.25rem 0.4rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.departamento-combobox-toggle:hover {
+  background: #edf2f7;
+}
+
+.departamento-combobox-list {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  max-height: 11rem;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #cbd5e0;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.departamento-combobox-list li {
+  padding: 0.45rem 0.65rem;
+  font-size: 0.92rem;
+  color: #2d3748;
+  cursor: pointer;
+}
+
+.departamento-combobox-list li:hover {
+  background: #ebf8ff;
+}
+
+.departamento-combobox-vacio {
+  color: #718096 !important;
+  font-size: 0.82rem !important;
+  cursor: default !important;
+}
+
+.departamento-combobox-vacio:hover {
+  background: transparent !important;
 }
 
 .departamento-modal-acciones {

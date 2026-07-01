@@ -70,17 +70,14 @@
           />
         </label>
 
-        <fieldset class="docentes-genero">
-          <legend>Género <span class="req-star">*</span></legend>
-          <label class="docentes-genero-opcion">
-            <input type="radio" name="docenteGenero" value="M" [(ngModel)]="formGenero" />
-            M — Masculino
-          </label>
-          <label class="docentes-genero-opcion">
-            <input type="radio" name="docenteGenero" value="F" [(ngModel)]="formGenero" />
-            F — Femenino
-          </label>
-        </fieldset>
+        <label class="docentes-label">
+          Género <span class="req-star">*</span>
+          <select class="docentes-input" [(ngModel)]="formGenero">
+            <option value="">Seleccione género</option>
+            <option value="M">M</option>
+            <option value="F">F</option>
+          </select>
+        </label>
 
         <div class="docentes-form-acciones">
           <button

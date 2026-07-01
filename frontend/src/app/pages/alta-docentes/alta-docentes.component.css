@@ -154,33 +154,6 @@
   background: #fff;
 }
 
-.docentes-genero {
-  margin: 0;
-  padding: 0;
-  border: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1.25rem;
-}
-
-.docentes-genero legend {
-  width: 100%;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 0.25rem;
-}
-
-.docentes-genero-opcion {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #4b5563;
-  cursor: pointer;
-}
-
 .docentes-form-acciones {
   display: flex;
   gap: 0.65rem;

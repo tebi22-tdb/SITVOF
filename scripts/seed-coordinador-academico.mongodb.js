@@ -54,3 +54,4 @@ upsertUsuario({
 });
 
 print("Listo. Login: coordinador / 12345 y academico / 12345");
+print("Usuario admin / sitvo2026: se crea al arrancar el backend (SeedAdminRunner).");
