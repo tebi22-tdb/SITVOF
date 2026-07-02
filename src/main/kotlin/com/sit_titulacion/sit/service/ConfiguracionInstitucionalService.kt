@@ -7,6 +7,8 @@ import com.sit_titulacion.sit.web.api.dto.ConfigDepartamentoDto
 import com.sit_titulacion.sit.web.api.dto.ConfigDepartamentoResponseDto
 import com.sit_titulacion.sit.web.api.dto.ConfigGlobalDto
 import com.sit_titulacion.sit.web.api.dto.ConfigGlobalResponseDto
+import com.sit_titulacion.sit.web.api.dto.ConfigServiciosEscolaresDto
+import com.sit_titulacion.sit.web.api.dto.ConfigServiciosEscolaresResponseDto
 import org.slf4j.LoggerFactory
 import org.springframework.core.env.Environment
 import org.springframework.stereotype.Service
@@ -140,5 +142,37 @@ class ConfiguracionInstitucionalService(
         val doc = repo.findFirstByTipo("global")
         return doc?.jefeDivisionTitulo?.takeIf { it.isNotBlank() }
             ?: env.getProperty("sit.config.jefe-division-titulo", "JEFE").trim()
+    }
+
+    fun obtenerJefeDivisionCargo(): String =
+        "${obtenerJefeDivisionTitulo()} DE LA DIVISIÓN DE ESTUDIOS PROFESIONALES"
+
+    fun obtenerServiciosEscolares(): ConfigServiciosEscolaresResponseDto {
+        val doc = repo.findFirstByTipo(TIPO_SERVICIOS_ESCOLARES)
+        val nombre = doc?.jefeNombre?.trim()?.takeIf { it.isNotBlank() }
+            ?: env.getProperty("sit.anexo91.destinatario-servicios-escolares", "ROMEO ALBERTO ANGELES PEREZ").trim()
+                .ifBlank { "ROMEO ALBERTO ANGELES PEREZ" }
+        val cargo = doc?.jefeCargo?.trim()?.takeIf { it.isNotBlank() }
+            ?: "JEFE DEL DEPARTAMENTO DE SERVICIOS ESCOLARES"
+        return ConfigServiciosEscolaresResponseDto(jefeNombre = nombre, jefeCargo = cargo)
+    }
+
+    fun actualizarServiciosEscolares(dto: ConfigServiciosEscolaresDto): ConfigServiciosEscolaresResponseDto {
+        val existing = repo.findFirstByTipo(TIPO_SERVICIOS_ESCOLARES)
+        val updated = (existing ?: ConfiguracionInstitucional(tipo = TIPO_SERVICIOS_ESCOLARES)).copy(
+            jefeNombre = dto.jefeNombre.trim().uppercase(),
+            jefeCargo = dto.jefeCargo.trim().uppercase(),
+            fechaActualizacion = Instant.now(),
+        )
+        repo.save(updated)
+        return obtenerServiciosEscolares()
+    }
+
+    fun obtenerJefeServiciosEscolaresNombre(): String = obtenerServiciosEscolares().jefeNombre
+
+    fun obtenerJefeServiciosEscolaresCargo(): String = obtenerServiciosEscolares().jefeCargo
+
+    companion object {
+        const val TIPO_SERVICIOS_ESCOLARES = "servicios_escolares"
     }
 }

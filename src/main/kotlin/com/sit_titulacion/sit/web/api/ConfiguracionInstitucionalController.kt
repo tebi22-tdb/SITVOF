@@ -5,6 +5,7 @@ import com.sit_titulacion.sit.config.UsuarioPrincipal
 import com.sit_titulacion.sit.service.ConfiguracionInstitucionalService
 import com.sit_titulacion.sit.web.api.dto.ConfigDepartamentoDto
 import com.sit_titulacion.sit.web.api.dto.ConfigGlobalDto
+import com.sit_titulacion.sit.web.api.dto.ConfigServiciosEscolaresDto
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -65,6 +66,21 @@ class ConfiguracionInstitucionalController(
     ): ResponseEntity<*> {
         if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
         return ResponseEntity.ok(service.actualizarDepartamento(slug, dto))
+    }
+
+    @GetMapping("/servicios-escolares")
+    fun getServiciosEscolares(@AuthenticationPrincipal principal: UsuarioPrincipal?): ResponseEntity<*> {
+        if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        return ResponseEntity.ok(service.obtenerServiciosEscolares())
+    }
+
+    @PutMapping("/servicios-escolares", consumes = [MediaType.APPLICATION_JSON_VALUE])
+    fun putServiciosEscolares(
+        @RequestBody dto: ConfigServiciosEscolaresDto,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        return ResponseEntity.ok(service.actualizarServiciosEscolares(dto))
     }
 
     private fun esAdmin(principal: UsuarioPrincipal?): Boolean {

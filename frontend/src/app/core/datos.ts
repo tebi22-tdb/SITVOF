@@ -32,6 +32,17 @@ export const MODALIDADES_CURSO_TITULACION = [
   'Tesina',
 ] as const;
 
+/** Submodalidades de titulación tradicional (solo UI por ahora; sin flujo en el sistema). */
+export const MODALIDADES_TITULACION = [
+  'TESIS PROFESIONAL',
+  'LIBROS DE TEXTO O PROTOTIPOS DIDACTICOS',
+  'PROYECTOS DE INVESTIGACION',
+  'DISEÑO Y REDISEÑO DE EQUIPO O MAQUINARIA',
+  'CURSOS ESPECIALES DE TITULACION',
+  'EXAMEN POR AREAS DE CONOCIMIENTO',
+  'EXAMEN POR AREAS DE CONOCIMIENTO (CENEVAL)',
+] as const;
+
 export interface EgresadoForm {
   numero_control: string;
   nombre: string;

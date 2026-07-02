@@ -21,6 +21,11 @@ export interface ConfigDepartamentoResponse {
   jefeIniciales: string;
 }
 
+export interface ConfigServiciosEscolaresResponse {
+  jefeNombre: string;
+  jefeCargo: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ConfigInstitucionalService {
   constructor(private http: HttpClient) {}
@@ -45,5 +50,13 @@ export class ConfigInstitucionalService {
 
   putDepartamento(slug: string, data: Omit<ConfigDepartamentoResponse, 'slug'>): Observable<ConfigDepartamentoResponse> {
     return this.http.put<ConfigDepartamentoResponse>(`${API}/departamento/${slug}`, data);
+  }
+
+  getServiciosEscolares(): Observable<ConfigServiciosEscolaresResponse> {
+    return this.http.get<ConfigServiciosEscolaresResponse>(`${API}/servicios-escolares`);
+  }
+
+  putServiciosEscolares(data: ConfigServiciosEscolaresResponse): Observable<ConfigServiciosEscolaresResponse> {
+    return this.http.put<ConfigServiciosEscolaresResponse>(`${API}/servicios-escolares`, data);
   }
 }

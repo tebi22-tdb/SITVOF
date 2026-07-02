@@ -26,3 +26,13 @@ data class ConfigDepartamentoResponseDto(
     val jefeCargo: String,
     val jefeIniciales: String,
 )
+
+data class ConfigServiciosEscolaresDto(
+    val jefeNombre: String,
+    val jefeCargo: String,
+)
+
+data class ConfigServiciosEscolaresResponseDto(
+    val jefeNombre: String,
+    val jefeCargo: String,
+)

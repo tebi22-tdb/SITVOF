@@ -92,6 +92,24 @@
 
   <div class="form-seccion">
     <h3 class="form-seccion-titulo">Datos del proyecto</h3>
+    <div class="form-campo" [class.form-campo-error]="campoInvalido('tipo_titulacion')">
+      <label for="tipo_titulacion">Tipo de titulación <span class="form-obligatorio">*</span></label>
+      <select id="tipo_titulacion" formControlName="tipo_titulacion">
+        <option value="">Seleccione tipo</option>
+        <option value="titulacion">TITULACION</option>
+        <option value="titulacion_integral">TITULACION INTEGRAL</option>
+      </select>
+      <span class="form-error-msg" *ngIf="campoInvalido('tipo_titulacion')">Campo obligatorio</span>
+    </div>
+    <div class="form-campo" *ngIf="esTitulacion">
+      <label for="modalidad_titulacion">Modalidad específica</label>
+      <select id="modalidad_titulacion" formControlName="modalidad_titulacion">
+        <option value="">Seleccione modalidad</option>
+        <option *ngFor="let m of opcionesModalidadTitulacion" [value]="m">{{ m }}</option>
+      </select>
+      <p class="form-file-hint">Esta modalidad estará disponible próximamente en el sistema.</p>
+    </div>
+    <ng-container *ngIf="esTitulacionIntegral">
     <div class="form-campo form-campo-checkbox">
       <label class="form-label-checkbox">
         <input type="checkbox" formControlName="curso_titulacion" />
@@ -99,7 +117,7 @@
       </label>
     </div>
     <div class="form-campo" [class.form-campo-error]="campoInvalido('modalidad')">
-      <label for="modalidad">Modalidad <span class="form-obligatorio">*</span></label>
+      <label for="modalidad">Modalidad específica <span class="form-obligatorio">*</span></label>
       <select id="modalidad" formControlName="modalidad">
         <option value="">Seleccione modalidad</option>
         <option
@@ -184,9 +202,10 @@
         </div>
       </div>
     </ng-container>
+    </ng-container>
   </div>
 
-  <div class="form-seccion">
+  <div class="form-seccion" *ngIf="esTitulacionIntegral">
     <h3 class="form-seccion-titulo">Documentos</h3>
     <ng-container *ngIf="!esCenevalModalidad">
       <div class="form-subseccion">
@@ -258,6 +277,7 @@
       class="btn btn-agregar"
       [disabled]="
         guardando ||
+        !esTitulacionIntegral ||
         (!esCenevalModalidad && !puedeRegistrarTituloProyecto) ||
         errorFechaConstanciaPosterior ||
         originalidadEstado === 'comprobando' ||
