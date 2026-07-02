@@ -579,50 +579,30 @@ class EgresadoService(
         return null
     }
 
-    /**
-     * Titular del departamento en el oficio de sinodales: usuario académico del segmento (interfaz del depto).
-     * Respaldo: configuración institucional por carrera; al final, propiedad de entorno (si está definida).
-     */
-    private fun resolverNombreTitularDepartamentoOficio(carrera: String, slugDepto: String?): String {
-        buscarUsuarioTitularDepartamento(slugDepto, carrera)?.let { u ->
-            nombreTitularDesdeUsuario(u)?.let { return it }
-            log.warn(
-                "Oficio sinodales: usuario académico del depto encontrado (username={}) pero sin nombre; " +
-                    "completa el campo «Nombre del usuario» en gestión de cuentas.",
-                u.username,
-            )
-        }
-        configInstitucionalService.resolverPorCarrera(carrera)?.jefeNombre?.trim()?.takeIf { it.isNotBlank() }
-            ?.let { return it }
-        val envNombre = env.getProperty("sit.oficio-sinodales.jefa-departamento-nombre", "")?.trim().orEmpty()
-        if (envNombre.isNotBlank()) return envNombre
-        return "TITULAR DEL DEPARTAMENTO ACADÉMICO"
+    /** Jefe de división, jefe de departamento e iniciales desde Configuración Institucional. */
+    private fun resolverDatosInstitucionalesDocumento(carrera: String): DatosInstitucionalesDocumento {
+        val dept = configInstitucionalService.resolverPorCarrera(carrera)
+        val titularNombre = dept?.jefeNombre?.trim()?.takeIf { it.isNotBlank() }
+            ?: env.getProperty("sit.oficio-sinodales.jefa-departamento-nombre", "")?.trim()?.takeIf { it.isNotBlank() }
+            ?: "TITULAR DEL DEPARTAMENTO ACADÉMICO"
+        val iniciales = dept?.jefeIniciales?.trim()?.takeIf { it.isNotBlank() }
+            ?: env.getProperty("sit.oficio-sinodales.iniciales-firma", "MDJ/mcgl").trim()
+        return DatosInstitucionalesDocumento(
+            jefeDivisionNombre = configInstitucionalService.obtenerJefeDivisionNombre(),
+            jefeDivisionCargo = configInstitucionalService.obtenerJefeDivisionCargo(),
+            titularDeptoNombre = titularNombre,
+            titularDeptoCargo = dept?.jefeCargo?.trim()?.takeIf { it.isNotBlank() },
+            inicialesFirma = iniciales,
+        )
     }
 
-    private fun buscarUsuarioTitularDepartamento(slugDepto: String?, carrera: String): Usuario? {
-        val slugNorm = slugDepto?.trim()?.lowercase(Locale.ROOT)?.ifBlank { null }
-        val keyCarrera = normalizarCarreraKey(carrera)
-        return usuarioRepository.findByRolIgnoreCase("academico")
-            .asSequence()
-            .filter { it.activo != false }
-            .filter { u ->
-                val seg = u.segmentoAcademico?.trim()?.lowercase(Locale.ROOT)?.ifBlank { null }
-                when {
-                    slugNorm != null && seg == slugNorm -> true
-                    keyCarrera.isNotEmpty() &&
-                        u.carrerasAsignadas.any { normalizarCarreraKey(it) == keyCarrera } -> true
-                    else -> false
-                }
-            }
-            .sortedWith(
-                compareByDescending<Usuario> { nombreTitularDesdeUsuario(it) != null }
-                    .thenByDescending { it.fechaCreacion },
-            )
-            .firstOrNull()
-    }
-
-    private fun nombreTitularDesdeUsuario(u: Usuario): String? =
-        u.nombre?.trim()?.takeIf { it.isNotBlank() }
+    private data class DatosInstitucionalesDocumento(
+        val jefeDivisionNombre: String,
+        val jefeDivisionCargo: String,
+        val titularDeptoNombre: String,
+        val titularDeptoCargo: String?,
+        val inicialesFirma: String,
+    )
 
     private fun carreraPermitidaParaAcademico(carrera: String, permitidas: Set<String>): Boolean {
         val key = normalizarCarreraKey(carrera)
@@ -1070,8 +1050,7 @@ class EgresadoService(
             p.fechaConfirmacionRecibidosAnexoXxxiXxxii != null
         }
         if (!prerequisito91) return null
-        val destinatarioServicios = env.getProperty("sit.anexo91.destinatario-servicios-escolares")?.trim().orEmpty()
-        val destinatarioServiciosFinal = if (destinatarioServicios.isNotEmpty()) destinatarioServicios else "ROMEO ALBERTO ANGELES PEREZ"
+        val serviciosEscolares = configInstitucionalService.obtenerServiciosEscolares()
         val ahora = Instant.now()
         val certId = p.cert_uuid?.trim().takeUnless { it.isNullOrBlank() } ?: e.id?.toHexString() ?: e.numero_control
         val qrDataUri = generarQrDataUri("${baseUrlCert().trimEnd('/')}/#/verificar/$certId")
@@ -1079,7 +1058,8 @@ class EgresadoService(
             "MODALIDAD" to p.datos_proyecto.modalidad,
             "FECHA_CARTA" to fechaCartaEspanola(ahora),
             "TEXTO_OPCION_TI" to textoOpcionTitulacionIntegral(p.datos_proyecto.modalidad),
-            "DESTINATARIO_SERVICIOS_ESCOLARES" to destinatarioServiciosFinal,
+            "DESTINATARIO_SERVICIOS_ESCOLARES" to serviciosEscolares.jefeNombre.uppercase(Locale.forLanguageTag("es-MX")),
+            "CARGO_SERVICIOS_ESCOLARES" to serviciosEscolares.jefeCargo.uppercase(Locale.forLanguageTag("es-MX")),
             "QR_CODE" to qrDataUri,
         ))
         val pdf = htmlAnexoPdfService.generarDesdeClasspath("templates/html/anexo-9-1.html", valores)
@@ -1193,30 +1173,28 @@ class EgresadoService(
         val siglas = siglasOficioDepartamento(depto?.first, nombreDepto)
         val instant = p.fechaAsignacionSinodales!!
         val fechaGeneracion = Instant.now()
-        val jefeDivision = env.getProperty(
-            "sit.oficio-sinodales.jefe-division-nombre",
-            env.getProperty("sit.anexo93.jefe-division-nombre", "MANUEL FABIAN ROJAS"),
-        ).trim()
-        val jefeDivisionCargo = env.getProperty(
-            "sit.oficio-sinodales.jefe-division-cargo",
-            "JEFE DE LA DIVISIÓN DE ESTUDIOS PROFESIONALES",
-        ).trim()
-        val titularDeptoNombre = resolverNombreTitularDepartamentoOficio(e.datos_personales.carrera, depto?.first)
+        val institucional = resolverDatosInstitucionalesDocumento(e.datos_personales.carrera)
         log.info(
-            "Oficio sinodales egresadoId={} carrera='{}' deptoSlug={} titular='{}'",
+            "Oficio sinodales egresadoId={} carrera='{}' deptoSlug={} titular='{}' jefeDivision='{}'",
             id,
             e.datos_personales.carrera,
             depto?.first,
-            titularDeptoNombre,
+            institucional.titularDeptoNombre,
+            institucional.jefeDivisionNombre,
         )
         val lugar = env.getProperty("sit.oficio-sinodales.lugar", "Nazareno, Xoxocotlán, Oaxaca").trim()
         val instituto = env.getProperty("sit.oficio-sinodales.instituto", "Instituto Tecnológico del Valle de Oaxaca").trim()
-        val iniciales = env.getProperty("sit.oficio-sinodales.iniciales-firma", "MDJ/mcgl").trim()
         val expediente = p.cert_uuid?.trim()?.uppercase()?.ifBlank { null }
             ?: e.id?.toHexString()?.uppercase()
             ?: e.numero_control.trim().uppercase(Locale.ROOT)
         val generoExtras = extrasGeneroDocumentos(
-            e, tribunal, nombreDepto, titularDeptoNombre, jefeDivision, jefeDivisionCargo,
+            e,
+            tribunal,
+            nombreDepto,
+            institucional.titularDeptoNombre,
+            institucional.titularDeptoCargo,
+            institucional.jefeDivisionNombre,
+            institucional.jefeDivisionCargo,
         )
 
         val valores = construirValoresPlantillaHtml(
@@ -1234,15 +1212,15 @@ class EgresadoService(
                 "LUGAR" to lugar,
                 "FECHA_OFICIO" to fechaOficioSlash(fechaGeneracion),
                 "ASUNTO" to "Vocal y vocal suplente",
-                "JEFE_DIVISION_NOMBRE" to jefeDivision,
+                "JEFE_DIVISION_NOMBRE" to institucional.jefeDivisionNombre,
                 "TEXTO_OPCION_TI" to textoOpcionTitulacionIntegral(p.datos_proyecto.modalidad),
                 "PRESIDENTE" to tribunal.presidente.trim().uppercase(Locale.forLanguageTag("es-MX")),
                 "SECRETARIO" to tribunal.secretario.trim().uppercase(Locale.forLanguageTag("es-MX")),
                 "VOCAL" to tribunal.vocal.trim().uppercase(Locale.forLanguageTag("es-MX")),
                 "VOCAL_SUPLENTE" to tribunal.vocal_suplente.trim().uppercase(Locale.forLanguageTag("es-MX")),
-                "JEFA_DEPARTAMENTO_NOMBRE" to titularDeptoNombre.uppercase(Locale.forLanguageTag("es-MX")),
+                "JEFA_DEPARTAMENTO_NOMBRE" to institucional.titularDeptoNombre.uppercase(Locale.forLanguageTag("es-MX")),
                 "NOMBRE_DEPARTAMENTO" to nombreDepto,
-                "INICIALES_FIRMA" to iniciales,
+                "INICIALES_FIRMA" to institucional.inicialesFirma,
                 "NOMBRE_INSTITUTO" to instituto,
             ),
         )
@@ -1288,17 +1266,18 @@ class EgresadoService(
         val mesActo = nombreMesEspanol(zActo.monthValue).uppercase(Locale.forLanguageTag("es-MX"))
         val anioActo = zActo.year.toString()
         val horaActo = String.format(Locale.ROOT, "%02d:%02d", zActo.hour, zActo.minute)
-        val jefeDivisionNombre = env.getProperty("sit.anexo93.jefe-division-nombre", "MANUEL FABIAN ROJAS").trim()
-        val jefeDivisionCargo = env.getProperty(
-            "sit.oficio-sinodales.jefe-division-cargo",
-            "JEFE DE LA DIVISIÓN DE ESTUDIOS PROFESIONALES",
-        ).trim()
+        val institucional = resolverDatosInstitucionalesDocumento(e.datos_personales.carrera)
         val depto = resolverDepartamentoPorCarrera(e.datos_personales.carrera)
         val nombreDepto = depto?.second ?: "Departamento académico"
-        val titularDeptoNombre = resolverNombreTitularDepartamentoOficio(e.datos_personales.carrera, depto?.first)
         val tribunal = p.sinodalesTribunal
         val generoExtras = extrasGeneroDocumentos(
-            e, tribunal, nombreDepto, titularDeptoNombre, jefeDivisionNombre, jefeDivisionCargo,
+            e,
+            tribunal,
+            nombreDepto,
+            institucional.titularDeptoNombre,
+            institucional.titularDeptoCargo,
+            institucional.jefeDivisionNombre,
+            institucional.jefeDivisionCargo,
         )
         val certId = p.cert_uuid?.trim().takeUnless { it.isNullOrBlank() } ?: e.id?.toHexString() ?: e.numero_control
         val qrDataUri = generarQrDataUri("${baseUrlCert().trimEnd('/')}/#/verificar/$certId")
@@ -1313,7 +1292,7 @@ class EgresadoService(
             "SECRETARIO" to (tribunal?.secretario ?: ""),
             "VOCAL" to (tribunal?.vocal ?: ""),
             "VOCAL_SUPLENTE" to (tribunal?.vocal_suplente ?: ""),
-            "JEFE_DIVISION_NOMBRE" to jefeDivisionNombre,
+            "JEFE_DIVISION_NOMBRE" to institucional.jefeDivisionNombre.uppercase(Locale.forLanguageTag("es-MX")),
             "QR_CODE" to qrDataUri,
         ))
         val bytes = htmlAnexoPdfService.generarDesdeClasspath("templates/html/anexo-9-3.html", valores)
@@ -1874,11 +1853,17 @@ class EgresadoService(
         tribunal: SinodalesTribunal?,
         nombreDepto: String,
         titularDeptoNombre: String,
+        titularDeptoCargo: String?,
         jefeDivisionNombre: String,
         jefeDivisionCargo: String,
     ): List<Pair<String, String>> {
         val generoEgresado = generoDocumentoEgresado(e)
         val mapaDoc = mapaGeneroDocentesActivos()
+        val cargoTitular = titularDeptoCargo?.trim()?.takeIf { it.isNotBlank() }
+            ?: GeneroPorNombre.cargoTitularDepartamento(
+                nombreDepto,
+                GeneroPorNombre.resolver(null, titularDeptoNombre),
+            )
         val extras = mutableListOf(
             "PREFIJO_EGRESADO" to GeneroPorNombre.etiquetaCiudadano(generoEgresado),
             "TRATAMIENTO_EGRESADO" to GeneroPorNombre.tratamientoEgresadoOficio(generoEgresado),
@@ -1886,10 +1871,7 @@ class EgresadoService(
                 jefeDivisionCargo,
                 GeneroPorNombre.resolver(null, jefeDivisionNombre),
             ),
-            "JEFA_DEPARTAMENTO_CARGO" to GeneroPorNombre.cargoTitularDepartamento(
-                nombreDepto,
-                GeneroPorNombre.resolver(null, titularDeptoNombre),
-            ),
+            "JEFA_DEPARTAMENTO_CARGO" to cargoTitular,
         )
         tribunal?.let { t ->
             extras += "ETIQUETA_PRESIDENTE" to GeneroPorNombre.etiquetaPresidente(

@@ -233,7 +233,7 @@
 }
 .seg-proceso-titulo-paso {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.86rem;
   line-height: 1.4;
   font-weight: 500;
   color: #2a3d56;
@@ -273,7 +273,7 @@
   color: #6a7d99;
   margin-right: 6px;
 }
-.seg-proceso-desc { margin: 0; color: #495d7f; font-size: 0.8rem; line-height: 1.3; }
+.seg-proceso-desc { margin: 0; color: #495d7f; font-size: 0.84rem; line-height: 1.4; }
 .seg-proceso-chip {
   border-radius: 999px;
   padding: 3px 9px;
@@ -417,7 +417,7 @@
   font-size: 0.78rem;
 }
 
-.seg-bloques { display: grid; grid-template-columns: minmax(0, 5.5fr) minmax(340px, 4.5fr); gap: 14px; align-items: stretch; }
+.seg-bloques { display: grid; grid-template-columns: minmax(0, 4.9fr) minmax(340px, 5.1fr); gap: 14px; align-items: stretch; }
 .seg-bloques .seg-tabla-wrap { margin: 0; }
 .seg-bloques .seg-proceso { margin: 0; position: sticky; top: 12px; }
 

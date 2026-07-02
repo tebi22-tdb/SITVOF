@@ -7,6 +7,7 @@ import {
   ConfigInstitucionalService,
   ConfigGlobalResponse,
   ConfigDepartamentoResponse,
+  ConfigServiciosEscolaresResponse,
 } from '../../services/config-institucional.service';
 
 @Component({
@@ -19,7 +20,7 @@ import {
         [showVolverInicioButton]="true" (volverInicioClick)="volver()"></app-header>
       <div class="contenido">
         <h1 class="titulo">Configuración Institucional</h1>
-        <p class="subtitulo">Administra los datos que cambian anualmente en los formatos XXXII y XXXIII (hojas 32 y 33).</p>
+        <p class="subtitulo">Administra los datos que cambian anualmente en los formatos XXXII, XXXIII y anexo 9.1.</p>
 
         <!-- ── Sección Global ─────────────────────────────────────────────── -->
         <section class="seccion">
@@ -59,6 +60,33 @@ import {
                 {{ globalGuardando ? 'Guardando…' : 'Guardar datos globales' }}
               </button>
               <span *ngIf="globalOk" class="msg-ok">&#10003; Guardado</span>
+            </div>
+          </form>
+        </section>
+
+        <!-- ── Sección Servicios Escolares ────────────────────────────────── -->
+        <section class="seccion">
+          <h2 class="sec-titulo">Departamento de Servicios Escolares</h2>
+          <p class="sec-desc">Nombre y título del Jefe(a) del Departamento de Servicios Escolares.</p>
+          <div *ngIf="seLoading" class="loading">Cargando...</div>
+          <form *ngIf="!seLoading && serviciosEscolares" (ngSubmit)="guardarServiciosEscolares()" class="form-grid">
+            <div class="campo">
+              <label class="lbl">Nombre del Jefe(a)</label>
+              <input class="inp inp-uc" type="text" [(ngModel)]="serviciosEscolares!.jefeNombre" name="seJefeNombre"
+                placeholder="Ej. ROMEO ALBERTO ANGELES PEREZ"
+                (blur)="serviciosEscolares!.jefeNombre = serviciosEscolares!.jefeNombre.toUpperCase()"/>
+            </div>
+            <div class="campo">
+              <label class="lbl">Cargo completo</label>
+              <input class="inp inp-uc" type="text" [(ngModel)]="serviciosEscolares!.jefeCargo" name="seJefeCargo"
+                placeholder="Ej. JEFE DEL DEPARTAMENTO DE SERVICIOS ESCOLARES"
+                (blur)="serviciosEscolares!.jefeCargo = serviciosEscolares!.jefeCargo.toUpperCase()"/>
+            </div>
+            <div class="campo full acciones">
+              <button class="btn-guardar" type="submit" [disabled]="seGuardando">
+                {{ seGuardando ? 'Guardando…' : 'Guardar Servicios Escolares' }}
+              </button>
+              <span *ngIf="seOk" class="msg-ok">&#10003; Guardado</span>
             </div>
           </form>
         </section>
@@ -148,6 +176,11 @@ export class ConfigInstitucionalComponent implements OnInit {
   departamentos: (ConfigDepartamentoResponse & { _guardando?: boolean; _ok?: boolean })[] = [];
   deptLoading = true;
 
+  serviciosEscolares: ConfigServiciosEscolaresResponse | null = null;
+  seLoading = true;
+  seGuardando = false;
+  seOk = false;
+
   constructor(
     private svc: ConfigInstitucionalService,
     private router: Router,
@@ -161,6 +194,10 @@ export class ConfigInstitucionalComponent implements OnInit {
     this.svc.getDepartamentos().subscribe({
       next: (r) => { this.departamentos = r; this.deptLoading = false; },
       error: () => { this.deptLoading = false; },
+    });
+    this.svc.getServiciosEscolares().subscribe({
+      next: (r) => { this.serviciosEscolares = r; this.seLoading = false; },
+      error: () => { this.seLoading = false; },
     });
   }
 
@@ -207,6 +244,24 @@ export class ConfigInstitucionalComponent implements OnInit {
         setTimeout(() => (this.globalOk = false), 3000);
       },
       error: () => { this.globalGuardando = false; },
+    });
+  }
+
+  guardarServiciosEscolares(): void {
+    if (!this.serviciosEscolares) return;
+    this.seGuardando = true;
+    this.seOk = false;
+    this.svc.putServiciosEscolares({
+      jefeNombre: this.serviciosEscolares.jefeNombre.toUpperCase(),
+      jefeCargo: this.serviciosEscolares.jefeCargo.toUpperCase(),
+    }).subscribe({
+      next: (r) => {
+        this.serviciosEscolares = r;
+        this.seGuardando = false;
+        this.seOk = true;
+        setTimeout(() => (this.seOk = false), 3000);
+      },
+      error: () => { this.seGuardando = false; },
     });
   }
 

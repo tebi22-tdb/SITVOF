@@ -951,13 +951,15 @@
 }
 .timeline-doc-escaneada {
   margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #cbd5e0;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  background: #f4f8fc;
+  border: 1px solid #d4e2f0;
 }
 
 .timeline-doc-escaneada--info {
-  border-top-color: #bee3f8;
-  background: #ebf8ff;
+  border-color: #d4e2f0;
+  background: #f4f8fc;
   margin-left: -1rem;
   margin-right: -1rem;
   margin-bottom: -0.75rem;
@@ -973,8 +975,8 @@
 .timeline-doc-escaneada-titulo {
   margin: 0 0 0.5rem;
   font-size: 0.95rem;
-  font-weight: 700;
-  color: #2c5282;
+  font-weight: 600;
+  color: #4a6fa5;
 }
 
 .timeline-doc-escaneada-texto {
@@ -998,16 +1000,16 @@
 
 .seg-file-input {
   padding: 0.75rem 1rem;
-  border: 2px dashed var(--sitvo-azul-borde);
-  border-radius: 10px;
-  background: var(--sitvo-azul-claro);
+  border: 1px dashed #c5d9ed;
+  border-radius: 8px;
+  background: #fafcfe;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 }
 
 .seg-file-input:hover:not(:disabled) {
-  border-color: var(--sitvo-azul);
-  background: #dbeafe;
+  border-color: #a8c4e0;
+  background: #f0f6fc;
 }
 
 .seg-file-input:disabled {
@@ -1024,7 +1026,7 @@
 .timeline-doc-escaneada-msg {
   margin: 0 0 0.75rem;
   font-size: 0.88rem;
-  color: #c05621;
+  color: #5a6b88;
 }
 
 .timeline-doc-escaneada-btn {
@@ -1470,21 +1472,21 @@
   margin-top: 1rem;
   padding: 0.85rem 1rem;
   border-radius: 8px;
-  background: #fffbeb;
-  border: 1px solid #fcd34d;
+  background: #f4f8fc;
+  border: 1px solid #d4e2f0;
 }
 
 .timeline-corregir-expediente__tit {
   margin: 0 0 0.35rem;
   font-size: 0.95rem;
   font-weight: 600;
-  color: #92400e;
+  color: #4a6fa5;
 }
 
 .timeline-corregir-expediente__txt {
   margin: 0 0 0.65rem;
   font-size: 0.85rem;
-  color: #78350f;
+  color: #5a6b88;
   line-height: 1.4;
 }
 

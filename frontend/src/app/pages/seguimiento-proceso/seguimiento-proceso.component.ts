@@ -21,7 +21,7 @@ import {
 } from '../../core/plazo-desarrollo-proyecto-no-res';
 
 type EstadoFiltro = 'todos' | 'en_tiempo' | 'rezagado' | 'vencido' | 'concluido';
-type OrdenFiltro = 'prioridad' | 'nombre' | 'control';
+type OrdenFiltro = 'reciente' | 'prioridad' | 'nombre' | 'control';
 
 /** Días de margen antes del límite para pasar de "en tiempo" a "rezagado". */
 const MARGEN_REZAGO_DIAS = 30;
@@ -49,6 +49,7 @@ interface SeguimientoItem {
   estado: Exclude<EstadoFiltro, 'todos'>;
   documentoFaltante: string;
   ultimoMovimiento: string;
+  ultimoMovimientoIso: string;
   fechaLimite: string;
 }
 
@@ -88,7 +89,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
   filtroModalidad = '';
   filtroDocumento = 'todos';
   filtroEstado: EstadoFiltro = 'todos';
-  ordenarPor: OrdenFiltro = 'prioridad';
+  ordenarPor: OrdenFiltro = 'reciente';
   mostrarMasFiltros = false;
   detalleSeleccionado: EgresadoDetail | null = null;
   cargandoDetalle = false;
@@ -104,6 +105,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
   pasosProcesoTitulacionCache: PasoProcesoUi[] = [];
   private detalleRequestSeq = 0;
   private vistaDocEscaneadaObjectUrl: string | null = null;
+  private refrescoListaIntervalo: ReturnType<typeof setInterval> | null = null;
 
   get carrerasDisponibles(): string[] {
     return [...new Set(this.items.map((i) => i.carrera))].sort((a, b) => a.localeCompare(b));
@@ -158,9 +160,15 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       out = out.sort((a, b) => a.alumno.localeCompare(b.alumno));
     } else if (this.ordenarPor === 'control') {
       out = out.sort((a, b) => a.noControl.localeCompare(b.noControl));
+    } else if (this.ordenarPor === 'reciente') {
+      out = out.sort((a, b) => b.ultimoMovimientoIso.localeCompare(a.ultimoMovimientoIso));
     } else {
       const prioridad = { vencido: 0, rezagado: 1, en_tiempo: 2, concluido: 3 };
-      out = out.sort((a, b) => prioridad[a.estado] - prioridad[b.estado]);
+      out = out.sort((a, b) => {
+        const porEstado = prioridad[a.estado] - prioridad[b.estado];
+        if (porEstado !== 0) return porEstado;
+        return b.ultimoMovimientoIso.localeCompare(a.ultimoMovimientoIso);
+      });
     }
     return out;
   }
@@ -177,9 +185,14 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     const buscar = this.route.snapshot.queryParamMap.get('buscar')?.trim();
     if (buscar) this.buscarControl = buscar;
     this.cargar();
+    this.refrescoListaIntervalo = setInterval(() => this.cargar(true), 45000);
   }
 
   ngOnDestroy(): void {
+    if (this.refrescoListaIntervalo) {
+      clearInterval(this.refrescoListaIntervalo);
+      this.refrescoListaIntervalo = null;
+    }
     this.limpiarVistaDocEscaneada();
   }
 
@@ -201,7 +214,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     this.filtroModalidad = '';
     this.filtroDocumento = 'todos';
     this.filtroEstado = 'todos';
-    this.ordenarPor = 'prioridad';
+    this.ordenarPor = 'reciente';
     this.mostrarMasFiltros = false;
   }
 
@@ -1310,26 +1323,40 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       });
   }
 
-  private cargar(): void {
-    this.cargando = true;
-    this.error = '';
+  private cargar(silencioso = false): void {
+    if (!silencioso) {
+      this.cargando = true;
+      this.error = '';
+    }
     this.egresadoService.listar({ aplicar_scope_departamento: false }).subscribe({
       next: (lista: EgresadoItem[]) => {
         this.items = lista.map((e) => this.mapearItem(e));
-        this.cargando = false;
+        if (!silencioso) this.cargando = false;
       },
       error: () => {
-        this.error = 'No se pudo cargar el seguimiento.';
-        this.cargando = false;
+        if (!silencioso) {
+          this.error = 'No se pudo cargar el seguimiento.';
+          this.cargando = false;
+        }
       },
     });
+  }
+
+  private isoUltimoMovimiento(e: EgresadoItem): string {
+    return (
+      e.fecha_actualizacion ||
+      e.fecha_envio_documentacion_escaneada_egresado ||
+      e.fecha_confirmacion_documentacion_escaneada_recibida ||
+      e.fecha_creacion ||
+      ''
+    );
   }
 
   private mapearItem(e: EgresadoItem): SeguimientoItem {
     const hoy = new Date();
     const modalidad = e.modalidad?.trim() || '—';
 
-    const isoUltimo = e.fecha_actualizacion;
+    const isoUltimo = this.isoUltimoMovimiento(e);
     const ultimoMovimiento = isoUltimo ? this.formatoFecha(new Date(isoUltimo)) : '—';
 
     const esRes = this.catalogoService.esResidencia(modalidad.trim());
@@ -1344,6 +1371,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         estado: 'concluido',
         documentoFaltante: 'Proceso concluido',
         ultimoMovimiento,
+        ultimoMovimientoIso: isoUltimo,
         fechaLimite: 'Finalizado',
       };
     }
@@ -1358,6 +1386,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         estado: 'en_tiempo',
         documentoFaltante: 'En curso',
         ultimoMovimiento,
+        ultimoMovimientoIso: isoUltimo,
         fechaLimite: '—',
       };
     }
@@ -1394,6 +1423,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         estado,
         documentoFaltante,
         ultimoMovimiento,
+        ultimoMovimientoIso: isoUltimo,
         fechaLimite,
       };
     }
@@ -1421,6 +1451,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       estado,
       documentoFaltante,
       ultimoMovimiento,
+      ultimoMovimientoIso: isoUltimo,
       fechaLimite,
     };
   }

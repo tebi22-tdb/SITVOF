@@ -2,7 +2,7 @@ import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, S
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { aplicarValidacionPdfInput } from '../../../core/archivo-pdf';
-import { EgresadoForm, MODALIDADES_CURSO_TITULACION } from '../../../core/datos';
+import { EgresadoForm, MODALIDADES_CURSO_TITULACION, MODALIDADES_TITULACION } from '../../../core/datos';
 import { EgresadoDetail, EgresadoService } from '../../../services/egresado.service';
 import { CatalogoService, ModalidadCatalogo } from '../../../services/catalogo.service';
 import { DocenteItem, DocenteService } from '../../../services/docente.service';
@@ -44,6 +44,8 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
   carreras: string[] = [];
   niveles: string[] = [];
   modalidadesCatalogo: ModalidadCatalogo[] = [];
+
+  readonly opcionesModalidadTitulacion = [...MODALIDADES_TITULACION];
 
   archivoSeleccionado: File | null = null;
   /** Al editar: true si el usuario quiere quitar el archivo actual. */
@@ -97,6 +99,8 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       telefono: ['', Validators.required],
       correo_electronico: ['', [Validators.required, Validators.email]],
       genero: ['', Validators.required],
+      tipo_titulacion: ['', Validators.required],
+      modalidad_titulacion: [''],
       nombre_proyecto: ['', Validators.required],
       modalidad: ['', Validators.required],
       curso_titulacion: [false],
@@ -109,7 +113,8 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       fecha_expedicion_constancia: ['', Validators.required],
       observaciones: [''], // único opcional (notas)
     });
-    this.actualizarValidadoresPorModalidad();
+    this.actualizarValidadoresPorTipoTitulacion();
+    this.form.get('tipo_titulacion')?.valueChanges.subscribe(() => this.actualizarValidadoresPorTipoTitulacion());
     this.form.get('modalidad')?.valueChanges.subscribe(() => this.actualizarValidadoresPorModalidad());
     this.form.get('fecha_registro_anexo')?.valueChanges.subscribe(() => this.revisarFechasDocumentos());
     this.form.get('fecha_expedicion_constancia')?.valueChanges.subscribe(() => this.revisarFechasDocumentos());
@@ -123,6 +128,14 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
     const reg = (this.form.get('fecha_registro_anexo')?.value as string) || '';
     const exp = (this.form.get('fecha_expedicion_constancia')?.value as string) || '';
     this.errorFechaConstanciaPosterior = !!(reg && exp && exp > reg);
+  }
+
+  get esTitulacionIntegral(): boolean {
+    return this.form.get('tipo_titulacion')?.value === 'titulacion_integral';
+  }
+
+  get esTitulacion(): boolean {
+    return this.form.get('tipo_titulacion')?.value === 'titulacion';
   }
 
   get esCenevalModalidad(): boolean {
@@ -169,6 +182,15 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       .pipe(
         debounceTime(600),
         switchMap(([titulo, modalidad]) => {
+          if (!this.esTitulacionIntegral) {
+            this.originalidadEstado = null;
+            this.originalidadTituloSimilar = null;
+            this.originalidadMotivo = null;
+            this.originalidadExpedienteEstado = null;
+            this.tituloCompartidoConfirmado = null;
+            this.originalidadCoincidencias = 0;
+            return of(null);
+          }
           if (this.esCenevalModalidad) {
             this.originalidadEstado = null;
             this.originalidadTituloSimilar = null;
@@ -295,6 +317,8 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
         telefono: d.datos_personales.telefono || '',
         correo_electronico: d.datos_personales.correo_electronico || '',
         genero: d.datos_personales.genero || '',
+        tipo_titulacion: 'titulacion_integral',
+        modalidad_titulacion: '',
         nombre_proyecto: d.datos_proyecto.nombre_proyecto || '',
         modalidad: d.datos_proyecto.modalidad || '',
         curso_titulacion: d.datos_proyecto.curso_titulacion === 'si',
@@ -307,7 +331,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
         fecha_expedicion_constancia: isoToDate(d.documentos?.constancia_no_inconveniencia?.fecha_expedicion),
         observaciones: '',
       });
-      this.actualizarValidadoresPorModalidad();
+      this.actualizarValidadoresPorTipoTitulacion();
       this.quitarArchivoSeleccionado = false;
     }
   }
@@ -436,6 +460,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
 
   /** Si la modalidad actual no está en las opciones visibles (por cambiar el checkbox), se limpia. */
   private alinearModalidadSiNoAplica(): void {
+    if (!this.esTitulacionIntegral) return;
     const opts = this.opcionesModalidad;
     const cur = this.form.get('modalidad')?.value as string | undefined;
     if (cur && !opts.includes(cur)) {
@@ -444,8 +469,53 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
     this.actualizarValidadoresPorModalidad();
   }
 
+  private limpiarValidadoresProyectoIntegral(): void {
+    for (const c of [
+      'nombre_proyecto',
+      'modalidad',
+      'asesor_interno',
+      'asesor_externo',
+      'director',
+      'asesor_1',
+      'asesor_2',
+      'fecha_registro_anexo',
+      'fecha_expedicion_constancia',
+    ]) {
+      this.form.get(c)?.clearValidators();
+      this.form.get(c)?.updateValueAndValidity({ emitEvent: false });
+    }
+    this.errorFechaConstanciaPosterior = false;
+    this.originalidadEstado = null;
+    this.originalidadTituloSimilar = null;
+    this.originalidadMotivo = null;
+    this.originalidadExpedienteEstado = null;
+    this.tituloCompartidoConfirmado = null;
+    this.originalidadCoincidencias = 0;
+  }
+
+  private actualizarValidadoresPorTipoTitulacion(): void {
+    const tipo = this.form.get('tipo_titulacion')?.value as string;
+    if (tipo === 'titulacion_integral') {
+      this.form.patchValue({ modalidad_titulacion: '' }, { emitEvent: false });
+      this.form.get('modalidad')?.setValidators(Validators.required);
+      this.actualizarValidadoresPorModalidad();
+      return;
+    }
+    if (tipo === 'titulacion') {
+      this.form.patchValue(
+        { modalidad: '', curso_titulacion: false },
+        { emitEvent: false },
+      );
+      this.limpiarValidadoresProyectoIntegral();
+      return;
+    }
+    this.form.patchValue({ modalidad: '', modalidad_titulacion: '' }, { emitEvent: false });
+    this.limpiarValidadoresProyectoIntegral();
+  }
+
   /** Según modalidad: mentores, fechas de documentos (CENEVAL: carta de no inconveniencia y archivo). */
   private actualizarValidadoresPorModalidad(): void {
+    if (!this.esTitulacionIntegral) return;
     const modalidad = this.form.get('modalidad')?.value as string;
     const esCeneval = this.catalogoService.esCeneval(modalidad ?? '');
     const tipo = this.catalogoService.tipoMentoresPorNombre(modalidad ?? '');
@@ -567,6 +637,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
 
   onSubmit(): void {
     if (this.guardando) return;
+    if (!this.esTitulacionIntegral) return;
     this.archivoRequeridoError = false;
     this.revisarFechasDocumentos();
     if (this.form.invalid || this.errorFechaConstanciaPosterior) {
@@ -580,8 +651,9 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       return;
     }
     const raw = this.form.getRawValue();
+    const { tipo_titulacion: _tipo, modalidad_titulacion: _modTit, ...resto } = raw;
     const datos: EgresadoForm = {
-      ...raw,
+      ...resto,
       curso_titulacion: raw.curso_titulacion ? 'si' : 'no',
       quitar_archivo: this.editando ? this.quitarArchivoSeleccionado : undefined,
     };

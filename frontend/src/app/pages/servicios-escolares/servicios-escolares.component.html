@@ -63,7 +63,10 @@
             tabindex="0"
             (keyup.enter)="seleccionar(item)"
           >
-            <span class="se-lista-control">{{ item.numero_control }}</span>
+            <div class="se-lista-fila-principal">
+              <span class="se-lista-control">{{ item.numero_control }}</span>
+              <span *ngIf="tabActivo === 'pendientes'" class="se-lista-badge se-lista-badge--pendiente">Pendiente</span>
+            </div>
             <span class="se-lista-nombre">{{ item.nombre_completo }}</span>
             <span class="se-lista-meta">{{ formatearFecha(item.fecha_solicitud_anexo_9_2) }}</span>
           </li>
