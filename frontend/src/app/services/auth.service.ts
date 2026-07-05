@@ -121,10 +121,22 @@ export class AuthService {
       (r) =>
         r === 'coordinador' ||
         r === 'apoyo_titulacion' ||
-        r === 'apoyo titulacion' ||
-        r === 'division_estudios_prof_admin' ||
-        r === 'administrador',
+        r === 'apoyo titulacion',
     );
+  }
+
+  /** División administrativa o rol administrador: solo gestión de cuentas, no coordinación ni departamentos. */
+  esDivisionAdministrativa(): boolean {
+    const raw = this.usuario?.rol?.toLowerCase().trim() ?? '';
+    if (!raw) return false;
+    const partes = raw.split(/\s*[-–—]\s*|,/g).map((p) => p.trim()).filter(Boolean);
+    const candidatos = partes.length ? partes : [raw.replace(/\s+/g, ' ')];
+    return candidatos.some((r) => r === 'division_estudios_prof_admin' || r === 'administrador');
+  }
+
+  /** Acceso al área de coordinación (pleno o solo administrativo). */
+  puedeAccederCoordinacion(): boolean {
+    return this.isCoordinador() || this.esDivisionAdministrativa();
   }
 
   /** División de Estudios Profesionales — Apoyo a Titulación (solo inicio y seguimiento). */
@@ -166,6 +178,17 @@ export class AuthService {
 
   isAcademico(): boolean {
     return this.usuario?.rol?.toLowerCase() === 'academico';
+  }
+
+  /** Revertir liberación/registro en bandeja departamento: coordinador o administración, no académicos. */
+  puedeRevertirPasoDepartamento(): boolean {
+    const raw = this.usuario?.rol?.toLowerCase().trim() ?? '';
+    if (!raw) return false;
+    const partes = raw.split(/\s*[-–—]\s*|,/g).map((p) => p.trim()).filter(Boolean);
+    const candidatos = partes.length ? partes : [raw.replace(/\s+/g, ' ')];
+    return candidatos.some(
+      (r) => r === 'coordinador' || r === 'administrador' || r === 'division_estudios_prof_admin',
+    );
   }
 
   isServiciosEscolares(): boolean {

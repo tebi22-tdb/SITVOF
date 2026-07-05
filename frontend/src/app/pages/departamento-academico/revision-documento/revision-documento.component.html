@@ -6,66 +6,61 @@
   ></app-header>
 
   <div class="revision-layout">
+    <header class="revision-expediente-bar" *ngIf="detalle">
+      <div class="revision-expediente-bar__main">
+        <h1 class="revision-expediente-bar__nombre">{{ detalle.nombre }}</h1>
+        <p class="revision-expediente-bar__meta">
+          <span>No. control <strong>{{ detalle.control }}</strong></span>
+          <span class="revision-expediente-bar__sep">·</span>
+          <span>{{ detalle.carrera }}</span>
+          <span class="revision-expediente-bar__sep">·</span>
+          <span>{{ detalle.modalidad }}</span>
+        </p>
+      </div>
+      <span class="revision-expediente-bar__estado">{{ detalle.estado }}</span>
+    </header>
+
     <div class="revision-contenido">
-    <!-- Izquierda: documento + detalle de la revisión elegida en el historial -->
-    <section class="revision-izquierda">
-      <div class="revision-card revision-card-documento">
-        <div class="revision-doc-header">
-          <h3 class="revision-seccion-titulo revision-seccion-titulo--doc">
-            {{ documentoEsTesisLiberacion ? 'Vista previa del producto de liberación' : 'Vista previa del expediente' }}
-          </h3>
-          <span class="revision-doc-badge" *ngIf="esPDF">PDF</span>
-        </div>
-
-        <div *ngIf="cargandoDocumento" class="revision-cargando">Cargando documento…</div>
-        <div *ngIf="!cargandoDocumento && errorDocumento" class="revision-error">{{ errorDocumento }}</div>
-
-        <ng-container *ngIf="!cargandoDocumento && !errorDocumento && documentoUrlSeguro && documentoIframeKey">
-          <iframe
-            *ngIf="esPDF"
-            [src]="documentoUrlSeguro"
-            [attr.data-doc-version]="documentoIframeKey"
-            class="revision-iframe-doc"
-            title="Vista previa del documento"
-          ></iframe>
-
-          <div *ngIf="!esPDF" class="revision-no-pdf">
-            <p class="revision-no-pdf-texto">
-              Este documento no es PDF ({{ documentoContentType }}). Descárgalo para revisarlo.
-            </p>
-            <a
-              class="revision-btn-enviar"
-              *ngIf="documentoHrefSeguro"
-              [href]="documentoHrefSeguro"
-              [attr.download]="documentoFileName"
-            >
-              Descargar documento
-            </a>
+      <section class="revision-izquierda">
+        <div class="revision-card revision-card-documento">
+          <div class="revision-doc-header">
+            <h2 class="revision-seccion-titulo revision-seccion-titulo--doc">
+              {{ documentoEsTesisLiberacion ? 'Producto de liberación' : 'Expediente para revisión' }}
+            </h2>
+            <span class="revision-doc-badge" *ngIf="esPDF && documentoUrl">PDF</span>
           </div>
-        </ng-container>
 
-        <div class="revision-subir-doc">
-          <button
-            type="button"
-            class="revision-subir-toggle"
-            (click)="togglePanelReemplazo()"
-            [attr.aria-expanded]="panelReemplazoExpandido"
-            aria-controls="revision-panel-reemplazo"
-          >
-            <span class="revision-subir-toggle-row">
-              <span class="revision-subir-toggle-label">Reemplazar documento</span>
-              <span class="revision-subir-chevron" aria-hidden="true">{{ panelReemplazoExpandido ? '▾' : '▸' }}</span>
-            </span>
-            <span class="revision-subir-toggle-meta">Opcional · sustituye el archivo del egresado en el sistema</span>
-          </button>
-          <div
-            id="revision-panel-reemplazo"
-            class="revision-subir-cuerpo"
-            *ngIf="panelReemplazoExpandido"
-          >
+          <div *ngIf="cargandoDocumento" class="revision-cargando">Cargando documento…</div>
+          <div *ngIf="!cargandoDocumento && errorDocumento" class="revision-error">{{ errorDocumento }}</div>
+
+          <ng-container *ngIf="!cargandoDocumento && !errorDocumento && documentoUrl && esPDF">
+            <app-pdf-viewer-panel
+              [src]="documentoUrl"
+              [reloadToken]="documentoIframeKey"
+              [fileName]="documentoFileName"
+            ></app-pdf-viewer-panel>
+          </ng-container>
+
+          <ng-container *ngIf="!cargandoDocumento && !errorDocumento && documentoUrl && !esPDF">
+            <div class="revision-no-pdf">
+              <p class="revision-no-pdf-texto">
+                Este documento no es PDF ({{ documentoContentType }}). Descárgalo para revisarlo.
+              </p>
+              <a
+                class="revision-btn-outline"
+                *ngIf="documentoHrefSeguro"
+                [href]="documentoHrefSeguro"
+                [attr.download]="documentoFileName"
+              >
+                Descargar documento
+              </a>
+            </div>
+          </ng-container>
+
+          <details class="revision-reemplazar-details">
+            <summary>Reemplazar documento del egresado</summary>
             <p class="revision-subir-ayuda">
-              Si subes un archivo nuevo, <strong>sustituye</strong> al documento que tiene el alumno guardado. El visor se
-              actualizará al terminar.
+              Sustituye el archivo guardado en el sistema. El visor se actualizará al terminar.
             </p>
             <div class="revision-subir-fila">
               <input
@@ -84,171 +79,141 @@
             >
               {{ mensajeSubidaArchivo }}
             </p>
+          </details>
+        </div>
+
+        <div class="revision-card revision-card-detalle" *ngIf="revisionSeleccionada">
+          <h3 class="revision-seccion-titulo">Detalle de revisión {{ revisionSeleccionada.numero_revision }}</h3>
+          <div class="revision-detalle-cuerpo">
+            <div><strong>Fecha:</strong> {{ revisionSeleccionada.fecha }}</div>
+            <div>
+              <strong>Resultado:</strong>
+              {{ revisionSeleccionada.resultado === 'aprobado' ? 'Aprobado' : 'Con observaciones' }}
+            </div>
+            <div *ngIf="revisionSeleccionada.observaciones">
+              <strong>Observaciones:</strong>
+              <p class="revision-detalle-obs">{{ revisionSeleccionada.observaciones }}</p>
+            </div>
+            <div *ngIf="revisionSeleccionada.tiene_documento_adjunto" class="revision-detalle-adjunto">
+              <button type="button" class="revision-btn-outline" (click)="descargarAdjuntoRevision(revisionSeleccionada)">
+                Descargar adjunto
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="revision-card revision-card-detalle" *ngIf="revisionSeleccionada">
-        <h3 class="revision-seccion-titulo">Revisión seleccionada</h3>
-        <div class="revision-detalle-cuerpo">
-          <div><strong>Número:</strong> {{ revisionSeleccionada.numero_revision }}</div>
-          <div><strong>Fecha:</strong> {{ revisionSeleccionada.fecha }}</div>
-          <div>
-            <strong>Resultado:</strong>
-            {{ revisionSeleccionada.resultado === 'aprobado' ? 'Aprobado' : 'Con observaciones' }}
+      <aside class="revision-derecha">
+        <div class="revision-aside-head">
+          <h2 class="revision-aside-titulo">Revisión</h2>
+          <button type="button" class="revision-link-btn" (click)="nuevaRevisionClick()">Limpiar</button>
+        </div>
+
+        <div class="revision-card revision-card-form" *ngIf="mostrarPanelRevision">
+          <div class="revision-form-campo">
+            <label for="observaciones" class="revision-label-obs">Observaciones</label>
+            <textarea
+              id="observaciones"
+              class="revision-textarea"
+              [(ngModel)]="observacionesNueva"
+              rows="4"
+              placeholder="Indica correcciones para el egresado. Si apruebas, puedes dejarlo en blanco."
+            ></textarea>
           </div>
-          <div *ngIf="revisionSeleccionada.observaciones">
-            <strong>Observaciones:</strong>
-            <p class="revision-detalle-obs">{{ revisionSeleccionada.observaciones }}</p>
+          <div class="revision-form-campo">
+            <label for="archivoRevision" class="revision-label-obs">PDF para el egresado (opcional)</label>
+            <input
+              #archivoRevisionInput
+              id="archivoRevision"
+              type="file"
+              class="revision-file-input"
+              accept=".pdf,application/pdf"
+              [disabled]="guardando"
+              (change)="onArchivoRevision($event)"
+            />
+            <p *ngIf="nombreArchivoRevision" class="revision-adjunto-nombre">{{ nombreArchivoRevision }}</p>
           </div>
-          <div *ngIf="!revisionSeleccionada.observaciones"><strong>Observaciones:</strong> —</div>
-          <div *ngIf="revisionSeleccionada.tiene_documento_adjunto" class="revision-detalle-adjunto">
-            <strong>Documento adjunto:</strong>
-            <button type="button" class="revision-btn-enviar-item" (click)="descargarAdjuntoRevision(revisionSeleccionada)">
-              Descargar PDF
+
+          <div class="revision-acciones-stack">
+            <button
+              type="button"
+              class="revision-btn-aprobar revision-btn-aprobar--full"
+              [disabled]="guardando"
+              (click)="guardarRevision('aprobado')"
+            >
+              Aprobar expediente
+            </button>
+            <button
+              type="button"
+              class="revision-btn-primary"
+              [disabled]="guardando || !observacionesNueva.trim()"
+              (click)="guardarYEnviarRevision()"
+            >
+              Guardar y enviar al egresado
+            </button>
+            <button
+              type="button"
+              class="revision-btn-outline revision-btn-outline--full"
+              [disabled]="guardando"
+              (click)="guardarRevision('observaciones')"
+            >
+              Guardar borrador
             </button>
           </div>
-        </div>
-      </div>
 
-      <div class="revision-card revision-card-placeholder" *ngIf="!revisionSeleccionada && !cargandoRevisiones">
-        <h3 class="revision-seccion-titulo">Revisión seleccionada</h3>
-        <p class="revision-placeholder-texto">
-          Elige una revisión del historial (columna derecha) para ver aquí el detalle.
-        </p>
-      </div>
-
-    </section>
-
-    <!-- Derecha: nueva revisión + historial -->
-    <aside class="revision-derecha">
-      <h2 class="revision-aside-titulo">Acciones de revisión</h2>
-      <button type="button" class="revision-btn-nueva" (click)="nuevaRevisionClick()">Limpiar formulario</button>
-
-      <div class="revision-card" *ngIf="mostrarPanelRevision">
-        <h3 class="revision-seccion-titulo">Registrar revisión</h3>
-        <div class="revision-form-campo">
-          <label for="observaciones" class="revision-label-obs">Observaciones</label>
-          <textarea
-            id="observaciones"
-            class="revision-textarea"
-            [(ngModel)]="observacionesNueva"
-            rows="5"
-            placeholder="Observaciones para el egresado o el comité. Si apruebas, puedes dejarlo en blanco."
-          ></textarea>
-        </div>
-        <div class="revision-form-campo">
-          <label for="archivoRevision" class="revision-label-obs">Adjuntar PDF para el egresado (opcional)</label>
-          <input
-            #archivoRevisionInput
-            id="archivoRevision"
-            type="file"
-            class="revision-file-input"
-            accept=".pdf,application/pdf"
-            [disabled]="guardando"
-            (change)="onArchivoRevision($event)"
-          />
-          <p *ngIf="nombreArchivoRevision" class="revision-adjunto-nombre">Archivo listo: {{ nombreArchivoRevision }}</p>
+          <p *ngIf="mensaje" class="revision-mensaje">{{ mensaje }}</p>
+          <p *ngIf="mensajeEnvio" class="revision-mensaje" [class.revision-mensaje--error]="mensajeEnvio.startsWith('No se pudo')">
+            {{ mensajeEnvio }}
+          </p>
         </div>
 
-        <div class="revision-acciones">
-          <button
-            type="button"
-            class="revision-btn-enviar"
-            [disabled]="guardando"
-            (click)="guardarRevision('observaciones')"
-          >
-            Guardar revisión
+        <div class="revision-card" *ngIf="!mostrarPanelRevision">
+          <p class="revision-mensaje revision-mensaje--ok">Documento aprobado. El trámite puede continuar.</p>
+        </div>
+
+        <div class="revision-historial">
+          <button type="button" class="revision-historial-toggle" (click)="toggleHistorial()" [attr.aria-expanded]="historialExpandido">
+            <span>Historial ({{ revisiones.length }})</span>
+            <span aria-hidden="true">{{ historialExpandido ? '▾' : '▸' }}</span>
           </button>
-          <button
-            type="button"
-            class="revision-btn-enviar revision-btn-enviar-egresado"
-            [disabled]="guardando || !observacionesNueva.trim()"
-            (click)="guardarYEnviarRevision()"
-          >
-            Guardar y enviar revisión
-          </button>
-          <button
-            type="button"
-            class="revision-btn-aprobar"
-            [disabled]="guardando"
-            (click)="guardarRevision('aprobado')"
-          >
-            Aprobar
-          </button>
-        </div>
-
-        <p *ngIf="mensaje" class="revision-mensaje">{{ mensaje }}</p>
-        <p *ngIf="mensajeEnvio" class="revision-mensaje" [class.revision-mensaje--error]="mensajeEnvio.startsWith('No se pudo')">
-          {{ mensajeEnvio }}
-        </p>
-      </div>
-
-      <div class="revision-card" *ngIf="!mostrarPanelRevision">
-        <h3 class="revision-seccion-titulo">Registrar revisión</h3>
-        <p class="revision-mensaje">Documento aprobado. El panel de revisión se cerró.</p>
-      </div>
-
-      <div class="revision-historial">
-        <h3 class="revision-historial-titulo">Historial de revisiones</h3>
-        <div *ngIf="cargandoRevisiones" class="revision-historial-cargando">Cargando…</div>
-        <ul class="revision-historial-lista" *ngIf="!cargandoRevisiones">
-          <li
-            *ngFor="let r of revisiones"
-            class="revision-historial-item"
-            [class.revision-historial-item--activo]="revisionSeleccionada?.id === r.id"
-            (click)="seleccionarRevision(r)"
-          >
-            <span class="revision-historial-icono" aria-hidden="true"></span>
-            <span class="revision-historial-texto">
-              <span class="revision-historial-fila-sup">
-                <span class="revision-historial-numero">Revisión {{ r.numero_revision }}</span>
-                <span
-                  class="revision-historial-chip"
-                  [class.revision-historial-chip--aprobado]="r.resultado === 'aprobado'"
-                  [class.revision-historial-chip--obs]="r.resultado !== 'aprobado'"
-                >
-                  {{ r.resultado === 'aprobado' ? 'Aprobado' : 'Observaciones' }}
+          <div *ngIf="historialExpandido">
+            <div *ngIf="cargandoRevisiones" class="revision-historial-cargando">Cargando…</div>
+            <ul class="revision-historial-lista" *ngIf="!cargandoRevisiones">
+              <li
+                *ngFor="let r of revisiones"
+                class="revision-historial-item"
+                [class.revision-historial-item--activo]="revisionSeleccionada?.id === r.id"
+                (click)="seleccionarRevision(r)"
+              >
+                <span class="revision-historial-texto">
+                  <span class="revision-historial-fila-sup">
+                    <span class="revision-historial-numero">Revisión {{ r.numero_revision }}</span>
+                    <span
+                      class="revision-historial-chip"
+                      [class.revision-historial-chip--aprobado]="r.resultado === 'aprobado'"
+                      [class.revision-historial-chip--obs]="r.resultado !== 'aprobado'"
+                    >
+                      {{ r.resultado === 'aprobado' ? 'Aprobado' : 'Observaciones' }}
+                    </span>
+                  </span>
+                  <span class="revision-historial-fecha">{{ r.fecha }}</span>
                 </span>
-              </span>
-              <span class="revision-historial-fecha">{{ r.fecha }}</span>
-              <span *ngIf="r.enviado_al_egresado && r.fecha_envio_egresado" class="revision-historial-fecha">
-                Enviada al egresado: {{ r.fecha_envio_egresado }}
-              </span>
-            </span>
-            <button
-              *ngIf="r.resultado === 'observaciones' && !r.enviado_al_egresado"
-              type="button"
-              class="revision-btn-enviar-item"
-              (click)="enviarRevision(r); $event.stopPropagation()"
-              [disabled]="enviandoRevisionId === r.id || guardando"
-            >
-              {{ enviandoRevisionId === r.id ? 'Enviando…' : 'Enviar revisión' }}
-            </button>
-            <span
-              *ngIf="r.resultado === 'observaciones' && r.enviado_al_egresado"
-              class="revision-enviada-chip"
-            >
-              Enviada
-            </span>
-            <button
-              *ngIf="r.tiene_documento_adjunto"
-              type="button"
-              class="revision-btn-enviar-item"
-              (click)="descargarAdjuntoRevision(r); $event.stopPropagation()"
-            >
-              PDF
-            </button>
-            <span class="revision-chevron" aria-hidden="true">›</span>
-          </li>
-
-          <li *ngIf="revisiones.length === 0" class="revision-historial-vacio">
-            <span class="revision-historial-vacio-icon" aria-hidden="true"></span>
-            <span>Aún no hay revisiones registradas.</span>
-          </li>
-        </ul>
-      </div>
-    </aside>
+                <button
+                  *ngIf="r.resultado === 'observaciones' && !r.enviado_al_egresado"
+                  type="button"
+                  class="revision-btn-enviar-item"
+                  (click)="enviarRevision(r); $event.stopPropagation()"
+                  [disabled]="enviandoRevisionId === r.id || guardando"
+                >
+                  {{ enviandoRevisionId === r.id ? 'Enviando…' : 'Enviar' }}
+                </button>
+                <span *ngIf="r.resultado === 'observaciones' && r.enviado_al_egresado" class="revision-enviada-chip">Enviada</span>
+              </li>
+              <li *ngIf="revisiones.length === 0" class="revision-historial-vacio">Sin revisiones previas.</li>
+            </ul>
+          </div>
+        </div>
+      </aside>
     </div>
   </div>
 </div>

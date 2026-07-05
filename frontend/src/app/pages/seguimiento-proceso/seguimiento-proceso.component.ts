@@ -10,6 +10,7 @@ import { HeaderComponent } from '../../layout/header/header.component';
 import { mensajeErrorApiConBlob } from '../../core/http-blob-error';
 import { EgresadoService, EgresadoDetail, EgresadoItem } from '../../services/egresado.service';
 import { CatalogoService } from '../../services/catalogo.service';
+import { AuthService } from '../../services/auth.service';
 import {
   calcularVistaPlazosNoResidencia,
   calcularVistaPlazosResidencia,
@@ -107,6 +108,28 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
   private vistaDocEscaneadaObjectUrl: string | null = null;
   private refrescoListaIntervalo: ReturnType<typeof setInterval> | null = null;
 
+  private readonly pasosRevertiblesSeguimiento = new Set([
+    'fecha_confirmacion_entrega_egresado_depto',
+    'fecha_envio_solicitud_registro_anteproyecto_depto_academico',
+    'fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii',
+    'fecha_recepcion_trabajo_division_estudios_prof',
+    'fecha_solicitud_registro_liberacion_depto_academico',
+    'fecha_recepcion_registro_liberacion_depto_academico',
+    'fecha_enviado_departamento_academico',
+    'fecha_confirmacion_recibidos_anexo_xxxi_xxxii',
+    'fecha_creacion_anexo_9_1',
+    'fecha_confirmacion_entrega_anexo_9_1',
+    'fecha_solicitud_anexo_9_2',
+    'fecha_confirmacion_recibido_anexo_9_2',
+    'fecha_solicitud_sinodales',
+    'fecha_confirmacion_sinodales_recibidos',
+    'fecha_agenda_acto_9_3',
+    'fecha_creacion_anexo_9_3',
+    'fecha_confirmacion_entrega_anexo_9_3',
+    'fecha_solicitud_documentacion_escaneada',
+    'fecha_confirmacion_documentacion_escaneada_recibida',
+  ]);
+
   get carrerasDisponibles(): string[] {
     return [...new Set(this.items.map((i) => i.carrera))].sort((a, b) => a.localeCompare(b));
   }
@@ -179,6 +202,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private catalogoService: CatalogoService,
     private sanitizer: DomSanitizer,
+    private auth: AuthService,
   ) {}
 
   ngOnInit(): void {
@@ -251,6 +275,59 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       return !!d.fecha_confirmacion_entrega_egresado_depto?.trim();
     }
     return !!d.fecha_confirmacion_recibidos_anexo_xxxi_xxxii?.trim();
+  }
+
+  puedeRevertirPasoSeguimiento(paso: PasoProcesoUi): boolean {
+    if (!this.auth.puedeRevertirPasoDepartamento() || !this.detalleSeleccionado) return false;
+    if (paso.estado !== 'en_curso') return false;
+    return this.pasoAnteriorRevertible(paso) != null;
+  }
+
+  private pasoAnteriorRevertible(pasoActual: PasoProcesoUi): PasoProcesoUi | null {
+    const pasos = this.pasosProcesoTitulacionCache;
+    const idx = pasos.findIndex((p) => p.key === pasoActual.key);
+    if (idx <= 0) return null;
+    for (let i = idx - 1; i >= 0; i--) {
+      const prev = pasos[i];
+      if (prev.estado !== 'completado') continue;
+      if (!this.pasosRevertiblesSeguimiento.has(prev.key)) continue;
+      if (!this.campoPasoCompletadoEnDetalle(prev.key)) continue;
+      return prev;
+    }
+    return null;
+  }
+
+  private campoPasoCompletadoEnDetalle(pasoKey: string): boolean {
+    const d = this.detalleSeleccionado;
+    if (!d) return false;
+    if (pasoKey === 'fecha_confirmacion_entrega_egresado_depto') {
+      return !!d.fecha_confirmacion_entrega_egresado_depto?.trim();
+    }
+    if (pasoKey === 'fecha_recepcion_trabajo_division_estudios_prof') {
+      return !!d.fecha_solicitud_registro_liberacion_depto_academico?.trim();
+    }
+    const valor = (d as unknown as Record<string, string | undefined>)[pasoKey];
+    return !!valor?.trim();
+  }
+
+  revertirPasoSeguimiento(paso: PasoProcesoUi): void {
+    const prev = this.pasoAnteriorRevertible(paso);
+    if (!this.detalleSeleccionado || !prev || !this.puedeRevertirPasoSeguimiento(paso) || this.procesandoPaso) return;
+    const titulo = prev.titulo.length > 80 ? `${prev.titulo.slice(0, 77)}…` : prev.titulo;
+    if (!confirm(`¿Revertir el paso anterior «${titulo}»? El trámite volverá a ese punto.`)) return;
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    this.egresadoService.revertirPasoSeguimiento(this.detalleSeleccionado.id, prev.key).subscribe({
+      next: () => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = 'Paso revertido correctamente.';
+        this.refrescarDetalle();
+      },
+      error: (err) => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = err?.error?.error ?? 'No se pudo revertir el paso.';
+      },
+    });
   }
 
   seleccionarEgresado(item: SeguimientoItem): void {

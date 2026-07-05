@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { aplicarValidacionPdfInput, validarArchivoPdf } from '../../../core/archivo-pdf';
 import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -6,13 +7,15 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DomSanitizer, SafeResourceUrl, SafeUrl } from '@angular/platform-browser';
 import { HeaderComponent } from '../../../layout/header/header.component';
+import { PdfViewerPanelComponent } from '../../../shared/pdf-viewer-panel/pdf-viewer-panel.component';
 import { AuthService } from '../../../services/auth.service';
+import { mensajeErrorApiConBlob } from '../../../core/http-blob-error';
 import { EgresadoService, RevisionApi } from '../../../services/egresado.service';
 
 @Component({
   selector: 'app-revision-documento',
   standalone: true,
-  imports: [CommonModule, FormsModule, HeaderComponent],
+  imports: [CommonModule, FormsModule, HeaderComponent, PdfViewerPanelComponent],
   templateUrl: './revision-documento.component.html',
   styleUrl: './revision-documento.component.css',
 })
@@ -50,6 +53,17 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
   /** Panel secundario: reemplazo de archivo (colapsado por defecto). */
   panelReemplazoExpandido = false;
 
+  /** Cabecera del expediente. */
+  detalle: {
+    nombre: string;
+    control: string;
+    carrera: string;
+    modalidad: string;
+    estado: string;
+  } | null = null;
+
+  historialExpandido = true;
+
   /** Fuerza recreación del iframe PDF tras reemplazar el archivo. */
   documentoIframeKey = 0;
 
@@ -68,9 +82,32 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.id = this.route.snapshot.paramMap.get('id') ?? '';
     if (this.id) {
+      this.cargarDetalleEgresado();
       this.cargarDocumento();
       this.cargarRevisiones();
     }
+  }
+
+  private cargarDetalleEgresado(): void {
+    this.subs.add(
+      this.egresadoService.obtenerPorId(this.id).subscribe({
+        next: (d) => {
+          const dp = d.datos_personales;
+          const nombre = [dp?.nombre, dp?.apellido_paterno, dp?.apellido_materno].filter(Boolean).join(' ').trim();
+          this.detalle = {
+            nombre: nombre || '—',
+            control: d.numero_control || '—',
+            carrera: dp?.carrera?.trim() || '—',
+            modalidad: d.datos_proyecto?.modalidad?.trim() || '—',
+            estado: d.estado_general?.trim() || 'En revisión',
+          };
+        },
+      }),
+    );
+  }
+
+  toggleHistorial(): void {
+    this.historialExpandido = !this.historialExpandido;
   }
 
   ngOnDestroy(): void {
@@ -85,21 +122,37 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
       this.egresadoService.getDocumento(this.id, Date.now()).subscribe({
         next: ({ blob, contentType, fileName }) => {
           if (loadId !== this.documentoLoadId) return;
-          this.documentoEsTesisLiberacion = false;
-          this.mostrarDocumentoCargado(blob, contentType, fileName || 'documento');
-        },
-        error: (err: { status?: number; error?: { error?: string }; message?: string }) => {
-          if (loadId !== this.documentoLoadId) return;
-          if (err?.status === 404) {
-            this.cargarTesisLiberacion(loadId);
+          if (!blob?.size) {
+            void this.mostrarSinDocumento(loadId);
             return;
           }
-          this.cargandoDocumento = false;
-          const msg = err?.error?.error ?? err?.message;
-          this.errorDocumento = msg ? `No se pudo cargar el documento: ${msg}` : 'No se pudo cargar el documento.';
+          this.documentoEsTesisLiberacion = /tesis|liberaci/i.test(fileName);
+          this.mostrarDocumentoCargado(blob, contentType, fileName || 'documento');
+        },
+        error: (err) => {
+          if (loadId !== this.documentoLoadId) return;
+          void this.manejarErrorCargaDocumento(err, loadId);
         },
       }),
     );
+  }
+
+  private async manejarErrorCargaDocumento(err: unknown, loadId: number): Promise<void> {
+    if (err instanceof HttpErrorResponse && err.status === 404) {
+      await this.mostrarSinDocumento(loadId);
+      return;
+    }
+    this.cargandoDocumento = false;
+    const msg = await mensajeErrorApiConBlob(err, 'No se pudo cargar el documento.');
+    this.errorDocumento = msg;
+  }
+
+  private async mostrarSinDocumento(loadId: number): Promise<void> {
+    if (loadId !== this.documentoLoadId) return;
+    this.cargandoDocumento = false;
+    this.errorDocumento =
+      'Este expediente no tiene documento adjunto. Usa «Reemplazar documento» abajo para subir el PDF del egresado.';
+    this.panelReemplazoExpandido = true;
   }
 
   /** Tras reemplazar expediente: recarga solo documento_adjunto (no tesis de liberación). */
@@ -116,10 +169,10 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
         error: (err) => {
           if (loadId !== this.documentoLoadId) return;
           this.cargandoDocumento = false;
-          const msg = err?.error?.error ?? err?.error?.message ?? err?.message ?? err?.statusText;
-          this.errorDocumento = msg
-            ? `No se pudo mostrar el archivo nuevo: ${msg}`
-            : 'No se pudo mostrar el archivo nuevo.';
+          void mensajeErrorApiConBlob(err, 'No se pudo mostrar el archivo nuevo.').then((msg) => {
+            if (loadId !== this.documentoLoadId) return;
+            this.errorDocumento = msg;
+          });
         },
       }),
     );
@@ -133,24 +186,6 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
     this.documentoUrlSeguro = null;
     this.documentoHrefSeguro = null;
     this.documentoIframeKey = 0;
-  }
-
-  private cargarTesisLiberacion(loadId: number): void {
-    this.subs.add(
-      this.egresadoService.getTesisLiberacion(this.id, Date.now()).subscribe({
-        next: ({ blob, contentType, fileName }) => {
-          if (loadId !== this.documentoLoadId) return;
-          this.documentoEsTesisLiberacion = true;
-          this.mostrarDocumentoCargado(blob, contentType, fileName || 'tesis-liberacion.pdf');
-        },
-        error: (err) => {
-          if (loadId !== this.documentoLoadId) return;
-          this.cargandoDocumento = false;
-          const msg = err?.error?.error ?? err?.error?.message ?? err?.message ?? err?.statusText;
-          this.errorDocumento = msg ? `No se pudo cargar el documento: ${msg}` : 'No se pudo cargar el documento.';
-        },
-      }),
-    );
   }
 
   private mostrarDocumentoCargado(blob: Blob, contentType: string, fileName: string): void {

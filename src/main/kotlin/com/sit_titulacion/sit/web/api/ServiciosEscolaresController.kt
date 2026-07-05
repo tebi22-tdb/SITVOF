@@ -56,6 +56,27 @@ class ServiciosEscolaresController(
         }
     }
 
+    @PostMapping("/constancias-9-2/{id}/revertir")
+    fun revertirConstancia92(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        requireServiciosEscolares(principal)?.let { return it }
+        if (!puedeRevertirAtencion(principal?.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to "No tienes permiso para revertir."))
+        }
+        val err = serviciosEscolaresService.revertirAceptacionConstancia92(id)
+        return if (err == null) {
+            ResponseEntity.ok().build<Void>()
+        } else {
+            ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("error" to err))
+        }
+    }
+
+    private fun puedeRevertirAtencion(rol: String?): Boolean =
+        RolSoporte.tieneAlgunRol(rol, "coordinador", "administrador", "division_estudios_prof_admin")
+
     private fun requireServiciosEscolares(principal: UsuarioPrincipal?): ResponseEntity<*>? {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()

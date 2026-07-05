@@ -122,7 +122,7 @@ export const routes: Routes = [
       import('./pages/config-institucional/config-institucional.component').then(
         (m) => m.ConfigInstitucionalComponent,
       ),
-    canActivate: [coordinadorGuard],
+    canActivate: [coordinadorGuard, noApoyoTitulacionGuard],
   },
   { path: '**', redirectTo: 'login' },
 ];

@@ -17,6 +17,7 @@ import com.sit_titulacion.sit.web.api.dto.AsignarSinodalesRequestDto
 import com.sit_titulacion.sit.web.api.dto.SinodalesRespuestaDto
 import com.sit_titulacion.sit.web.api.dto.RevisionDto
 import com.sit_titulacion.sit.web.api.dto.SolicitarReenvioDocumentacionEscaneadaRequestDto
+import com.sit_titulacion.sit.web.api.dto.RevertirPasoSeguimientoRequestDto
 import com.sit_titulacion.sit.service.RevisionService
 import com.sit_titulacion.sit.service.DocumentoStream
 import com.sit_titulacion.sit.service.OriginalidadService
@@ -124,6 +125,20 @@ class EgresadoController(
         return ResponseEntity.ok(lista)
     }
 
+    /** Bandeja departamento: conteos + lista en una sola petición (más rápido). */
+    @GetMapping("/departamento/bandeja")
+    fun bandejaDepartamento(
+        @RequestParam(required = false, defaultValue = "pendientes") estado: String,
+        @RequestParam(required = false) segmento: String?,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        if (!puedeVerBandejaDepartamento(principal.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        }
+        return ResponseEntity.ok(egresadoService.bandejaDepartamento(estado, principal.username, segmento))
+    }
+
     private fun parseFechaParam(s: String?, endOfDay: Boolean = false): java.time.Instant? {
         if (s.isNullOrBlank()) return null
         return try {
@@ -213,7 +228,10 @@ class EgresadoController(
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
         }
         respuestaSiNoAccesoEgresadoBandeja(id, principal)?.let { return it }
-        val doc = egresadoService.obtenerDocumentoAdjunto(id) ?: return ResponseEntity.notFound().build<Void>()
+        val doc = egresadoService.obtenerDocumentoAdjunto(id)
+            ?: egresadoService.obtenerTesisLiberacionAdjunto(id)
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(mapOf("error" to "Este expediente no tiene documento adjunto."))
         val headers = HttpHeaders().apply {
             set(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + doc.fileName.replace("\"", "%22") + "\"")
         }
@@ -474,6 +492,76 @@ class EgresadoController(
     fun marcarRegistradoDepartamento(@PathVariable id: String): ResponseEntity<*> =
         if (egresadoService.marcarRegistradoDepartamento(id)) ResponseEntity.ok().build<Void>()
         else ResponseEntity.badRequest().body(mapOf("error" to "No se pudo marcar como registrado."))
+
+    @PostMapping("/{id}/departamento/revertir-liberacion-residencia")
+    fun revertirLiberacionResidencia(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (principal == null || !puedeRevertirPasoDepartamento(principal.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        }
+        val err = egresadoService.revertirLiberacionResidencia(id)
+        return if (err == null) ResponseEntity.ok().build<Void>()
+        else ResponseEntity.badRequest().body(mapOf("error" to err))
+    }
+
+    @PostMapping("/{id}/departamento/revertir-registrado-anteproyecto")
+    fun revertirRegistradoAnteproyecto(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (principal == null || !puedeRevertirPasoDepartamento(principal.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        }
+        val err = egresadoService.revertirRegistradoAnteproyecto(id)
+        return if (err == null) ResponseEntity.ok().build<Void>()
+        else ResponseEntity.badRequest().body(mapOf("error" to err))
+    }
+
+    @PostMapping("/{id}/departamento/revertir-liberacion-producto")
+    fun revertirLiberacionProducto(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (principal == null || !puedeRevertirPasoDepartamento(principal.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        }
+        val err = egresadoService.revertirLiberacionProducto(id)
+        return if (err == null) ResponseEntity.ok().build<Void>()
+        else ResponseEntity.badRequest().body(mapOf("error" to err))
+    }
+
+    @PostMapping("/{id}/departamento/revertir-aprobacion-coordinacion")
+    fun revertirAprobacionCoordinacion(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (principal == null || !puedeRevertirPasoDepartamento(principal.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        }
+        val err = egresadoService.revertirAprobacionCoordinacion(id)
+        return if (err == null) ResponseEntity.ok().build<Void>()
+        else ResponseEntity.badRequest().body(mapOf("error" to err))
+    }
+
+    @PostMapping("/{id}/seguimiento/revertir-paso")
+    fun revertirPasoSeguimiento(
+        @PathVariable id: String,
+        @RequestBody body: RevertirPasoSeguimientoRequestDto,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (principal == null || !puedeRevertirPasoDepartamento(principal.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        }
+        val paso = body.paso?.trim().orEmpty()
+        if (paso.isEmpty()) {
+            return ResponseEntity.badRequest().body(mapOf("error" to "Indica el paso a revertir."))
+        }
+        val err = egresadoService.revertirPasoSeguimiento(id, paso)
+        return if (err == null) ResponseEntity.ok().build<Void>()
+        else ResponseEntity.badRequest().body(mapOf("error" to err))
+    }
 
     /** No residencia paso 1: DEP confirma entrega del egresado (anexo XXXI y anteproyecto). */
     @PostMapping("/{id}/no-residencia/confirmar-entrega-egresado-depto")
@@ -1074,6 +1162,10 @@ class EgresadoController(
             "administrador",
         )
     }
+
+    /** Revertir pasos de bandeja departamento: solo perfiles administrativos, no académicos de departamento. */
+    private fun puedeRevertirPasoDepartamento(rol: String?): Boolean =
+        RolSoporte.tieneAlgunRol(rol, "coordinador", "administrador", "division_estudios_prof_admin")
 
     /** Académico con carreras asignadas no puede abrir expedientes de otras carreras. */
     private fun respuestaSiAcademicoSinCarrera(id: String, principal: UsuarioPrincipal?): ResponseEntity<*>? {

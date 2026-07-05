@@ -62,6 +62,14 @@ export class HomeComponent implements OnInit {
     return this.authService.puedeAdministrarUsuariosStaff();
   }
 
+  /** Perfiles disponibles al crear usuario (administrativo solo ve división administrativa). */
+  get perfilesParaCrearUsuario(): PerfilCreacionUsuarioItem[] {
+    if (this.authService.esDivisionAdministrativa()) {
+      return PERFILES_ESTATICOS.filter((p) => p.id === 'division_estudios_prof_admin');
+    }
+    return this.perfilesCreacionUsuario;
+  }
+
   constructor(
     private egresadoService: EgresadoService,
     private authService: AuthService,
@@ -70,6 +78,10 @@ export class HomeComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    if (this.authService.esDivisionAdministrativa()) {
+      this.router.navigate(['/home/gestion-cuentas']);
+      return;
+    }
     if (this.tabLista === 'usuarios' && !this.authService.puedeAdministrarUsuariosStaff()) {
       this.tabLista = 'egresados';
     }

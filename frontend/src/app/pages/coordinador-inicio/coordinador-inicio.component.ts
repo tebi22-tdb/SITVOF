@@ -134,7 +134,7 @@ export class CoordinadorInicioComponent implements OnInit {
     {
       title: 'Configuración institucional', sub: 'Imagen TECNM y jefes',
       descripcion: 'Configura los datos institucionales del plantel: imagen corporativa TECNM, jefes de departamento para la firma en Anexos 32 y 33.',
-      color: '#0891b2', key: 'config', soloPleno: false,
+      color: '#0891b2', key: 'config', soloPleno: true,
     },
     {
       title: 'Configuración de catálogos', sub: 'Carreras, niveles, modalid.',
@@ -219,6 +219,9 @@ export class CoordinadorInicioComponent implements OnInit {
 
   // ── Modules visible per role ──
   get modulosVisibles(): ModuloNav[] {
+    if (this.esDivisionAdministrativa) {
+      return this.modulosNav.filter((m) => m.key === 'cuentas');
+    }
     return this.esApoyoTitulacion
       ? this.modulosNav.filter(m => !m.soloPleno)
       : this.modulosNav;
@@ -256,6 +259,10 @@ export class CoordinadorInicioComponent implements OnInit {
     return this.auth.isApoyoTitulacion();
   }
 
+  get esDivisionAdministrativa(): boolean {
+    return this.auth.esDivisionAdministrativa();
+  }
+
   constructor(
     private router: Router,
     private auth: AuthService,
@@ -264,6 +271,10 @@ export class CoordinadorInicioComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    if (this.auth.esDivisionAdministrativa()) {
+      this.router.navigate(['/home/gestion-cuentas']);
+      return;
+    }
     this.egresadoService.listar({ aplicar_scope_departamento: false }).subscribe({
       next: (lista) => {
         this.rawItems = lista;

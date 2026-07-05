@@ -7,51 +7,59 @@
   ></app-header>
 
   <main class="se-main">
-    <header class="se-cabecera">
-      <h1 class="se-titulo">Servicios escolares</h1>
-    </header>
-
-    <nav class="se-tabs" aria-label="Estado de constancias">
-      <button
-        type="button"
-        class="se-tab"
-        [class.activo]="tabActivo === 'pendientes'"
-        (click)="cambiarTab('pendientes')"
-      >
-        Pendientes
-        <span *ngIf="totalPendientes > 0" class="se-tab-badge">{{ totalPendientes }}</span>
-      </button>
-      <button
-        type="button"
-        class="se-tab"
-        [class.activo]="tabActivo === 'atendidos'"
-        (click)="cambiarTab('atendidos')"
-      >
-        Atendidos
-        <span *ngIf="totalAtendidos > 0" class="se-tab-badge se-tab-badge--muted">{{ totalAtendidos }}</span>
-      </button>
-    </nav>
-
-    <section class="se-buscar">
-      <label class="se-buscar-label" for="se-buscar-control">Buscar (número de control):</label>
-      <div class="se-buscar-fila">
-        <input
-          id="se-buscar-control"
-          type="text"
-          class="se-buscar-input"
-          [(ngModel)]="buscarControl"
-          placeholder="Ej. 20160412"
-          (keyup.enter)="buscar()"
-        />
-        <button type="button" class="se-btn se-btn--primario" (click)="buscar()">Buscar</button>
-        <button type="button" class="se-btn se-btn--sec" (click)="limpiarBusqueda()">Limpiar</button>
+    <header class="se-toolbar">
+      <div class="se-toolbar__intro">
+        <h1 class="se-titulo">Servicios escolares</h1>
+        <p class="se-subtitulo">Atención de solicitudes de anexo 9.2 (constancia de no inconveniencia)</p>
       </div>
-    </section>
+
+      <nav class="se-tabs" aria-label="Estado de constancias">
+        <button
+          type="button"
+          class="se-tab"
+          [class.activo]="tabActivo === 'pendientes'"
+          (click)="cambiarTab('pendientes')"
+        >
+          Pendientes
+          <span *ngIf="totalPendientes > 0" class="se-tab-badge">{{ totalPendientes }}</span>
+        </button>
+        <button
+          type="button"
+          class="se-tab"
+          [class.activo]="tabActivo === 'atendidos'"
+          (click)="cambiarTab('atendidos')"
+        >
+          Atendidos
+          <span *ngIf="totalAtendidos > 0" class="se-tab-badge se-tab-badge--muted">{{ totalAtendidos }}</span>
+        </button>
+      </nav>
+    </header>
 
     <div *ngIf="error" class="se-alerta se-alerta--error" role="alert">{{ error }}</div>
 
     <section class="se-layout" *ngIf="!error">
       <div class="se-lista-panel">
+        <div class="se-lista-panel__head">
+          <h2 class="se-lista-panel__titulo">Expedientes</h2>
+          <span class="se-lista-panel__count" *ngIf="!cargandoLista">{{ items.length }}</span>
+        </div>
+
+        <div class="se-buscar">
+          <label class="se-buscar-label" for="se-buscar-control">Buscar por no. control</label>
+          <input
+            id="se-buscar-control"
+            type="text"
+            class="se-buscar-input"
+            [(ngModel)]="buscarControl"
+            placeholder="Ej. 20160412"
+            (keyup.enter)="buscar()"
+          />
+          <div class="se-buscar-acciones">
+            <button type="button" class="se-btn se-btn--primario se-btn--compacto" (click)="buscar()">Buscar</button>
+            <button type="button" class="se-btn se-btn--sec se-btn--compacto" (click)="limpiarBusqueda()">Limpiar</button>
+          </div>
+        </div>
+
         <div *ngIf="cargandoLista" class="se-estado">Cargando bandeja…</div>
         <ul *ngIf="!cargandoLista" class="se-lista" role="list">
           <li
@@ -65,7 +73,14 @@
           >
             <div class="se-lista-fila-principal">
               <span class="se-lista-control">{{ item.numero_control }}</span>
-              <span *ngIf="tabActivo === 'pendientes'" class="se-lista-badge se-lista-badge--pendiente">Pendiente</span>
+              <span
+                *ngIf="tabActivo === 'pendientes'"
+                class="se-lista-badge se-lista-badge--pendiente"
+              >Pendiente</span>
+              <span
+                *ngIf="tabActivo === 'atendidos'"
+                class="se-lista-badge se-lista-badge--atendido"
+              >Atendido</span>
             </div>
             <span class="se-lista-nombre">{{ item.nombre_completo }}</span>
             <span class="se-lista-meta">{{ formatearFecha(item.fecha_solicitud_anexo_9_2) }}</span>
@@ -82,56 +97,82 @@
 
       <aside class="se-detalle-panel">
         <div *ngIf="!detalle && !cargandoDetalle" class="se-detalle-placeholder">
-          <p>Selecciona un alumno de la lista para ver su información.</p>
+          <div class="se-detalle-placeholder__icon" aria-hidden="true"></div>
+          <p class="se-detalle-placeholder__titulo">Sin expediente seleccionado</p>
+          <p class="se-detalle-placeholder__texto">Elige un alumno de la lista para revisar su solicitud.</p>
         </div>
         <div *ngIf="cargandoDetalle" class="se-estado">Cargando detalle…</div>
         <p *ngIf="mensajeDetalle" class="se-alerta se-alerta--error">{{ mensajeDetalle }}</p>
 
         <article *ngIf="detalle && !cargandoDetalle" class="se-ficha">
+          <header class="se-ficha-head">
+            <div class="se-ficha-head__info">
+              <h2 class="se-ficha-nombre">{{ detalle.nombre_completo }}</h2>
+              <p class="se-ficha-control">No. control {{ detalle.numero_control }}</p>
+            </div>
+            <span
+              class="se-ficha-estado"
+              [class.se-ficha-estado--pendiente]="tabActivo === 'pendientes'"
+              [class.se-ficha-estado--atendido]="tabActivo === 'atendidos'"
+            >
+              {{ tabActivo === 'pendientes' ? 'Pendiente' : 'Atendido' }}
+            </span>
+          </header>
+
           <div class="se-ficha-aviso" role="status">
-            <strong>Solicitud de anexo 9.2 (constancia de no inconveniencia)</strong>
-            <span class="se-ficha-aviso-fecha">Registro {{ formatearFecha(detalle.fecha_solicitud_anexo_9_2) }}</span>
+            <span class="se-ficha-aviso-etiqueta">Trámite</span>
+            <strong>Anexo 9.2 — Constancia de no inconveniencia</strong>
+            <span class="se-ficha-aviso-fecha">Solicitud registrada el {{ formatearFecha(detalle.fecha_solicitud_anexo_9_2) }}</span>
           </div>
 
-          <dl class="se-datos">
-            <div class="se-dato">
-              <dt>Alumno</dt>
-              <dd>{{ detalle.nombre_completo }}</dd>
-            </div>
-            <div class="se-dato">
-              <dt>Número de control</dt>
-              <dd>{{ detalle.numero_control }}</dd>
-            </div>
-            <div class="se-dato">
-              <dt>Fecha carta de no inconveniencia</dt>
-              <dd>{{ detalle.fecha_constancia_no_inconveniencia || '—' }}</dd>
-            </div>
-            <div class="se-dato">
-              <dt>Fecha anexo 9.1</dt>
-              <dd>{{ detalle.fecha_creacion_anexo_9_1 || '—' }}</dd>
-            </div>
-            <div class="se-dato">
-              <dt>Modalidad de titulación</dt>
-              <dd>{{ detalle.modalidad || '—' }}</dd>
-            </div>
-            <div class="se-dato se-dato--proyecto">
-              <dt>Nombre del proyecto</dt>
-              <dd>{{ detalle.nombre_proyecto || '—' }}</dd>
-            </div>
-          </dl>
+          <section class="se-datos-card">
+            <h3 class="se-datos-titulo">Datos del expediente</h3>
+            <dl class="se-datos">
+              <div class="se-dato">
+                <dt>Fecha carta de no inconveniencia</dt>
+                <dd>{{ detalle.fecha_constancia_no_inconveniencia || '—' }}</dd>
+              </div>
+              <div class="se-dato">
+                <dt>Fecha anexo 9.1</dt>
+                <dd>{{ detalle.fecha_creacion_anexo_9_1 || '—' }}</dd>
+              </div>
+              <div class="se-dato">
+                <dt>Modalidad de titulación</dt>
+                <dd>{{ detalle.modalidad || '—' }}</dd>
+              </div>
+              <div class="se-dato se-dato--proyecto">
+                <dt>Nombre del proyecto</dt>
+                <dd>{{ detalle.nombre_proyecto || '—' }}</dd>
+              </div>
+            </dl>
+          </section>
 
-          <div class="se-acciones" *ngIf="tabActivo === 'pendientes' && !detalle.fecha_aceptacion_servicios_escolares_anexo_9_2">
+          <footer
+            class="se-acciones"
+            *ngIf="tabActivo === 'pendientes' && !detalle.fecha_aceptacion_servicios_escolares_anexo_9_2"
+          >
             <button type="button" class="se-btn se-btn--aceptar" [disabled]="confirmando" (click)="aceptarPendiente()">
               {{ confirmando ? 'Atendiendo…' : 'Solicitud Atendida' }}
             </button>
-          </div>
-          <p
-            *ngIf="detalle.fecha_aceptacion_servicios_escolares_anexo_9_2"
-            class="se-aceptado"
-            role="status"
+          </footer>
+          <footer
+            class="se-acciones se-acciones--atendido"
+            *ngIf="tabActivo === 'atendidos' && detalle.fecha_aceptacion_servicios_escolares_anexo_9_2"
           >
-            Completado el {{ formatearFecha(detalle.fecha_aceptacion_servicios_escolares_anexo_9_2) }}
-          </p>
+            <p class="se-aceptado" role="status">
+              <span class="se-aceptado__icon" aria-hidden="true">✓</span>
+              Completado el {{ formatearFecha(detalle.fecha_aceptacion_servicios_escolares_anexo_9_2) }}
+            </p>
+            <button
+              *ngIf="puedeRevertirAtencion"
+              type="button"
+              class="se-btn se-btn--revertir"
+              [disabled]="revirtiendo"
+              (click)="revertirAtencion()"
+            >
+              {{ revirtiendo ? 'Revirtiendo…' : 'Revertir' }}
+            </button>
+          </footer>
         </article>
       </aside>
     </section>

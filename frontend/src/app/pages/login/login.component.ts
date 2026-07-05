@@ -90,6 +90,8 @@ export class LoginComponent implements OnInit {
           this.router.navigate(['/servicios-escolares']);
         } else if (rol === 'academico') {
           this.router.navigate(['/departamento-academico']);
+        } else if (this.auth.esDivisionAdministrativa()) {
+          this.router.navigate(['/home/gestion-cuentas']);
         } else if (this.auth.isCoordinador()) {
           this.router.navigate(['/home']);
         } else {

@@ -376,6 +376,19 @@ export class EgresadoService {
     return this.http.get<DepartamentoListItem[]>(`${API}/departamento`, { params });
   }
 
+  /** Conteos + lista en una sola petición (bandeja departamento / coordinación). */
+  getDepartamentoBandeja(
+    estado: string,
+    segmento?: string | null,
+  ): Observable<{ counts: DepartamentoCounts; items: DepartamentoListItem[] }> {
+    let params = new HttpParams().set('estado', estado);
+    if (segmento?.trim()) params = params.set('segmento', segmento.trim());
+    return this.http.get<{ counts: DepartamentoCounts; items: DepartamentoListItem[] }>(
+      `${API}/departamento/bandeja`,
+      { params },
+    );
+  }
+
   /** Lista revisiones del egresado (solo rol academico). */
   listarRevisiones(egresadoId: string): Observable<RevisionApi[]> {
     return this.http.get<RevisionApi[]>(`${API}/${egresadoId}/revisiones`);
@@ -612,6 +625,26 @@ export class EgresadoService {
 
   registrarGeneracionAnexos(id: string): Observable<unknown> {
     return this.http.post(`${API}/${id}/registrar-generacion-anexos`, {});
+  }
+
+  revertirLiberacionResidencia(id: string): Observable<unknown> {
+    return this.http.post(`${API}/${id}/departamento/revertir-liberacion-residencia`, {});
+  }
+
+  revertirRegistradoAnteproyecto(id: string): Observable<unknown> {
+    return this.http.post(`${API}/${id}/departamento/revertir-registrado-anteproyecto`, {});
+  }
+
+  revertirLiberacionProducto(id: string): Observable<unknown> {
+    return this.http.post(`${API}/${id}/departamento/revertir-liberacion-producto`, {});
+  }
+
+  revertirAprobacionCoordinacion(id: string): Observable<unknown> {
+    return this.http.post(`${API}/${id}/departamento/revertir-aprobacion-coordinacion`, {});
+  }
+
+  revertirPasoSeguimiento(id: string, paso: string): Observable<unknown> {
+    return this.http.post(`${API}/${id}/seguimiento/revertir-paso`, { paso });
   }
 
   descargarHoja32(id: string): Observable<{ blob: Blob; fileName: string }> {

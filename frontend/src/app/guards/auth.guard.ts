@@ -11,6 +11,8 @@ function redirigirInicioPorRol(auth: AuthService, router: Router): void {
     router.navigate(['/departamento-academico']);
   } else if (auth.isSubdireccionAcademica()) {
     router.navigate(['/repositorio']);
+  } else if (auth.esDivisionAdministrativa()) {
+    router.navigate(['/home/gestion-cuentas']);
   } else if (auth.isCoordinador()) {
     router.navigate(['/home']);
   } else if (auth.isEgresado()) {
@@ -76,7 +78,7 @@ export const noApoyoTitulacionGuard: CanActivateFn = () => {
   const router = inject(Router);
   return auth.me().pipe(
     map(() => {
-      if (auth.isApoyoTitulacion()) {
+      if (auth.isApoyoTitulacion() || auth.esDivisionAdministrativa()) {
         router.navigate(['/home']);
         return false;
       }
@@ -160,7 +162,7 @@ export const coordinadorGuard: CanActivateFn = (route, state) => {
         router.navigate(['/departamento-academico']);
         return false;
       }
-      if (auth.isCoordinador()) return true;
+      if (auth.isCoordinador() || auth.esDivisionAdministrativa()) return true;
       if (auth.isEgresado()) {
         router.navigate(['/seguimiento']);
         return false;
