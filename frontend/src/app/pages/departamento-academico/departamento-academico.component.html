@@ -9,9 +9,13 @@
     [class.departamento-main--ancho]="tabActivo === 'sinodales' || mostrarTabsRevisionCoordinacion"
     [class.departamento-main--split]="usarSplitConDocumento"
   >
-    <header class="departamento-header">
-      <h1 class="departamento-titulo">{{ tituloDepartamento }}</h1>
-    </header>
+    <header class="departamento-toolbar" [class.departamento-toolbar--revision]="mostrarTabsRevisionCoordinacion">
+      <div class="departamento-toolbar__intro">
+        <h1 class="departamento-titulo">{{ tituloDepartamento }}</h1>
+        <p class="departamento-subtitulo" *ngIf="mostrarTabsRevisionCoordinacion">
+          Revisión de expedientes enviados por la División de Estudios Profesionales
+        </p>
+      </div>
 
     <nav class="departamento-tabs" aria-label="Filtrar por estado">
       <button
@@ -91,6 +95,7 @@
         Todos
       </button>
     </nav>
+    </header>
 
     <div *ngIf="error" class="departamento-error">{{ error }}</div>
     <div *ngIf="cargando" class="departamento-skeleton" aria-busy="true" aria-label="Cargando lista">
@@ -125,9 +130,19 @@
       </ng-container>
 
       <ng-container *ngIf="listaVisible.length > 0 && usarSplitConDocumento">
-        <div class="departamento-split">
+        <div
+          class="departamento-split"
+          [class.departamento-split--revision-coord]="mostrarTabsRevisionCoordinacion"
+        >
           <div class="departamento-split-izq">
-            <div class="departamento-tabla-wrap departamento-tabla-wrap--en-split">
+            <div class="departamento-split-panel-head" *ngIf="mostrarTabsRevisionCoordinacion">
+              <h2 class="departamento-split-panel-titulo">Expedientes</h2>
+              <span class="departamento-split-panel-contador">{{ listaVisible.length }}</span>
+            </div>
+            <div
+              class="departamento-tabla-wrap departamento-tabla-wrap--en-split"
+              [class.departamento-tabla-wrap--revision-coord]="mostrarTabsRevisionCoordinacion"
+            >
               <ng-container
                 *ngTemplateOutlet="
                   tabActivo === 'anteproyecto'
@@ -140,18 +155,27 @@
             </div>
           </div>
           <aside class="departamento-split-der" aria-label="Vista previa del documento">
+            <div class="departamento-split-panel-head" *ngIf="mostrarTabsRevisionCoordinacion">
+              <h2 class="departamento-split-panel-titulo">Vista previa</h2>
+            </div>
             <div *ngIf="!seleccionado" class="departamento-doc-placeholder">
-              <p class="departamento-doc-placeholder-titulo">Documento adjunto</p>
-              <p class="departamento-doc-placeholder-texto">Selecciona una fila en la tabla para ver el documento en este panel.</p>
+              <span class="departamento-doc-placeholder-icon" aria-hidden="true"></span>
+              <p class="departamento-doc-placeholder-titulo">Sin expediente seleccionado</p>
+              <p class="departamento-doc-placeholder-texto">Haz clic en una fila de la tabla para previsualizar el documento aquí.</p>
             </div>
             <div *ngIf="seleccionado" class="departamento-doc-card">
               <div class="departamento-doc-card-head">
                 <h3 class="departamento-doc-card-titulo">Documento</h3>
                 <p class="departamento-doc-card-nombre">{{ nombreDisplay(seleccionado) }}</p>
                 <p class="departamento-doc-card-meta">
-                  <span>{{ seleccionado.numero_control }}</span>
+                  <span>No. control {{ seleccionado.numero_control }}</span>
                   <span class="departamento-doc-card-sep">·</span>
                   <span>{{ seleccionado.modalidad }}</span>
+                </p>
+                <p class="departamento-doc-card-meta departamento-doc-card-meta--sec" *ngIf="mostrarTabsRevisionCoordinacion">
+                  <span>Recepción {{ fechaRecepcion(seleccionado) }}</span>
+                  <span class="departamento-doc-card-sep">·</span>
+                  <span>Modificado {{ ultimoCambio(seleccionado) }}</span>
                 </p>
                 <div class="departamento-doc-card-acciones">
                   <ng-container *ngIf="esResidencia(seleccionado.modalidad) && seleccionado.fecha_enviado_departamento_academico">
@@ -175,6 +199,13 @@
                       [disabled]="liberandoResidenciaId === seleccionado.id"
                     >{{ liberandoResidenciaId === seleccionado.id ? 'Liberando…' : 'Liberar' }}</button>
                     <span *ngIf="seleccionado.fecha_generacion_anexos_xxxii_xxxiii" class="departamento-badge departamento-badge--aprobado">Liberado</span>
+                    <button
+                      *ngIf="puedeRevertirPasoDepartamento && seleccionado.fecha_generacion_anexos_xxxii_xxxiii"
+                      type="button"
+                      class="departamento-btn-revertir departamento-btn-revertir--panel"
+                      [disabled]="revirtiendoId === seleccionado.id"
+                      (click)="revertirLiberacionResidencia(seleccionado.id)"
+                    >{{ revirtiendoId === seleccionado.id ? 'Revirtiendo…' : 'Revertir' }}</button>
                   </ng-container>
                   <button
                     *ngIf="tabActivo !== 'todos' && tabActivo !== 'anteproyecto' && tabActivo !== 'liberacion_producto' && !esResidencia(seleccionado.modalidad) && seleccionado.estado_revision !== 'aprobado'"
@@ -184,6 +215,13 @@
                   >
                     Revisar expediente
                   </button>
+                  <button
+                    *ngIf="tabActivo === 'todos' && puedeRevertirPasoDepartamento && seleccionado.estado_revision === 'aprobado'"
+                    type="button"
+                    class="departamento-btn-revertir departamento-btn-revertir--panel"
+                    [disabled]="revirtiendoId === seleccionado.id"
+                    (click)="revertirAprobacionCoordinacion(seleccionado)"
+                  >{{ revirtiendoId === seleccionado.id ? 'Revirtiendo…' : 'Revertir' }}</button>
                 </div>
                 <div *ngIf="tabActivo === 'anteproyecto'" class="departamento-anteproyecto-info">
                   <div class="departamento-anteproyecto-badge">
@@ -211,6 +249,13 @@
                   >
                     {{ confirmandoXxxiiId === seleccionado.id ? 'Marcando…' : 'Marcar como registrado' }}
                   </button>
+                  <button
+                    *ngIf="puedeRevertirPasoDepartamento && seleccionado.fecha_registrado_departamento"
+                    type="button"
+                    class="departamento-btn-revertir departamento-btn-revertir--panel"
+                    [disabled]="revirtiendoId === seleccionado.id"
+                    (click)="revertirRegistradoAnteproyecto(seleccionado)"
+                  >{{ revirtiendoId === seleccionado.id ? 'Revirtiendo…' : 'Revertir' }}</button>
                 </div>
                 <div *ngIf="tabActivo === 'liberacion_producto'" class="departamento-anteproyecto-info">
                   <button
@@ -239,13 +284,25 @@
                     {{ liberandoProductoId === seleccionado.id ? 'Liberando…' : 'Liberar' }}
                   </button>
                   <span *ngIf="seleccionado?.fecha_liberacion_producto" class="departamento-badge departamento-badge--aprobado">Liberado</span>
+                  <button
+                    *ngIf="puedeRevertirPasoDepartamento && seleccionado?.fecha_liberacion_producto"
+                    type="button"
+                    class="departamento-btn-revertir departamento-btn-revertir--panel"
+                    [disabled]="revirtiendoId === seleccionado!.id"
+                    (click)="revertirLiberacionProducto(seleccionado!)"
+                  >{{ revirtiendoId === seleccionado!.id ? 'Revirtiendo…' : 'Revertir' }}</button>
                   <p *ngIf="mensajeLiberacionProducto" class="departamento-doc-error">{{ mensajeLiberacionProducto }}</p>
                 </div>
               </div>
               <div *ngIf="cargandoDocumento" class="departamento-doc-cargando">Cargando documento…</div>
               <div *ngIf="!cargandoDocumento && errorDocumento" class="departamento-doc-error">{{ errorDocumento }}</div>
-              <ng-container *ngIf="!cargandoDocumento && !errorDocumento && documentoUrlSeguro">
-                <iframe *ngIf="esDocumentoPdf" [src]="documentoUrlSeguro" class="departamento-doc-iframe" title="Documento del egresado"></iframe>
+              <div class="departamento-doc-viewer" *ngIf="!cargandoDocumento && !errorDocumento && documentoUrl">
+                <app-pdf-viewer-panel
+                  *ngIf="esDocumentoPdf"
+                  [src]="documentoUrl"
+                  [reloadToken]="documentoViewerKey"
+                  [fileName]="documentoFileName"
+                ></app-pdf-viewer-panel>
                 <div *ngIf="!esDocumentoPdf" class="departamento-doc-no-pdf">
                   <p>Vista previa no disponible para este tipo de archivo ({{ documentoContentType }}).</p>
                   <a
@@ -257,7 +314,7 @@
                     Descargar documento
                   </a>
                 </div>
-              </ng-container>
+              </div>
             </div>
           </aside>
         </div>
@@ -320,6 +377,13 @@
               {{ confirmandoXxxiiId === item.id ? '…' : 'Marcar registrado' }}
             </button>
             <span *ngIf="item.fecha_registrado_departamento" class="departamento-badge departamento-badge--aprobado">Registrado</span>
+            <button
+              *ngIf="puedeRevertirPasoDepartamento && item.fecha_registrado_departamento"
+              type="button"
+              class="departamento-btn-revertir"
+              [disabled]="revirtiendoId === item.id"
+              (click)="revertirRegistradoAnteproyecto(item, $event)"
+            >{{ revirtiendoId === item.id ? '…' : 'Revertir' }}</button>
           </td>
         </tr>
       </tbody>
@@ -362,6 +426,13 @@
               [disabled]="descargando33Id === item.id || !!item.fecha_generacion_hoja_33"
             >{{ descargando33Id === item.id ? '…' : item.fecha_generacion_hoja_33 ? 'XXXIII ✓' : 'Anexo XXXIII' }}</button>
             <span *ngIf="item.fecha_liberacion_producto" class="departamento-badge departamento-badge--aprobado">{{ fechaLiberacionProducto(item) }}</span>
+            <button
+              *ngIf="puedeRevertirPasoDepartamento && item.fecha_liberacion_producto"
+              type="button"
+              class="departamento-btn-revertir"
+              [disabled]="revirtiendoId === item.id"
+              (click)="revertirLiberacionProducto(item, $event)"
+            >{{ revirtiendoId === item.id ? '…' : 'Revertir' }}</button>
           </td>
         </tr>
       </tbody>
@@ -479,6 +550,20 @@
                 [disabled]="liberandoResidenciaId === item.id"
               >{{ liberandoResidenciaId === item.id ? '…' : 'Liberar' }}</button>
               <span *ngIf="item.fecha_generacion_anexos_xxxii_xxxiii" class="departamento-badge departamento-badge--aprobado">Liberado</span>
+              <button
+                *ngIf="puedeRevertirPasoDepartamento && item.fecha_generacion_anexos_xxxii_xxxiii"
+                type="button"
+                class="departamento-btn-revertir"
+                [disabled]="revirtiendoId === item.id"
+                (click)="revertirLiberacionResidencia(item.id, $event)"
+              >{{ revirtiendoId === item.id ? '…' : 'Revertir' }}</button>
+              <button
+                *ngIf="tabActivo === 'todos' && puedeRevertirPasoDepartamento && item.estado_revision === 'aprobado' && !item.fecha_generacion_anexos_xxxii_xxxiii"
+                type="button"
+                class="departamento-btn-revertir"
+                [disabled]="revirtiendoId === item.id"
+                (click)="revertirAprobacionCoordinacion(item, $event)"
+              >{{ revirtiendoId === item.id ? '…' : 'Revertir' }}</button>
             </ng-container>
             <button
               *ngIf="tabActivo !== 'todos' && !esResidencia(item.modalidad) && item.estado_revision !== 'aprobado'"
@@ -488,6 +573,13 @@
             >
               Revisar
             </button>
+            <button
+              *ngIf="tabActivo === 'todos' && puedeRevertirPasoDepartamento && item.estado_revision === 'aprobado'"
+              type="button"
+              class="departamento-btn-revertir"
+              [disabled]="revirtiendoId === item.id"
+              (click)="revertirAprobacionCoordinacion(item, $event)"
+            >{{ revirtiendoId === item.id ? '…' : 'Revertir' }}</button>
           </td>
         </tr>
       </tbody>

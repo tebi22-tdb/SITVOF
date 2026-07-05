@@ -60,6 +60,29 @@ class ServiciosEscolaresService(
         return true
     }
 
+    fun revertirAceptacionConstancia92(id: String): String? {
+        val oid = runCatching { ObjectId(id) }.getOrNull() ?: return "Expediente no encontrado."
+        val e = egresadoRepository.findByObjectIdConTimeout(oid) ?: return "Expediente no encontrado."
+        val p = e.procesoActivoOrNull() ?: return "No hay proceso activo."
+        if (p.fechaSolicitudAnexo92 == null) return "No hay solicitud de anexo 9.2."
+        if (p.fechaAceptacionServiciosEscolaresAnexo92 == null) {
+            return "La solicitud no está marcada como atendida."
+        }
+        if (p.fechaConfirmacionRecibidoAnexo92 != null) {
+            return "No se puede revertir: la DEP ya confirmó la recepción del anexo 9.2."
+        }
+        if (p.fechaSolicitudSinodales != null) {
+            return "No se puede revertir: el trámite ya avanzó en el proceso."
+        }
+        val ahora = Instant.now()
+        egresadoRepository.save(
+            e.actualizarProcesoActivo(
+                p.copy(fechaAceptacionServiciosEscolaresAnexo92 = null, fecha_actualizacion = ahora),
+            ),
+        )
+        return null
+    }
+
     private fun enBandeja(e: Egresado, pendientes: Boolean): Boolean {
         val p = e.procesoActivoOrNull() ?: return false
         if (p.fechaSolicitudAnexo92 == null) return false

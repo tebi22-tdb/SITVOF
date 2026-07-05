@@ -42,6 +42,11 @@ export class ServiciosEscolaresComponent implements OnInit {
     return this.auth.isCoordinador();
   }
 
+  /** Revertir atención: solo coordinador o administración, no el perfil de servicios escolares. */
+  get puedeRevertirAtencion(): boolean {
+    return this.auth.puedeRevertirPasoDepartamento();
+  }
+
   volverInicio(): void {
     this.router.navigate(['/home']);
   }
@@ -87,6 +92,7 @@ export class ServiciosEscolaresComponent implements OnInit {
   }
 
   confirmando = false;
+  revirtiendo = false;
 
   aceptarPendiente(): void {
     if (!this.detalle || this.tabActivo !== 'pendientes' || this.confirmando) return;
@@ -105,6 +111,26 @@ export class ServiciosEscolaresComponent implements OnInit {
       error: () => {
         this.confirmando = false;
         this.mensajeDetalle = 'No se pudo confirmar. Intenta de nuevo.';
+      },
+    });
+  }
+
+  revertirAtencion(): void {
+    if (!this.detalle || this.tabActivo !== 'atendidos' || !this.puedeRevertirAtencion || this.revirtiendo) return;
+    if (!this.detalle.fecha_aceptacion_servicios_escolares_anexo_9_2) return;
+    if (!confirm('¿Revertir la atención? La solicitud volverá a pendientes.')) return;
+    this.revirtiendo = true;
+    this.mensajeDetalle = '';
+    this.serviciosEscolaresService.revertir(this.detalle.id).subscribe({
+      next: () => {
+        this.revirtiendo = false;
+        this.detalle = null;
+        this.cargarLista();
+        this.actualizarContadorOpuesto();
+      },
+      error: (err) => {
+        this.revirtiendo = false;
+        this.mensajeDetalle = err?.error?.error ?? 'No se pudo revertir la atención.';
       },
     });
   }

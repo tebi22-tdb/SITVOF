@@ -147,6 +147,10 @@ data class SolicitarReenvioDocumentacionEscaneadaRequestDto(
     val observaciones: String? = null,
 )
 
+data class RevertirPasoSeguimientoRequestDto(
+    val paso: String = "",
+)
+
 data class EgresadoDetailDto(
     val id: String,
     val numero_control: String,

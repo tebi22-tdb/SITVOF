@@ -132,6 +132,49 @@ class RevisionService(
     fun ultimaRevision(egresadoId: ObjectId, procesoId: ObjectId): Revision? =
         revisionRepository.findByEgresadoIdAndProcesoIdOrderByNumeroRevisionDesc(egresadoId, procesoId).firstOrNull()
 
+    /** Una sola consulta para la bandeja departamento (evita N+1 por egresado). */
+    fun ultimosResultadosPorProcesos(pares: List<Pair<ObjectId, ObjectId>>): Map<Pair<ObjectId, ObjectId>, String> {
+        if (pares.isEmpty()) return emptyMap()
+        val procesoIds = pares.map { it.second }.toSet()
+        val revisiones = revisionRepository.findByEgresadoIdIn(pares.map { it.first }.distinct().toSet())
+            .filter { it.procesoId in procesoIds }
+        return revisiones
+            .groupBy { it.egresadoId to it.procesoId }
+            .mapValues { (_, revs) ->
+                revs.maxWith(compareBy<Revision>({ it.numeroRevision }).thenBy { it.fecha }).resultado
+            }
+    }
+
+    /** Deshace la última revisión con resultado aprobado y limpia fechas de liberación asociadas. */
+    fun revertirUltimaAprobacion(egresadoId: String): String? {
+        val oid = try { ObjectId(egresadoId) } catch (_: Exception) { return "Registro no encontrado." }
+        val eg = egresadoRepository.findById(oid).orElse(null) ?: return "Registro no encontrado."
+        val p = eg.procesoActivoOrNull() ?: return "No hay proceso activo."
+        val ultima = ultimaRevision(oid, p.id) ?: return "No hay revisión que revertir."
+        if (ultima.resultado != "aprobado") return "La última revisión no es una aprobación."
+        revisionRepository.delete(ultima)
+        val mismoRecibidos =
+            p.fechaConfirmacionRecibidosAnexoXxxiXxxii != null &&
+                p.fechaLiberacionDocumentoCoordinacionCat != null &&
+                p.fechaConfirmacionRecibidosAnexoXxxiXxxii == p.fechaLiberacionDocumentoCoordinacionCat
+        val ahora = Instant.now()
+        egresadoRepository.save(
+            eg.actualizarProcesoActivo(
+                p.copy(
+                    fechaRecibidoRegistroLiberacion = null,
+                    fechaLiberacionDocumentoCoordinacionCat = null,
+                    fechaConfirmacionRecibidosAnexoXxxiXxxii =
+                        if (mismoRecibidos) null else p.fechaConfirmacionRecibidosAnexoXxxiXxxii,
+                    cert_uuid = null,
+                    cert_hash = null,
+                    fechaCertificacion = null,
+                    fecha_actualizacion = ahora,
+                ),
+            ),
+        )
+        return null
+    }
+
     fun obtenerDocumentoAdjunto(egresadoId: String, revisionId: String, requiereEnviadaEgresado: Boolean): RevisionDocumentoDescarga? {
         val egresadoOid = try { ObjectId(egresadoId) } catch (_: Exception) { return null }
         val revisionOid = try { ObjectId(revisionId) } catch (_: Exception) { return null }

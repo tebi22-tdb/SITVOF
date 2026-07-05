@@ -31,8 +31,8 @@ class SeedAdminRunner(
     companion object {
         const val USERNAME_ADMIN = "admin"
         const val PASSWORD_ADMIN = "sitvo2026"
-        /** Mismo acceso que coordinador → /home y menú de coordinación. */
-        const val ROL_ADMIN = "coordinador"
+        /** Mismo acceso que división administrativa → gestión de cuentas. */
+        const val ROL_ADMIN = "division_estudios_prof_admin"
     }
 
     override fun run(args: ApplicationArguments) {

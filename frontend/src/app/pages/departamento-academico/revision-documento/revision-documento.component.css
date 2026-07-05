@@ -1,12 +1,221 @@
 .revision-page {
   min-height: 100vh;
-  background: #e8edf3;
+  background: #f1f5f9;
 }
 
 .revision-layout {
-  max-width: 1400px;
+  max-width: min(1800px, 100%);
   margin: 0 auto;
-  padding: 0.85rem 1.25rem 1.5rem;
+  padding: 0.75rem 1.25rem 1.25rem;
+}
+
+.revision-expediente-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+  padding: 0.85rem 1.1rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.revision-expediente-bar__nombre {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.revision-expediente-bar__meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.revision-expediente-bar__meta strong {
+  color: #334155;
+}
+
+.revision-expediente-bar__sep {
+  margin: 0 0.35rem;
+  opacity: 0.5;
+}
+
+.revision-expediente-bar__estado {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  white-space: nowrap;
+}
+
+.revision-contenido {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 1rem;
+  align-items: start;
+}
+
+.revision-izquierda {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.revision-card-documento {
+  padding: 0.85rem 1rem 1rem;
+}
+
+.revision-card-documento app-pdf-viewer-panel {
+  display: block;
+  min-height: min(84vh, 820px);
+}
+
+.revision-reemplazar-details {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid #f1f5f9;
+  font-size: 0.82rem;
+}
+
+.revision-reemplazar-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #475569;
+  list-style: none;
+}
+
+.revision-reemplazar-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.revision-aside-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.revision-link-btn {
+  border: none;
+  background: none;
+  color: #2563eb;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.2rem 0.35rem;
+}
+
+.revision-link-btn:hover {
+  text-decoration: underline;
+}
+
+.revision-card-form {
+  padding: 1rem;
+}
+
+.revision-acciones-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.revision-btn-aprobar--full {
+  width: 100%;
+  min-height: 42px;
+  font-size: 0.88rem;
+}
+
+.revision-btn-primary {
+  width: 100%;
+  min-height: 38px;
+  padding: 0.4rem 0.85rem;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.revision-btn-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.revision-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.revision-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.revision-btn-outline--full {
+  width: 100%;
+}
+
+.revision-btn-outline:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.revision-mensaje--ok {
+  color: #047857;
+  font-weight: 600;
+}
+
+.revision-historial-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0;
+  margin-bottom: 0.65rem;
+  border: none;
+  background: none;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1e293b;
+  cursor: pointer;
+}
+
+.revision-derecha {
+  width: 100%;
+  max-height: calc(100vh - 7rem);
+  overflow-y: auto;
+  position: sticky;
+  top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
 }
 
 /* Cabecera azul: atrás, logo, título */
@@ -65,8 +274,8 @@
   background: #fff5f5;
 }
 
-/* Contenido: izquierda (documento + detalle) + derecha (formulario + historial) */
-.revision-contenido {
+/* Contenido: grid definido arriba */
+.revision-contenido-legacy {
   display: flex;
   gap: 1.35rem;
   align-items: flex-start;
@@ -102,6 +311,11 @@
   background: #eff6ff;
   color: #1d4ed8;
   border: 1px solid #bfdbfe;
+}
+
+.revision-card-documento app-pdf-viewer-panel {
+  display: block;
+  min-height: min(80vh, 760px);
 }
 
 .revision-iframe-doc {
@@ -285,24 +499,6 @@
 
 .revision-btn-volver {
   background: #edf2f7 !important;
-}
-
-/* Columna derecha: scroll propio y sticky en vista ancha */
-.revision-derecha {
-  width: min(340px, 100%);
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  font-size: 0.9375rem;
-  line-height: 1.45;
-  position: sticky;
-  top: 0.65rem;
-  align-self: flex-start;
-  max-height: calc(100vh - 5.5rem);
-  overflow-y: auto;
-  padding-right: 0.15rem;
-  scrollbar-gutter: stable;
 }
 
 .revision-aside-titulo {
@@ -759,24 +955,15 @@
 
 @media (max-width: 900px) {
   .revision-contenido {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
   .revision-derecha {
-    width: 100%;
     position: static;
     max-height: none;
-    overflow: visible;
-    padding-right: 0;
   }
 
-  .revision-iframe-doc {
-    height: min(55vh, 480px);
-    min-height: 280px;
-  }
-
-  .revision-layout {
-    padding-left: 1rem;
-    padding-right: 1rem;
+  .revision-card-documento app-pdf-viewer-panel {
+    min-height: min(62vh, 560px);
   }
 }

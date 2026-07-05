@@ -131,7 +131,7 @@
           name="usuarioPerfil"
           (ngModelChange)="onCambioPerfilUsuario()"
         >
-          <option *ngFor="let p of perfilesCreacionUsuario" [value]="p.id">{{ p.etiqueta }}</option>
+          <option *ngFor="let p of perfilesParaCrearUsuario" [value]="p.id">{{ p.etiqueta }}</option>
         </select>
         <ng-container *ngIf="usuarioForm.rol === 'academico' && usuarioForm.carreras_asignadas.length">
           <label for="usuario-carreras">Carreras que atenderá este usuario</label>

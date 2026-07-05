@@ -1,0 +1,35 @@
+<div class="pdf-viewer" #root>
+  <div class="pdf-viewer__toolbar" role="toolbar" aria-label="Controles del visor PDF">
+    <div class="pdf-viewer__toolbar-group" *ngIf="modo === 'pdfjs'">
+      <button type="button" class="pdf-viewer__btn" (click)="paginaAnterior()" [disabled]="loading || pageNum <= 1" title="Página anterior" aria-label="Página anterior">‹</button>
+      <span class="pdf-viewer__pagina" *ngIf="pageCount > 0">{{ pageNum }} / {{ pageCount }}</span>
+      <button type="button" class="pdf-viewer__btn" (click)="paginaSiguiente()" [disabled]="loading || pageNum >= pageCount" title="Página siguiente" aria-label="Página siguiente">›</button>
+    </div>
+    <div class="pdf-viewer__toolbar-group" *ngIf="modo === 'pdfjs'">
+      <button type="button" class="pdf-viewer__btn" (click)="zoomMenos()" [disabled]="loading" title="Alejar">−</button>
+      <button type="button" class="pdf-viewer__btn pdf-viewer__btn--text" (click)="ajustarAncho()" [disabled]="loading" [class.pdf-viewer__btn--active]="fitWidth" title="Ajustar al ancho">Ancho</button>
+      <button type="button" class="pdf-viewer__btn" (click)="zoomMas()" [disabled]="loading" title="Acercar">+</button>
+    </div>
+    <div class="pdf-viewer__toolbar-group pdf-viewer__toolbar-group--end">
+      <button type="button" class="pdf-viewer__btn pdf-viewer__btn--text" (click)="pantallaCompleta()" [disabled]="loading || !src" title="Pantalla completa">Pantalla completa</button>
+      <button type="button" class="pdf-viewer__btn pdf-viewer__btn--text" (click)="descargar()" [disabled]="loading || !src" title="Descargar PDF">Descargar</button>
+    </div>
+  </div>
+
+  <div class="pdf-viewer__body" #viewport>
+    <p *ngIf="loading" class="pdf-viewer__estado">Cargando documento…</p>
+    <p *ngIf="!loading && error" class="pdf-viewer__estado pdf-viewer__estado--error">{{ error }}</p>
+    <p *ngIf="!loading && !error && !src" class="pdf-viewer__estado">Sin documento.</p>
+
+    <div *ngIf="!loading && !error && src && modo === 'pdfjs'" class="pdf-viewer__canvas-wrap">
+      <canvas #canvas class="pdf-viewer__canvas"></canvas>
+    </div>
+
+    <iframe
+      *ngIf="!loading && !error && modo === 'iframe' && iframeUrlSeguro"
+      class="pdf-viewer__iframe"
+      [src]="iframeUrlSeguro"
+      title="Vista previa del documento PDF"
+    ></iframe>
+  </div>
+</div>

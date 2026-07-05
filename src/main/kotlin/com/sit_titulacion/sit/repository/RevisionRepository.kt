@@ -18,5 +18,8 @@ interface RevisionRepository : MongoRepository<Revision, ObjectId> {
     @Query("{ '_id' : ?0, 'egresado_id' : ?1 }")
     fun findByIdAndEgresadoId(id: ObjectId, egresadoId: ObjectId): Revision?
 
+    @Query("{ 'egresado_id' : { \$in: ?0 } }")
+    fun findByEgresadoIdIn(egresadoIds: Set<ObjectId>): List<Revision>
+
     fun countByEgresadoIdAndProcesoId(egresadoId: ObjectId, procesoId: ObjectId): Long
 }

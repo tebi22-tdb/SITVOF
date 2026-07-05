@@ -341,6 +341,14 @@
   background: #edf4ff;
   border-color: #7ca4d4;
 }
+.seg-btn-revertir {
+  border-color: #c62828;
+  color: #c62828;
+  background: #fff;
+}
+.seg-btn-revertir:hover:not(:disabled) {
+  background: #ffebee;
+}
 .seg-doc-escaneada-wrap {
   margin-top: 8px;
   margin-left: 34px;

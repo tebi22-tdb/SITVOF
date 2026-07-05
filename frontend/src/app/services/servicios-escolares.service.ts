@@ -45,4 +45,8 @@ export class ServiciosEscolaresService {
   confirmar(id: string): Observable<unknown> {
     return this.http.post(`${API}/constancias-9-2/${id}/confirmar`, {});
   }
+
+  revertir(id: string): Observable<unknown> {
+    return this.http.post(`${API}/constancias-9-2/${id}/revertir`, {});
+  }
 }

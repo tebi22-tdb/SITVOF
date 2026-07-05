@@ -1,12 +1,14 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { validarArchivoPdf } from '../../core/archivo-pdf';
+import { mensajeErrorApiConBlob } from '../../core/http-blob-error';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl, SafeUrl } from '@angular/platform-browser';
 import { Subscription, forkJoin } from 'rxjs';
 import { HeaderComponent } from '../../layout/header/header.component';
+import { PdfViewerPanelComponent } from '../../shared/pdf-viewer-panel/pdf-viewer-panel.component';
 import { AuthService } from '../../services/auth.service';
 import { EgresadoService, DepartamentoListItem, DepartamentoCounts } from '../../services/egresado.service';
 import { CatalogoService } from '../../services/catalogo.service';
@@ -23,7 +25,7 @@ type TabEstado =
 @Component({
   selector: 'app-departamento-academico',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, HeaderComponent],
+  imports: [CommonModule, FormsModule, RouterModule, HeaderComponent, PdfViewerPanelComponent],
   templateUrl: './departamento-academico.component.html',
   styleUrl: './departamento-academico.component.css',
 })
@@ -56,6 +58,8 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   liberandoResidenciaId: string | null = null;
   /** ID del egresado mientras se libera el producto (no residencia). */
   liberandoProductoId: string | null = null;
+  /** ID del egresado mientras se revierte un paso (solo coordinación/admin). */
+  revirtiendoId: string | null = null;
   /** ID del egresado mientras se confirma recepción Anexo XXXII (evita doble clic). */
   confirmandoXxxiiId: string | null = null;
   /** PDF de tesis seleccionado en pestaña Liberación de producto. */
@@ -93,6 +97,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   documentoHrefSeguro: SafeUrl | null = null;
   documentoContentType = '';
   documentoFileName = '';
+  documentoViewerKey = 0;
   private docSub: Subscription | null = null;
   private querySub: Subscription | null = null;
 
@@ -125,6 +130,11 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     return rol === 'coordinador' || rol === 'administrador';
   }
 
+  /** Botón Revertir: solo coordinador/administración, no usuarios académicos de departamento. */
+  get puedeRevertirPasoDepartamento(): boolean {
+    return this.authService.puedeRevertirPasoDepartamento();
+  }
+
   get mostrarTabsRevisionCoordinacion(): boolean {
     return this.esModoRevision && !this.segmentoCoordinacion;
   }
@@ -135,9 +145,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
    * - En Coordinación/Administrador, en pestaña "En corrección" se oculta panel de documento.
    */
   get usarSplitConDocumento(): boolean {
-    if (this.tabActivo === 'sinodales') return false;
-    if (this.authService.isCoordinador() && this.tabActivo === 'en_correccion') return false;
-    return true;
+    return this.tabActivo !== 'sinodales';
   }
 
   /** Selecciona egresado y carga el PDF/documento en el panel derecho. */
@@ -183,17 +191,27 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     this.docSub = doc$.subscribe({
       next: ({ blob, contentType, fileName }) => {
         this.cargandoDocumento = false;
+        if (!blob?.size) {
+          this.errorDocumento = 'Este expediente no tiene documento adjunto.';
+          return;
+        }
         this.documentoContentType = contentType || '';
         this.documentoFileName = fileName || 'documento';
         const url = URL.createObjectURL(blob);
         this.documentoUrl = url;
+        this.documentoViewerKey++;
         this.documentoUrlSeguro = this.sanitizer.bypassSecurityTrustResourceUrl(url);
         this.documentoHrefSeguro = this.sanitizer.bypassSecurityTrustUrl(url);
       },
-      error: (err: { error?: { error?: string }; message?: string; statusText?: string }) => {
+      error: (err) => {
         this.cargandoDocumento = false;
-        const msg = err?.error?.error ?? err?.message ?? err?.statusText;
-        this.errorDocumento = msg ? `No se pudo cargar el documento: ${msg}` : 'No se pudo cargar el documento.';
+        if (err instanceof HttpErrorResponse && err.status === 404) {
+          this.errorDocumento = 'Este expediente no tiene documento adjunto.';
+          return;
+        }
+        void mensajeErrorApiConBlob(err, 'No se pudo cargar el documento.').then((msg) => {
+          this.errorDocumento = msg;
+        });
       },
     });
   }
@@ -211,8 +229,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     this.egresadoService.marcarRegistradoDepartamento(item.id).subscribe({
       next: () => {
         this.confirmandoXxxiiId = null;
-        this.cargarCounts();
-        this.cargarLista();
+        this.cargarBandeja();
       },
       error: (err: { error?: { error?: string }; message?: string }) => {
         this.confirmandoXxxiiId = null;
@@ -302,8 +319,56 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
           this.tituloDepartamento = 'Coordinación de apoyo a la titulación';
         }
       }
-      this.cargarCounts();
-      this.cargarLista();
+      this.cargarBandeja();
+    });
+  }
+
+  /** Carga conteos y lista en una sola petición (evita doble findAll en backend). */
+  cargarBandeja(): void {
+    this.error = '';
+    this.cargando = true;
+    this.egresadoService.getDepartamentoBandeja(this.tabActivo, this.segmentoCoordinacion).subscribe({
+      next: ({ counts, items }) => {
+        this.counts = {
+          pendientes: counts.pendientes ?? 0,
+          en_correccion: counts.en_correccion ?? 0,
+          aprobados: counts.aprobados ?? 0,
+          todos: counts.todos ?? 0,
+          sinodales_por_asignar: counts.sinodales_por_asignar ?? 0,
+          anteproyecto: counts.anteproyecto ?? 0,
+          total_anteproyecto: counts.total_anteproyecto ?? 0,
+          liberacion_producto: counts.liberacion_producto ?? 0,
+          total_liberacion_producto: counts.total_liberacion_producto ?? 0,
+          total_sinodales: counts.total_sinodales ?? 0,
+        };
+        this.lista = items;
+        this.cargando = false;
+        if (this.seleccionado) {
+          const u = items.find((x) => x.id === this.seleccionado!.id);
+          if (u) this.seleccionado = u;
+          else this.limpiarSeleccionDocumento();
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        const st = err.status;
+        const detalle =
+          (typeof err.error === 'object' && err.error && 'error' in err.error
+            ? String((err.error as { error?: string }).error)
+            : '') || err.message;
+        if (st === 403) {
+          this.error =
+            'No tienes permiso para ver esta lista. Si acabas de actualizar el sistema, cierra sesión, vuelve a entrar y asegúrate de que el backend esté en la versión nueva.';
+        } else if (st === 0 || st === 504) {
+          this.error =
+            'No hay conexión con el backend (¿corre Spring Boot en el puerto 8081 con `npm start` y el proxy?).';
+        } else {
+          this.error =
+            st > 0
+              ? `No se pudo cargar la lista (${st}).${detalle ? ` ${detalle}` : ''}`
+              : 'No se pudo cargar la lista.';
+        }
+        this.cargando = false;
+      },
     });
   }
 
@@ -370,7 +435,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     this.archivoTesisLiberacion = null;
     this.mensajeLiberacionProducto = '';
     this.limpiarSeleccionDocumento();
-    this.cargarLista();
+    this.cargarBandeja();
   }
 
   onTesisLiberacionSelected(event: Event): void {
@@ -406,8 +471,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
         this.liberandoProductoId = null;
         this.archivoTesisLiberacion = null;
         this.mensajeLiberacionProducto = `${modalidad} liberada correctamente.`;
-        this.cargarCounts();
-        this.cargarLista();
+        this.cargarBandeja();
         this.limpiarSeleccionDocumento();
       },
       error: (err: { error?: { error?: string } }) => {
@@ -474,13 +538,90 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     this.egresadoService.registrarGeneracionAnexos(id).subscribe({
       next: () => {
         this.liberandoResidenciaId = null;
-        this.cargarCounts();
-        this.cargarLista();
+        this.cargarBandeja();
       },
       error: (err: { error?: { error?: string; message?: string }; message?: string }) => {
         const msg = err?.error?.error ?? err?.error?.message ?? err?.message;
         this.error = msg || 'No se pudo liberar.';
         this.liberandoResidenciaId = null;
+      },
+    });
+  }
+
+  revertirLiberacionResidencia(id: string, ev?: Event): void {
+    ev?.stopPropagation();
+    if (this.revirtiendoId === id) return;
+    if (!confirm('¿Revertir la liberación de residencia? El expediente volverá al estado anterior.')) return;
+    this.revirtiendoId = id;
+    this.error = '';
+    this.egresadoService.revertirLiberacionResidencia(id).subscribe({
+      next: () => {
+        this.revirtiendoId = null;
+        this.cargarBandeja();
+        if (this.seleccionado?.id === id) this.limpiarSeleccionDocumento();
+      },
+      error: (err: { error?: { error?: string } }) => {
+        this.revirtiendoId = null;
+        this.error = err?.error?.error ?? 'No se pudo revertir la liberación.';
+      },
+    });
+  }
+
+  revertirRegistradoAnteproyecto(item: DepartamentoListItem, ev?: Event): void {
+    ev?.stopPropagation();
+    if (this.revirtiendoId === item.id) return;
+    if (!confirm('¿Revertir el registro del anteproyecto? Volverá a pendiente de marcar como registrado.')) return;
+    this.revirtiendoId = item.id;
+    this.error = '';
+    this.egresadoService.revertirRegistradoAnteproyecto(item.id).subscribe({
+      next: () => {
+        this.revirtiendoId = null;
+        this.cargarBandeja();
+        if (this.seleccionado?.id === item.id) this.limpiarSeleccionDocumento();
+      },
+      error: (err: { error?: { error?: string } }) => {
+        this.revirtiendoId = null;
+        this.error = err?.error?.error ?? 'No se pudo revertir el registro.';
+      },
+    });
+  }
+
+  revertirLiberacionProducto(item: DepartamentoListItem, ev?: Event): void {
+    ev?.stopPropagation();
+    if (this.revirtiendoId === item.id) return;
+    if (!confirm('¿Revertir la liberación de producto? Se eliminará la tesis subida y volverá a pendiente.')) return;
+    this.revirtiendoId = item.id;
+    this.error = '';
+    this.mensajeLiberacionProducto = '';
+    this.egresadoService.revertirLiberacionProducto(item.id).subscribe({
+      next: () => {
+        this.revirtiendoId = null;
+        this.archivoTesisLiberacion = null;
+        this.cargarBandeja();
+        if (this.seleccionado?.id === item.id) this.limpiarSeleccionDocumento();
+      },
+      error: (err: { error?: { error?: string } }) => {
+        this.revirtiendoId = null;
+        this.mensajeLiberacionProducto = err?.error?.error ?? 'No se pudo revertir la liberación.';
+      },
+    });
+  }
+
+  revertirAprobacionCoordinacion(item: DepartamentoListItem, ev?: Event): void {
+    ev?.stopPropagation();
+    if (this.revirtiendoId === item.id) return;
+    if (!confirm('¿Revertir la aprobación? El expediente volverá al estado anterior.')) return;
+    this.revirtiendoId = item.id;
+    this.error = '';
+    this.egresadoService.revertirAprobacionCoordinacion(item.id).subscribe({
+      next: () => {
+        this.revirtiendoId = null;
+        this.cargarBandeja();
+        if (this.seleccionado?.id === item.id) this.limpiarSeleccionDocumento();
+      },
+      error: (err: { error?: { error?: string } }) => {
+        this.revirtiendoId = null;
+        this.error = err?.error?.error ?? 'No se pudo revertir la aprobación.';
       },
     });
   }
@@ -645,8 +786,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
         next: () => {
           this.sinodalesGuardando = false;
           this.cerrarModalSinodales();
-          this.cargarCounts();
-          this.cargarLista();
+          this.cargarBandeja();
         },
         error: (err: { error?: { error?: string }; message?: string }) => {
           this.sinodalesGuardando = false;

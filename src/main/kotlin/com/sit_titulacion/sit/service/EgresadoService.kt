@@ -89,6 +89,11 @@ data class DepartamentoCounts(
     val sinodales_por_asignar: Int,
 )
 
+data class BandejaDepartamentoDto(
+    val counts: Map<String, Int>,
+    val items: List<DepartamentoListItemDto>,
+)
+
 data class VerificacionDuplicadoAlta(
     val estado: String,
     val expedienteEstado: String?,
@@ -355,21 +360,53 @@ class EgresadoService(
         scopeUsername: String? = null,
     ): List<EgresadoListItemDto> = listarParaLista(numeroControlFilter, scopeUsername)
 
-    fun contarParaDepartamento(academicoUsername: String, segmentoSlug: String? = null): Map<String, Int> {
+    fun contarParaDepartamento(academicoUsername: String, segmentoSlug: String? = null): Map<String, Int> =
+        calcularConteosBandeja(prepararBandejaDepartamento(academicoUsername, segmentoSlug))
+
+    fun bandejaDepartamento(estado: String, academicoUsername: String, segmentoSlug: String? = null): BandejaDepartamentoDto {
+        val ctx = prepararBandejaDepartamento(academicoUsername, segmentoSlug)
+        return BandejaDepartamentoDto(
+            counts = calcularConteosBandeja(ctx),
+            items = listarParaDepartamentoConCtx(ctx, estado),
+        )
+    }
+
+    fun listarParaDepartamento(estado: String, academicoUsername: String, segmentoSlug: String? = null): List<DepartamentoListItemDto> =
+        listarParaDepartamentoConCtx(prepararBandejaDepartamento(academicoUsername, segmentoSlug), estado)
+
+    private data class BandejaDepartamentoCtx(
+        val porCarrera: List<Egresado>,
+        val allLiberar: List<Egresado>,
+        val ultimasRevisiones: Map<Pair<ObjectId, ObjectId>, String>,
+        val segmentoSlug: String?,
+    )
+
+    private fun prepararBandejaDepartamento(academicoUsername: String, segmentoSlug: String?): BandejaDepartamentoCtx {
         val allBase = filtrarEgresadosPorCarreraSiAcademico(egresadoRepository.findAll(), academicoUsername)
         val excluirResidencia = bandejaDepartamentoExcluyeResidencia(academicoUsername) && segmentoSlug.isNullOrBlank()
         val afterModalidad = if (excluirResidencia) allBase.filter { !esResidenciaProfesional(it) } else allBase
         val porCarrera = aplicarFiltroSegmentoCoordinacion(afterModalidad, segmentoSlug, academicoUsername)
-        // Solo residencia para pendientes/aprobados (flujo Liberar).
-        // Sinodales y Todos incluyen todos los egresados del departamento.
         val allLiberar = filtrarBandejaSegmentoCoordinacion(porCarrera, segmentoSlug, academicoUsername)
+        val paresRevision = porCarrera.mapNotNull { e ->
+            if (esResidenciaProfesional(e)) return@mapNotNull null
+            val eid = e.id ?: return@mapNotNull null
+            val pid = e.procesoActivoOrNull()?.id ?: return@mapNotNull null
+            eid to pid
+        }
+        val ultimasRevisiones = revisionService.ultimosResultadosPorProcesos(paresRevision)
+        return BandejaDepartamentoCtx(porCarrera, allLiberar, ultimasRevisiones, segmentoSlug?.trim()?.lowercase()?.ifBlank { null })
+    }
+
+    private fun calcularConteosBandeja(ctx: BandejaDepartamentoCtx): Map<String, Int> {
+        val porCarrera = ctx.porCarrera
+        val allLiberar = ctx.allLiberar
         val pendientes = allLiberar.count {
             it.procesoActivoOrNull()?.fechaEnviadoDepartamentoAcademico != null &&
-                !liberacionRevisionCompletada(it) && !enCorreccionAcademico(it)
+                !liberacionRevisionCompletada(it) && !enCorreccionAcademico(it, ctx)
         }
         val enCorreccion = allLiberar.count {
             it.procesoActivoOrNull()?.fechaEnviadoDepartamentoAcademico != null &&
-                !liberacionRevisionCompletada(it) && enCorreccionAcademico(it)
+                !liberacionRevisionCompletada(it) && enCorreccionAcademico(it, ctx)
         }
         val aprobados = allLiberar.count { liberacionRevisionCompletada(it) }
         val todos = porCarrera.count { it.procesoActivoOrNull()?.fechaEnviadoDepartamentoAcademico != null }
@@ -420,17 +457,12 @@ class EgresadoService(
         )
     }
 
-    fun listarParaDepartamento(estado: String, academicoUsername: String, segmentoSlug: String? = null): List<DepartamentoListItemDto> {
-        val allBase = filtrarEgresadosPorCarreraSiAcademico(egresadoRepository.findAll(), academicoUsername)
-        val excluirResidencia = bandejaDepartamentoExcluyeResidencia(academicoUsername) && segmentoSlug.isNullOrBlank()
-        val afterModalidad = if (excluirResidencia) allBase.filter { !esResidenciaProfesional(it) } else allBase
-        val porCarrera = aplicarFiltroSegmentoCoordinacion(afterModalidad, segmentoSlug, academicoUsername)
-        // Solo residencia para el flujo Liberar (pendientes/en_correccion/aprobados).
-        // Sinodales y Todos muestran todos los egresados del departamento sin filtrar por modalidad.
+    private fun listarParaDepartamentoConCtx(ctx: BandejaDepartamentoCtx, estado: String): List<DepartamentoListItemDto> {
+        val porCarrera = ctx.porCarrera
         val norm = estado.trim().lowercase()
         val all = when (norm) {
             "sinodales", "todos", "anteproyecto", "liberacion_producto" -> porCarrera
-            else -> filtrarBandejaSegmentoCoordinacion(porCarrera, segmentoSlug, academicoUsername)
+            else -> ctx.allLiberar
         }
         val lista = when (norm) {
             "aprobados" -> all.filter { liberacionRevisionCompletada(it) }
@@ -444,7 +476,7 @@ class EgresadoService(
             "todos" -> all.filter { it.procesoActivoOrNull()?.fechaEnviadoDepartamentoAcademico != null }
             "en_correccion" -> all.filter {
                 it.procesoActivoOrNull()?.fechaEnviadoDepartamentoAcademico != null &&
-                    !liberacionRevisionCompletada(it) && enCorreccionAcademico(it)
+                    !liberacionRevisionCompletada(it) && enCorreccionAcademico(it, ctx)
             }
             "anteproyecto" -> all.filter {
                 val pr = it.procesoActivoOrNull()
@@ -458,14 +490,12 @@ class EgresadoService(
                     pr.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii != null &&
                     pr.fechaEnviadoDepartamentoAcademico == null
             }
-            else -> if (!segmentoSlug.isNullOrBlank()) {
-                // Vista departamento: muestra todos los de residencia (liberados y pendientes)
+            else -> if (!ctx.segmentoSlug.isNullOrBlank()) {
                 all.filter { it.procesoActivoOrNull()?.fechaEnviadoDepartamentoAcademico != null }
             } else {
-                // Vista global de coordinación: solo pendientes de liberación
                 all.filter {
                     it.procesoActivoOrNull()?.fechaEnviadoDepartamentoAcademico != null &&
-                        !liberacionRevisionCompletada(it) && !enCorreccionAcademico(it)
+                        !liberacionRevisionCompletada(it) && !enCorreccionAcademico(it, ctx)
                 }
             }
         }
@@ -483,7 +513,7 @@ class EgresadoService(
                 modalidad = pr.datos_proyecto.modalidad,
                 fechaActualizacion = formatter.format(e.fecha_actualizacion),
                 fechaEnviadoDepartamento = pr.fechaEnviadoDepartamentoAcademico?.let { formatter.format(it) },
-                estadoRevision = estadoRevisionDepartamento(e),
+                estadoRevision = estadoRevisionDepartamento(e, ctx),
                 fechaSolicitudSinodales = pr.fechaSolicitudSinodales?.let { formatter.format(it) },
                 sinodalesAsignados = pr.fechaAsignacionSinodales != null,
                 fechaEnvioAnteproyectoDepto = pr.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico?.let { formatter.format(it) },
@@ -899,7 +929,380 @@ class EgresadoService(
         return true
     }
 
-    /** Paso 1 (no residencia): DEP confirma entrega del egresado (anexo XXXI y anteproyecto). */
+    /** Deshace la liberación de residencia (anexos XXXII/XXXIII) en bandeja departamento. Solo si la DEP no avanzó. */
+    fun revertirLiberacionResidencia(id: String): String? {
+        val e = cargarEgresadoPorId(id) ?: return "Registro no encontrado."
+        if (!esResidenciaProfesional(e)) return "Solo aplica a residencia profesional."
+        val p = e.procesoActivoOrNull() ?: return "No hay proceso activo."
+        if (p.fechaGeneracionAnexosXxxiiXxxxiii == null && p.fechaRecibidoRegistroLiberacion == null) {
+            return "No está liberado."
+        }
+        if (p.fechaConfirmacionRecibidosAnexoXxxiXxxii != null) {
+            return "No se puede revertir: la DEP ya confirmó la recepción de anexos."
+        }
+        val ahora = Instant.now()
+        egresadoRepository.save(
+            e.actualizarProcesoActivo(
+                p.copy(
+                    fechaRecibidoRegistroLiberacion = null,
+                    fechaGeneracionAnexosXxxiiXxxxiii = null,
+                    fecha_actualizacion = ahora,
+                ),
+            ),
+        )
+        return null
+    }
+
+    /** Deshace «marcar como registrado» del anteproyecto en bandeja departamento. */
+    fun revertirRegistradoAnteproyecto(id: String): String? {
+        val e = cargarEgresadoPorId(id) ?: return "Registro no encontrado."
+        if (esResidenciaProfesional(e)) return "No aplica a residencia."
+        val p = e.procesoActivoOrNull() ?: return "No hay proceso activo."
+        if (p.fechaRegistradoDepartamento == null) return "No está marcado como registrado."
+        if (p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii != null) {
+            return "No se puede revertir: la DEP ya confirmó la recepción inicial."
+        }
+        val ahora = Instant.now()
+        egresadoRepository.save(
+            e.actualizarProcesoActivo(p.copy(fechaRegistradoDepartamento = null, fecha_actualizacion = ahora)),
+        )
+        return null
+    }
+
+    /** Deshace la liberación de producto (tesis) subida por el departamento académico. */
+    fun revertirLiberacionProducto(id: String): String? {
+        val e = cargarEgresadoPorId(id) ?: return "Registro no encontrado."
+        if (esResidenciaProfesional(e)) return "Solo aplica a modalidades distintas de residencia."
+        val p = e.procesoActivoOrNull() ?: return "No hay proceso activo."
+        if (p.fechaSolicitudRegistroLiberacionDeptoAcademico == null) return "No está liberado."
+        if (p.fechaRecepcionRegistroLiberacionDeptoAcademico != null) {
+            return "No se puede revertir: la DEP ya confirmó la recepción."
+        }
+        val mismoInstanteTrabajo =
+            p.fechaRecepcionTrabajoDivisionEstudiosProf == p.fechaSolicitudRegistroLiberacionDeptoAcademico
+        val ahora = Instant.now()
+        egresadoRepository.save(
+            e.actualizarProcesoActivo(
+                p.copy(
+                    fechaSolicitudRegistroLiberacionDeptoAcademico = null,
+                    fechaRecepcionTrabajoDivisionEstudiosProf =
+                        if (mismoInstanteTrabajo) null else p.fechaRecepcionTrabajoDivisionEstudiosProf,
+                    tesisLiberacionAdjunto = DocumentoAdjunto(),
+                    fecha_actualizacion = ahora,
+                ),
+            ),
+        )
+        return null
+    }
+
+    /** Deshace aprobación en Coordinación de apoyo (revisión o liberación de residencia). */
+    fun revertirAprobacionCoordinacion(id: String): String? {
+        val e = cargarEgresadoPorId(id) ?: return "Registro no encontrado."
+        val p = e.procesoActivoOrNull() ?: return "No hay proceso activo."
+        if (p.fechaEnviadoDepartamentoAcademico == null) return "No aplica a expedientes no enviados al departamento."
+        if (!liberacionRevisionCompletada(e)) return "No está aprobado."
+        if (esResidenciaProfesional(e) && p.fechaGeneracionAnexosXxxiiXxxxiii != null) {
+            return revertirLiberacionResidencia(id)
+        }
+        if (p.fechaCreacionAnexo91 != null) {
+            return "No se puede revertir: el trámite ya avanzó en la DEP."
+        }
+        if (p.fechaConfirmacionRecibidosAnexoXxxiXxxii != null && p.fechaLiberacionDocumentoCoordinacionCat == null) {
+            return "No se puede revertir: la DEP ya confirmó la recepción de anexos."
+        }
+        return revisionService.revertirUltimaAprobacion(id)
+    }
+
+    /** Deshace un paso del timeline de seguimiento (DEP), solo si el trámite no avanzó al siguiente paso. */
+    fun revertirPasoSeguimiento(id: String, pasoKey: String): String? {
+        val key = pasoKey.trim()
+        if (key.isEmpty()) return "Paso no válido."
+        when (key) {
+            "fecha_solicitud_registro_liberacion_depto_academico" -> return revertirLiberacionProducto(id)
+            "fecha_recepcion_trabajo_division_estudios_prof" -> return revertirLiberacionProducto(id)
+        }
+        val e = cargarEgresadoPorId(id) ?: return "Registro no encontrado."
+        val p = e.procesoActivoOrNull() ?: return "No hay proceso activo."
+        val ahora = Instant.now()
+        fun bloqueado(cond: Boolean, msg: String): String? = if (cond) msg else null
+
+        return when (key) {
+            "fecha_confirmacion_entrega_egresado_depto" -> {
+                bloqueado(
+                    p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null,
+                    "No se puede revertir: ya se envió la solicitud al departamento académico.",
+                )?.let { return it }
+                if (p.fechaConfirmacionEntregaEgresadoDepto == null) return "El paso no está completado."
+                egresadoRepository.save(
+                    e.actualizarProcesoActivo(
+                        p.copy(fechaConfirmacionEntregaEgresadoDepto = null, fecha_actualizacion = ahora),
+                    ),
+                )
+                null
+            }
+            "fecha_envio_solicitud_registro_anteproyecto_depto_academico" -> {
+                bloqueado(
+                    p.fechaRegistradoDepartamento != null,
+                    "No se puede revertir: el departamento académico ya marcó como registrado.",
+                )?.let { return it }
+                bloqueado(
+                    p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii != null,
+                    "No se puede revertir: la DEP ya confirmó la recepción del registro.",
+                )?.let { return it }
+                if (p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico == null) return "El paso no está completado."
+                egresadoRepository.save(
+                    e.actualizarProcesoActivo(
+                        p.copy(
+                            fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico = null,
+                            fecha_actualizacion = ahora,
+                        ),
+                    ),
+                )
+                null
+            }
+            "fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii" -> {
+                bloqueado(
+                    p.fechaSolicitudRegistroLiberacionDeptoAcademico != null,
+                    "No se puede revertir: ya hay liberación de producto en departamento académico.",
+                )?.let { return it }
+                bloqueado(
+                    p.fechaRecepcionRegistroLiberacionDeptoAcademico != null,
+                    "No se puede revertir: la DEP ya confirmó la recepción de la liberación.",
+                )?.let { return it }
+                bloqueado(
+                    p.fechaEnviadoDepartamentoAcademico != null,
+                    "No se puede revertir: el trámite ya fue enviado a Coordinación de Apoyo.",
+                )?.let { return it }
+                if (p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii == null) return "El paso no está completado."
+                egresadoRepository.save(
+                    e.actualizarProcesoActivo(
+                        p.copy(
+                            fechaConfirmacionRecepcionInicialAnexosXxxiXxxii = null,
+                            fechaRecepcionTrabajoDivisionEstudiosProf =
+                                if (p.fechaSolicitudRegistroLiberacionDeptoAcademico == null) null
+                                else p.fechaRecepcionTrabajoDivisionEstudiosProf,
+                            fecha_actualizacion = ahora,
+                        ),
+                    ),
+                )
+                null
+            }
+            "fecha_recepcion_registro_liberacion_depto_academico" -> {
+                bloqueado(
+                    p.fechaEnviadoDepartamentoAcademico != null,
+                    "No se puede revertir: el trámite ya fue enviado a Coordinación de Apoyo.",
+                )?.let { return it }
+                bloqueado(
+                    p.fechaLiberacionDocumentoCoordinacionCat != null,
+                    "No se puede revertir: Coordinación de Apoyo ya aprobó la revisión.",
+                )?.let { return it }
+                bloqueado(
+                    p.fechaCreacionAnexo91 != null,
+                    "No se puede revertir: el trámite ya avanzó en la DEP.",
+                )?.let { return it }
+                if (p.fechaRecepcionRegistroLiberacionDeptoAcademico == null) return "El paso no está completado."
+                egresadoRepository.save(
+                    e.actualizarProcesoActivo(
+                        p.copy(fechaRecepcionRegistroLiberacionDeptoAcademico = null, fecha_actualizacion = ahora),
+                    ),
+                )
+                null
+            }
+            "fecha_enviado_departamento_academico" -> {
+                bloqueado(
+                    p.fechaConfirmacionRecibidosAnexoXxxiXxxii != null,
+                    "No se puede revertir: la DEP ya confirmó la recepción de anexos.",
+                )?.let { return it }
+                bloqueado(
+                    p.fechaLiberacionDocumentoCoordinacionCat != null,
+                    "No se puede revertir: Coordinación de Apoyo ya aprobó la revisión.",
+                )?.let { return it }
+                bloqueado(
+                    p.fechaCreacionAnexo91 != null,
+                    "No se puede revertir: el trámite ya avanzó en la DEP.",
+                )?.let { return it }
+                if (p.fechaEnviadoDepartamentoAcademico == null) return "El paso no está completado."
+                val pRevertido = if (esResidenciaProfesional(e) && p.fechaCertificacion != null) {
+                    p.copy(
+                        fechaEnviadoDepartamentoAcademico = null,
+                        fechaCertificacion = null,
+                        cert_uuid = null,
+                        cert_hash = null,
+                        fecha_actualizacion = ahora,
+                    )
+                } else {
+                    p.copy(fechaEnviadoDepartamentoAcademico = null, fecha_actualizacion = ahora)
+                }
+                egresadoRepository.save(e.actualizarProcesoActivo(pRevertido))
+                null
+            }
+            "fecha_confirmacion_recibidos_anexo_xxxi_xxxii" -> {
+                bloqueado(
+                    p.fechaCreacionAnexo91 != null,
+                    "No se puede revertir: ya se generó el anexo 9.1.",
+                )?.let { return it }
+                if (p.fechaConfirmacionRecibidosAnexoXxxiXxxii == null) return "El paso no está completado."
+                egresadoRepository.save(
+                    e.actualizarProcesoActivo(
+                        p.copy(fechaConfirmacionRecibidosAnexoXxxiXxxii = null, fecha_actualizacion = ahora),
+                    ),
+                )
+                null
+            }
+            "fecha_creacion_anexo_9_1" -> {
+                bloqueado(
+                    p.fechaConfirmacionEntregaAnexo91 != null,
+                    "No se puede revertir: ya se confirmó la entrega del anexo 9.1.",
+                )?.let { return it }
+                if (p.fechaCreacionAnexo91 == null) return "El paso no está completado."
+                egresadoRepository.save(
+                    e.actualizarProcesoActivo(p.copy(fechaCreacionAnexo91 = null, fecha_actualizacion = ahora)),
+                )
+                null
+            }
+            "fecha_confirmacion_entrega_anexo_9_1" -> {
+                bloqueado(
+                    p.fechaSolicitudAnexo92 != null,
+                    "No se puede revertir: ya se solicitó el anexo 9.2.",
+                )?.let { return it }
+                if (p.fechaConfirmacionEntregaAnexo91 == null) return "El paso no está completado."
+                egresadoRepository.save(
+                    e.actualizarProcesoActivo(
+                        p.copy(fechaConfirmacionEntregaAnexo91 = null, fecha_actualizacion = ahora),
+                    ),
+                )
+                null
+            }
+            "fecha_solicitud_anexo_9_2" -> {
+                bloqueado(
+                    p.fechaAceptacionServiciosEscolaresAnexo92 != null,
+                    "No se puede revertir: Servicios escolares ya generó el anexo 9.2.",
+                )?.let { return it }
+                bloqueado(
+                    p.fechaCreacionAnexo92 != null,
+                    "No se puede revertir: ya se generó el anexo 9.2.",
+                )?.let { return it }
+                if (p.fechaSolicitudAnexo92 == null) return "El paso no está completado."
+                egresadoRepository.save(
+                    e.actualizarProcesoActivo(p.copy(fechaSolicitudAnexo92 = null, fecha_actualizacion = ahora)),
+                )
+                null
+            }
+            "fecha_confirmacion_recibido_anexo_9_2" -> {
+                bloqueado(
+                    p.fechaSolicitudSinodales != null,
+                    "No se puede revertir: ya se solicitó la asignación de sinodales.",
+                )?.let { return it }
+                if (p.fechaConfirmacionRecibidoAnexo92 == null) return "El paso no está completado."
+                egresadoRepository.save(
+                    e.actualizarProcesoActivo(
+                        p.copy(fechaConfirmacionRecibidoAnexo92 = null, fecha_actualizacion = ahora),
+                    ),
+                )
+                null
+            }
+            "fecha_solicitud_sinodales" -> {
+                bloqueado(
+                    p.fechaAsignacionSinodales != null,
+                    "No se puede revertir: el departamento académico ya asignó sinodales.",
+                )?.let { return it }
+                if (p.fechaSolicitudSinodales == null) return "El paso no está completado."
+                egresadoRepository.save(
+                    e.actualizarProcesoActivo(p.copy(fechaSolicitudSinodales = null, fecha_actualizacion = ahora)),
+                )
+                null
+            }
+            "fecha_confirmacion_sinodales_recibidos" -> {
+                bloqueado(
+                    p.fechaAgendaActo93 != null,
+                    "No se puede revertir: ya se agendó el acto protocolario.",
+                )?.let { return it }
+                if (p.fechaConfirmacionSinodalesRecibidos == null) return "El paso no está completado."
+                egresadoRepository.save(
+                    e.actualizarProcesoActivo(
+                        p.copy(fechaConfirmacionSinodalesRecibidos = null, fecha_actualizacion = ahora),
+                    ),
+                )
+                null
+            }
+            "fecha_agenda_acto_9_3" -> {
+                bloqueado(
+                    p.fechaCreacionAnexo93 != null,
+                    "No se puede revertir: ya se generó el anexo 9.3.",
+                )?.let { return it }
+                if (p.fechaAgendaActo93 == null) return "El paso no está completado."
+                egresadoRepository.save(
+                    e.actualizarProcesoActivo(
+                        p.copy(
+                            fechaAgendaActo93 = null,
+                            fechaReagendaActo93 = null,
+                            fecha_actualizacion = ahora,
+                        ),
+                    ),
+                )
+                null
+            }
+            "fecha_creacion_anexo_9_3" -> {
+                bloqueado(
+                    p.fechaConfirmacionEntregaAnexo93 != null,
+                    "No se puede revertir: ya se confirmó la entrega del anexo 9.3.",
+                )?.let { return it }
+                bloqueado(
+                    p.fechaSolicitudDocumentacionEscaneada != null,
+                    "No se puede revertir: ya se solicitó la documentación escaneada.",
+                )?.let { return it }
+                if (p.fechaCreacionAnexo93 == null) return "El paso no está completado."
+                egresadoRepository.save(
+                    e.actualizarProcesoActivo(p.copy(fechaCreacionAnexo93 = null, fecha_actualizacion = ahora)),
+                )
+                null
+            }
+            "fecha_confirmacion_entrega_anexo_9_3" -> {
+                bloqueado(
+                    p.fechaSolicitudDocumentacionEscaneada != null,
+                    "No se puede revertir: ya se solicitó la documentación escaneada.",
+                )?.let { return it }
+                if (p.fechaConfirmacionEntregaAnexo93 == null) return "El paso no está completado."
+                egresadoRepository.save(
+                    e.actualizarProcesoActivo(
+                        p.copy(fechaConfirmacionEntregaAnexo93 = null, fecha_actualizacion = ahora),
+                    ),
+                )
+                null
+            }
+            "fecha_solicitud_documentacion_escaneada" -> {
+                bloqueado(
+                    p.fechaEnvioDocumentacionEscaneadaEgresado != null,
+                    "No se puede revertir: el egresado ya envió la documentación.",
+                )?.let { return it }
+                if (p.fechaSolicitudDocumentacionEscaneada == null) return "El paso no está completado."
+                egresadoRepository.save(
+                    e.actualizarProcesoActivo(
+                        p.copy(fechaSolicitudDocumentacionEscaneada = null, fecha_actualizacion = ahora),
+                    ),
+                )
+                null
+            }
+            "fecha_confirmacion_documentacion_escaneada_recibida" -> {
+                bloqueado(
+                    p.fechaTitulacion != null,
+                    "No se puede revertir: el proceso ya está concluido.",
+                )?.let { return it }
+                if (p.fechaConfirmacionDocumentacionEscaneadaRecibida == null) return "El paso no está completado."
+                egresadoRepository.save(
+                    e.actualizarProcesoActivo(
+                        p.copy(
+                            fechaConfirmacionDocumentacionEscaneadaRecibida = null,
+                            fecha_actualizacion = ahora,
+                        ),
+                    ),
+                )
+                null
+            }
+            else -> "Paso no revertible desde seguimiento."
+        }
+    }
+
     fun confirmarEntregaEgresadoDeptoNoResidencia(id: String): Boolean {
         val e = cargarEgresadoPorId(id) ?: return false
         if (esResidenciaProfesional(e)) return false
@@ -1714,18 +2117,19 @@ class EgresadoService(
         return p.fechaRecibidoRegistroLiberacion != null || p.fechaLiberacionDocumentoCoordinacionCat != null
     }
 
-    private fun ultimaRevisionResultado(e: Egresado): String? {
+    private fun ultimaRevisionResultado(e: Egresado, ctx: BandejaDepartamentoCtx? = null): String? {
         val oid = e.id ?: return null
         val pid = e.procesoActivoOrNull()?.id ?: return null
+        if (ctx != null) return ctx.ultimasRevisiones[oid to pid]
         return revisionService.ultimaRevision(oid, pid)?.resultado
     }
 
-    private fun enCorreccionAcademico(e: Egresado): Boolean =
-        !esResidenciaProfesional(e) && ultimaRevisionResultado(e) == "observaciones"
+    private fun enCorreccionAcademico(e: Egresado, ctx: BandejaDepartamentoCtx? = null): Boolean =
+        !esResidenciaProfesional(e) && ultimaRevisionResultado(e, ctx) == "observaciones"
 
-    private fun estadoRevisionDepartamento(e: Egresado): String {
+    private fun estadoRevisionDepartamento(e: Egresado, ctx: BandejaDepartamentoCtx? = null): String {
         if (liberacionRevisionCompletada(e)) return "aprobado"
-        if (enCorreccionAcademico(e)) return "con_observaciones"
+        if (enCorreccionAcademico(e, ctx)) return "con_observaciones"
         return "pendiente"
     }
 
