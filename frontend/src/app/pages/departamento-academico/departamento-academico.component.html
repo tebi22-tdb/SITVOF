@@ -366,7 +366,7 @@
               class="departamento-btn-liberar"
               (click)="descargarAnexo32(item.id, $event)"
               [disabled]="descargando32Id === item.id || !!item.fecha_generacion_hoja_32"
-            >{{ descargando32Id === item.id ? '…' : item.fecha_generacion_hoja_32 ? 'XXXII ✓' : 'Anexo XXXII' }}</button>
+            >{{ descargando32Id === item.id ? '…' : item.fecha_generacion_hoja_32 ? 'XXXII' : 'Anexo XXXII' }}</button>
             <button
               *ngIf="!item.fecha_registrado_departamento"
               type="button"
@@ -424,7 +424,7 @@
               class="departamento-btn-liberar"
               (click)="descargarAnexo33(item.id, $event)"
               [disabled]="descargando33Id === item.id || !!item.fecha_generacion_hoja_33"
-            >{{ descargando33Id === item.id ? '…' : item.fecha_generacion_hoja_33 ? 'XXXIII ✓' : 'Anexo XXXIII' }}</button>
+            >{{ descargando33Id === item.id ? '…' : item.fecha_generacion_hoja_33 ? 'XXXIII' : 'Anexo XXXIII' }}</button>
             <span *ngIf="item.fecha_liberacion_producto" class="departamento-badge departamento-badge--aprobado">{{ fechaLiberacionProducto(item) }}</span>
             <button
               *ngIf="puedeRevertirPasoDepartamento && item.fecha_liberacion_producto"
@@ -535,13 +535,13 @@
                 class="departamento-btn-liberar"
                 (click)="descargarAnexo32(item.id, $event)"
                 [disabled]="descargando32Id === item.id || !!item.fecha_generacion_hoja_32"
-              >{{ descargando32Id === item.id ? '…' : item.fecha_generacion_hoja_32 ? 'XXXII ✓' : 'XXXII' }}</button>
+              >{{ descargando32Id === item.id ? '…' : item.fecha_generacion_hoja_32 ? 'XXXII' : 'XXXII' }}</button>
               <button
                 type="button"
                 class="departamento-btn-liberar"
                 (click)="descargarAnexo33(item.id, $event)"
                 [disabled]="descargando33Id === item.id || !!item.fecha_generacion_hoja_33"
-              >{{ descargando33Id === item.id ? '…' : item.fecha_generacion_hoja_33 ? 'XXXIII ✓' : 'XXXIII' }}</button>
+              >{{ descargando33Id === item.id ? '…' : item.fecha_generacion_hoja_33 ? 'XXXIII' : 'XXXIII' }}</button>
               <button
                 *ngIf="!item.fecha_generacion_anexos_xxxii_xxxiii"
                 type="button"

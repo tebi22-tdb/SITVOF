@@ -41,11 +41,16 @@ import {
                 <option value="JEFA">JEFA</option>
               </select>
             </div>
+            <div class="campo">
+              <label class="lbl">Iniciales (pie de página)</label>
+              <input class="inp" type="text" [(ngModel)]="global!.jefeDivisionIniciales" name="jefeDivisionIniciales"
+                placeholder="Ej. MFR/xyz"/>
+            </div>
             <div class="campo full">
               <label class="lbl">Imagen anual TECNM (pie de página)</label>
               <div class="imagen-anual-row">
                 <span class="imagen-estado" [class.ok]="global!.tieneImagenAnual">
-                  {{ global!.tieneImagenAnual ? '✓ Imagen personalizada cargada' : 'Usando imagen por defecto del sistema' }}
+                  {{ global!.tieneImagenAnual ? 'Imagen personalizada cargada' : 'Usando imagen por defecto del sistema' }}
                 </span>
                 <label class="btn-secundario">
                   Subir nueva imagen
@@ -59,7 +64,7 @@ import {
               <button class="btn-guardar" type="submit" [disabled]="globalGuardando">
                 {{ globalGuardando ? 'Guardando…' : 'Guardar datos globales' }}
               </button>
-              <span *ngIf="globalOk" class="msg-ok">&#10003; Guardado</span>
+              <span *ngIf="globalOk" class="msg-ok">Guardado</span>
             </div>
           </form>
         </section>
@@ -86,7 +91,7 @@ import {
               <button class="btn-guardar" type="submit" [disabled]="seGuardando">
                 {{ seGuardando ? 'Guardando…' : 'Guardar Servicios Escolares' }}
               </button>
-              <span *ngIf="seOk" class="msg-ok">&#10003; Guardado</span>
+              <span *ngIf="seOk" class="msg-ok">Guardado</span>
             </div>
           </form>
         </section>
@@ -121,7 +126,7 @@ import {
                   [disabled]="dept._guardando">
                   {{ dept._guardando ? 'Guardando…' : 'Guardar' }}
                 </button>
-                <span *ngIf="dept._ok" class="msg-ok">&#10003; Guardado</span>
+                <span *ngIf="dept._ok" class="msg-ok">Guardado</span>
               </div>
             </div>
           </div>
@@ -233,11 +238,13 @@ export class ConfigInstitucionalComponent implements OnInit {
     this.svc.putGlobal({
       jefeDivisionNombre: this.global.jefeDivisionNombre.toUpperCase(),
       jefeDivisionTitulo: this.global.jefeDivisionTitulo,
+      jefeDivisionIniciales: this.global.jefeDivisionIniciales,
     }).subscribe({
       next: (r) => {
         if (this.global) {
           this.global.jefeDivisionNombre = r.jefeDivisionNombre;
           this.global.jefeDivisionTitulo = r.jefeDivisionTitulo;
+          this.global.jefeDivisionIniciales = r.jefeDivisionIniciales;
         }
         this.globalGuardando = false;
         this.globalOk = true;

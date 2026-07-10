@@ -35,28 +35,17 @@ import com.sit_titulacion.sit.web.api.dto.EgresadoDetailDto
 import com.sit_titulacion.sit.web.api.dto.EgresadoListItemDto
 import com.sit_titulacion.sit.web.api.dto.EgresadoRequestDto
 import com.sit_titulacion.sit.web.api.dto.EgresadoResponseDto
-import org.apache.poi.xwpf.usermodel.XWPFDocument
 import org.bson.types.ObjectId
 import org.slf4j.LoggerFactory
 import org.springframework.core.env.Environment
-import org.springframework.core.io.ClassPathResource
 import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
 import org.springframework.data.mongodb.gridfs.GridFsTemplate
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
-import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import java.io.File
 import java.io.InputStream
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.nio.file.Paths
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.TimeUnit
-import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
-import java.util.zip.ZipOutputStream
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -457,6 +446,16 @@ class EgresadoService(
         )
     }
 
+    private fun fechaLlegadaBandeja(e: Egresado, norm: String): Instant {
+        val pr = e.procesoActivoOrNull()
+        val fecha = when (norm) {
+            "anteproyecto" -> pr?.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico
+            "liberacion_producto" -> pr?.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii
+            else -> pr?.fechaEnviadoDepartamentoAcademico
+        }
+        return fecha ?: e.fecha_actualizacion
+    }
+
     private fun listarParaDepartamentoConCtx(ctx: BandejaDepartamentoCtx, estado: String): List<DepartamentoListItemDto> {
         val porCarrera = ctx.porCarrera
         val norm = estado.trim().lowercase()
@@ -499,8 +498,9 @@ class EgresadoService(
                 }
             }
         }
+        val listaOrdenada = if (norm == "sinodales") lista else lista.sortedByDescending { fechaLlegadaBandeja(it, norm) }
         val formatter = DateTimeFormatter.ISO_INSTANT
-        return lista.map { e ->
+        return listaOrdenada.map { e ->
             val p = e.datos_personales
             val pr = e.procesoActivo()
             val nombre = listOf(p.nombre, p.apellido_paterno, p.apellido_materno)
@@ -1459,7 +1459,7 @@ class EgresadoService(
         val qrDataUri = generarQrDataUri("${baseUrlCert().trimEnd('/')}/#/verificar/$certId")
         val valores = construirValoresPlantillaHtml(e, listOf(
             "MODALIDAD" to p.datos_proyecto.modalidad,
-            "FECHA_CARTA" to fechaCartaEspanola(ahora),
+            "FECHA_CARTA" to fechaCartaEspanolaCapitalizada(ahora),
             "TEXTO_OPCION_TI" to textoOpcionTitulacionIntegral(p.datos_proyecto.modalidad),
             "DESTINATARIO_SERVICIOS_ESCOLARES" to serviciosEscolares.jefeNombre.uppercase(Locale.forLanguageTag("es-MX")),
             "CARGO_SERVICIOS_ESCOLARES" to serviciosEscolares.jefeCargo.uppercase(Locale.forLanguageTag("es-MX")),
@@ -1501,11 +1501,26 @@ class EgresadoService(
         val p = e.procesoActivoOrNull() ?: return null
         if (p.fechaConfirmacionEntregaAnexo91 == null) return null
         if (p.fechaCreacionAnexo92 == null && p.fechaSolicitudAnexo92 == null) return null
+        val serviciosEscolares = configInstitucionalService.obtenerServiciosEscolares()
         val ahora = Instant.now()
+        val certId = p.cert_uuid?.trim().takeUnless { it.isNullOrBlank() } ?: e.id?.toHexString() ?: e.numero_control
+        val qrDataUri = generarQrDataUri("${baseUrlCert().trimEnd('/')}/#/verificar/$certId")
+        val valores = construirValoresPlantillaHtml(e, listOf(
+            "FECHA_CARTA" to fechaCartaEspanolaCapitalizada(ahora),
+            "PREFIJO_EGRESADO" to GeneroPorNombre.etiquetaCiudadano(generoDocumentoEgresado(e)),
+            "FIRMA_SE_NOMBRE" to serviciosEscolares.jefeNombre.uppercase(Locale.forLanguageTag("es-MX")),
+            "FIRMA_SE_CARGO" to serviciosEscolares.jefeCargo.uppercase(Locale.forLanguageTag("es-MX")),
+            "QR_CODE" to qrDataUri,
+        ))
+        val pdf = htmlAnexoPdfService.generarDesdeClasspath("templates/html/anexo-9-2.html", valores)
+        if (pdf == null) {
+            log.warn("crearAnexo92: no se generó PDF para egresado id={}", id)
+            return null
+        }
         if (p.fechaCreacionAnexo92 == null) {
             egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaCreacionAnexo92 = ahora, fecha_actualizacion = ahora)))
         }
-        return generarPdfAnexo("Anexo 9.2", "sit.anexo92.plantilla-docx", "templates/anexo-9-2.docx", e, emptyList())
+        return pdf
     }
 
     fun confirmarRecibidoAnexo92(id: String): Boolean {
@@ -1686,7 +1701,8 @@ class EgresadoService(
         val qrDataUri = generarQrDataUri("${baseUrlCert().trimEnd('/')}/#/verificar/$certId")
         val valores = construirValoresPlantillaHtml(e, generoExtras + listOf(
             "PROYECTO" to textoProyectoDocumentosTitulacion(e, p),
-            "FRASE_PROYECTO_93" to fraseProyectoAnexo93(e, p),
+            "FRASE_PROYECTO_93_ETIQUETA" to fraseProyectoAnexo93Etiqueta(e),
+            "PROYECTO_93_VALOR" to fraseProyectoAnexo93Valor(e, p),
             "ACTO_93" to actoLegible,
             "FECHA_CARTA" to fechaCartaEspanolaAnexo93(Instant.now()),
             "TEXTO_OPCION_TI" to textoOpcionTitulacionIntegral(p.datos_proyecto.modalidad),
@@ -1696,6 +1712,7 @@ class EgresadoService(
             "VOCAL" to (tribunal?.vocal ?: ""),
             "VOCAL_SUPLENTE" to (tribunal?.vocal_suplente ?: ""),
             "JEFE_DIVISION_NOMBRE" to institucional.jefeDivisionNombre.uppercase(Locale.forLanguageTag("es-MX")),
+            "JEFE_DEPTO_INICIALES" to configInstitucionalService.obtenerJefeDivisionIniciales(),
             "QR_CODE" to qrDataUri,
         ))
         val bytes = htmlAnexoPdfService.generarDesdeClasspath("templates/html/anexo-9-3.html", valores)
@@ -2304,9 +2321,10 @@ class EgresadoService(
         return valores
     }
 
-    private fun fechaCartaEspanola(instant: Instant): String {
+    private fun fechaCartaEspanolaCapitalizada(instant: Instant): String {
         val z = instant.atZone(ZoneId.systemDefault())
-        val mes = nombreMesEspanol(z.monthValue).uppercase(Locale.forLanguageTag("es-MX"))
+        val mes = nombreMesEspanol(z.monthValue).lowercase(Locale.forLanguageTag("es-MX"))
+            .replaceFirstChar { it.uppercase(Locale.forLanguageTag("es-MX")) }
         return "${z.dayOfMonth} de $mes de ${z.year}"
     }
 
@@ -2410,95 +2428,12 @@ class EgresadoService(
         return "con el tema \"$proy\""
     }
 
-    private fun fraseProyectoAnexo93(e: Egresado, p: ProcesoTitulacion): String {
+    private fun fraseProyectoAnexo93Etiqueta(e: Egresado): String =
+        if (esCeneval(e)) "" else "con el proyecto titulado:"
+
+    private fun fraseProyectoAnexo93Valor(e: Egresado, p: ProcesoTitulacion): String {
         if (esCeneval(e)) return "SIN NOMBRE DE PROYECTO"
-        val proy = p.datos_proyecto.nombre_proyecto.trim().ifBlank { "—" }
-        return "con el proyecto denominado: \"$proy\""
-    }
-
-    private fun generarPdfAnexo(titulo: String, templateProperty: String, defaultTemplateClasspath: String, e: Egresado, extras: List<Pair<String, String>>): ByteArray? {
-        val pr = e.procesoActivoOrNull()
-        val valores = mutableMapOf(
-            "NOMBRE" to nombreCompleto(e),
-            "NUMERO_CONTROL" to e.numero_control,
-            "CARRERA" to e.datos_personales.carrera,
-            "PROYECTO" to (pr?.datos_proyecto?.nombre_proyecto ?: ""),
-            "FECHA_GENERACION" to DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
-        )
-        for ((k, v) in extras) valores[k] = v
-        expandirAliasPlantilla(valores)
-        val docxTemplate = cargarPlantillaDocx(templateProperty, defaultTemplateClasspath)
-        if (docxTemplate == null) {
-            log.warn("No se pudo cargar la plantilla DOCX para {}: revisa {} o classpath {}", titulo, templateProperty, defaultTemplateClasspath)
-            return null
-        }
-        val pdfPlantilla = convertirDocxTemplateAPdf(docxTemplate, valores)
-        if (pdfPlantilla != null) return pdfPlantilla
-        log.warn("LibreOffice no generó PDF para {}.", titulo)
-        return null
-    }
-
-    private fun cargarPlantillaDocx(templateProperty: String, defaultTemplateClasspath: String): ByteArray? {
-        val rutaConfig = env.getProperty(templateProperty)?.trim().orEmpty()
-        if (rutaConfig.isNotEmpty()) {
-            try {
-                val path = Paths.get(rutaConfig)
-                if (Files.isRegularFile(path)) return Files.readAllBytes(path)
-            } catch (_: Exception) { }
-            val f = File(rutaConfig)
-            if (f.exists() && f.isFile) return Files.readAllBytes(f.toPath())
-            log.warn("Plantilla configurada no existe o no es legible: {}={}", templateProperty, rutaConfig)
-        }
-        return try { ClassPathResource(defaultTemplateClasspath).inputStream.use { it.readBytes() } }
-        catch (_: Exception) { null }
-    }
-
-    private fun ejecutarLibreOfficeConvert(soffice: Array<String>, tmpDir: File, docxFile: File, pdfFile: File, conPerfilAislado: Boolean): Boolean {
-        val args = mutableListOf(*soffice, "--headless")
-        if (conPerfilAislado) args.add("-env:UserInstallation=file:///${tmpDir.absolutePath.replace('\\', '/')}/lo-profile")
-        args.addAll(listOf("--convert-to", "pdf:writer_pdf_Export", "--outdir", tmpDir.absolutePath, docxFile.absolutePath))
-        return try {
-            val proc = ProcessBuilder(args).redirectErrorStream(true).start()
-            val salida = proc.inputStream.use { stream -> String(stream.readAllBytes(), StandardCharsets.UTF_8) }
-            val termino = proc.waitFor(90, TimeUnit.SECONDS)
-            val exit = if (termino) proc.exitValue() else -1
-            val ok = termino && exit == 0 && pdfFile.exists()
-            if (!ok) log.warn("LibreOffice (perfilAislado={}): exit={}, termino={}", conPerfilAislado, exit, termino)
-            ok
-        } catch (ex: Exception) { log.warn("LibreOffice error: {}", ex.message); false }
-    }
-
-    private fun convertirDocxTemplateAPdf(docxBytes: ByteArray, valores: Map<String, String>): ByteArray? {
-        val docxRellenado = reemplazarMarcadoresDocx(docxBytes, valores)
-        val tmpDir = Files.createTempDirectory("sit-anexos-").toFile()
-        val docxFile = File(tmpDir, "anexo.docx")
-        val pdfFile = File(tmpDir, "anexo.pdf")
-        val soffice = comandoSoffice()
-        return try {
-            Files.write(docxFile.toPath(), docxRellenado)
-            when {
-                ejecutarLibreOfficeConvert(soffice, tmpDir, docxFile, pdfFile, conPerfilAislado = true) -> Files.readAllBytes(pdfFile.toPath())
-                ejecutarLibreOfficeConvert(soffice, tmpDir, docxFile, pdfFile, conPerfilAislado = false) -> Files.readAllBytes(pdfFile.toPath())
-                else -> null
-            }
-        } catch (ex: Exception) {
-            log.error("Error al convertir DOCX a PDF: {}", ex.message, ex)
-            null
-        } finally {
-            pdfFile.delete(); docxFile.delete()
-            File(tmpDir, "lo-profile").deleteRecursively(); tmpDir.delete()
-        }
-    }
-
-    private fun comandoSoffice(): Array<String> {
-        val prop = env.getProperty("sit.soffice.path")?.trim().orEmpty()
-        if (prop.isNotEmpty() && File(prop).isFile) return arrayOf(prop)
-        System.getenv("SIT_SOFFICE")?.trim()?.takeIf { it.isNotEmpty() && File(it).isFile }?.let { return arrayOf(it) }
-        if (System.getProperty("os.name", "").lowercase().contains("win")) {
-            listOf("""C:\Program Files\LibreOffice\program\soffice.exe""", """C:\Program Files (x86)\LibreOffice\program\soffice.exe""")
-                .firstOrNull { File(it).isFile }?.let { return arrayOf(it) }
-        }
-        return arrayOf("soffice")
+        return p.datos_proyecto.nombre_proyecto.trim().ifBlank { "—" }
     }
 
     private fun baseUrlCert(): String =
@@ -2572,80 +2507,6 @@ class EgresadoService(
         valores.putIfAbsent("NOMBRE_COMPLETO", nombre); valores.putIfAbsent("NOMBRE_ALUMNO", nombre); valores.putIfAbsent("ALUMNO", nombre)
         valores.putIfAbsent("CONTROL", control); valores.putIfAbsent("NO_CONTROL", control); valores.putIfAbsent("NUMERO_DE_CONTROL", control)
         valores.putIfAbsent("CARRERA_COMPLETA", carrera); valores.putIfAbsent("NOMBRE_PROYECTO", proyecto)
-    }
-
-    private fun reemplazarMarcadoresDocx(docxBytes: ByteArray, valores: Map<String, String>): ByteArray {
-        return try { reemplazarMarcadoresEnZipDocx(docxBytes, valores) }
-        catch (ex: Exception) { log.warn("Reemplazo por ZIP falló ({}), se intenta Apache POI.", ex.message); reemplazarMarcadoresDocxPoi(docxBytes, valores) }
-    }
-
-    private fun esXmlWordParaMarcadores(entryName: String): Boolean {
-        if (!entryName.startsWith("word/") || !entryName.endsWith(".xml")) return false
-        val base = entryName.removePrefix("word/").substringBefore(".xml")
-        return base == "document" || base.startsWith("header") || base.startsWith("footer") || base == "footnotes" || base == "endnotes"
-    }
-
-    private fun escapeXmlTextoContenido(s: String): String =
-        s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-
-    private fun aplicarMarcadoresEnTextoXml(original: String, valores: Map<String, String>): String {
-        var texto = original
-        valores.forEach { (k, v) ->
-            val safe = escapeXmlTextoContenido(v.ifBlank { "—" })
-            texto = texto.replace("{{$k}}", safe, ignoreCase = true)
-            texto = texto.replace("$" + "{" + k + "}", safe, ignoreCase = true)
-            texto = texto.replace("<<$k>>", safe, ignoreCase = true)
-            texto = texto.replace("[$k]", safe, ignoreCase = true)
-        }
-        return texto
-    }
-
-    private fun reemplazarMarcadoresEnZipDocx(docxBytes: ByteArray, valores: Map<String, String>): ByteArray {
-        val outBytes = ByteArrayOutputStream()
-        ZipOutputStream(outBytes).use { zOut ->
-            ZipInputStream(ByteArrayInputStream(docxBytes)).use { zIn ->
-                var entry = zIn.nextEntry
-                while (entry != null) {
-                    val name = entry.name
-                    val raw = zIn.readAllBytes()
-                    val processed = if (!entry.isDirectory && esXmlWordParaMarcadores(name)) {
-                        aplicarMarcadoresEnTextoXml(String(raw, StandardCharsets.UTF_8), valores).toByteArray(StandardCharsets.UTF_8)
-                    } else raw
-                    val ze = ZipEntry(name)
-                    ze.time = entry.time
-                    zOut.putNextEntry(ze); zOut.write(processed); zOut.closeEntry()
-                    entry = zIn.nextEntry
-                }
-            }
-        }
-        return outBytes.toByteArray()
-    }
-
-    private fun reemplazarMarcadoresDocxPoi(docxBytes: ByteArray, valores: Map<String, String>): ByteArray {
-        val doc = XWPFDocument(ByteArrayInputStream(docxBytes))
-        fun reemplazarEnTexto(texto: String): String {
-            var result = texto
-            valores.forEach { (k, v) ->
-                result = result.replace("{{$k}}", v.ifBlank { "—" }, ignoreCase = true)
-                result = result.replace("[$k]", v.ifBlank { "—" }, ignoreCase = true)
-            }
-            return result
-        }
-        doc.paragraphs.forEach { para ->
-            para.runs.forEach { run -> run.setText(reemplazarEnTexto(run.text() ?: ""), 0) }
-        }
-        doc.tables.forEach { table ->
-            table.rows.forEach { row ->
-                row.tableCells.forEach { cell ->
-                    cell.paragraphs.forEach { para ->
-                        para.runs.forEach { run -> run.setText(reemplazarEnTexto(run.text() ?: ""), 0) }
-                    }
-                }
-            }
-        }
-        val out = ByteArrayOutputStream()
-        doc.write(out)
-        return out.toByteArray()
     }
 
     fun crearHoja32(id: String): ByteArray? {

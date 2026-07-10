@@ -356,11 +356,13 @@
   width: 100%;
 }
 .seg-doc-escaneada-viewer {
+  display: block;
   width: 100%;
-  min-height: 300px;
+  min-height: 420px;
   border: 1px solid #d6e2f4;
   border-radius: 8px;
   background: #fff;
+  overflow: hidden;
 }
 .seg-doc-escaneada-reenvio {
   margin-top: 8px;

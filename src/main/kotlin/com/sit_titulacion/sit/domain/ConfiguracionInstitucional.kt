@@ -14,6 +14,8 @@ data class ConfiguracionInstitucional(
     val jefeDivisionNombre: String? = null,
     /** "JEFE" | "JEFA" */
     val jefeDivisionTitulo: String? = null,
+    /** Iniciales para pie de página del Jefe(a) de División, ej. "MFR/xyz" */
+    val jefeDivisionIniciales: String? = null,
     /** Imagen anual TECNM en base64 data URI (ej. data:image/png;base64,…).
      *  Cuando es null se usa la imagen por defecto del classpath. */
     val imagenAnualDataUri: String? = null,

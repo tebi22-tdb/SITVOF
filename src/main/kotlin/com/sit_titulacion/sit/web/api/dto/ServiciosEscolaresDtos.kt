@@ -21,4 +21,6 @@ data class ServiciosEscolaresDetalleDto(
     @JsonProperty("fecha_solicitud_anexo_9_2") val fecha_solicitud_anexo_9_2: String,
     @JsonProperty("fecha_aceptacion_servicios_escolares_anexo_9_2")
     val fecha_aceptacion_servicios_escolares_anexo_9_2: String?,
+    @JsonProperty("fecha_creacion_anexo_9_2")
+    val fecha_creacion_anexo_9_2: String?,
 )

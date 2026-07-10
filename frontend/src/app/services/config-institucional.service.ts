@@ -8,6 +8,7 @@ const API = `${environment.apiUrl}/api/config-institucional`;
 export interface ConfigGlobalResponse {
   jefeDivisionNombre: string;
   jefeDivisionTitulo: string;
+  jefeDivisionIniciales: string;
   tieneImagenAnual: boolean;
 }
 
@@ -34,7 +35,7 @@ export class ConfigInstitucionalService {
     return this.http.get<ConfigGlobalResponse>(`${API}/global`);
   }
 
-  putGlobal(data: { jefeDivisionNombre: string; jefeDivisionTitulo: string }): Observable<ConfigGlobalResponse> {
+  putGlobal(data: { jefeDivisionNombre: string; jefeDivisionTitulo: string; jefeDivisionIniciales: string }): Observable<ConfigGlobalResponse> {
     return this.http.put<ConfigGlobalResponse>(`${API}/global`, data);
   }
 

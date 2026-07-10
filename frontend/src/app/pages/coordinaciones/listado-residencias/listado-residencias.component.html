@@ -151,8 +151,8 @@
           </td>
           <!-- Anexos -->
           <td data-label="Anexos">
-            <span [ngClass]="['anex-chip', r.tiene_anexo_29 ? '' : 'miss']">A29 {{ r.tiene_anexo_29 ? '✓' : '!' }}</span>
-            <span [ngClass]="['anex-chip', r.tiene_anexo_30 ? '' : 'miss']">A30 {{ r.tiene_anexo_30 ? '✓' : '!' }}</span>
+            <span [ngClass]="['anex-chip', r.tiene_anexo_29 ? '' : 'miss']">A29{{ r.tiene_anexo_29 ? '' : ' !' }}</span>
+            <span [ngClass]="['anex-chip', r.tiene_anexo_30 ? '' : 'miss']">A30{{ r.tiene_anexo_30 ? '' : ' !' }}</span>
           </td>
           <!-- Estado -->
           <td data-label="Estado">

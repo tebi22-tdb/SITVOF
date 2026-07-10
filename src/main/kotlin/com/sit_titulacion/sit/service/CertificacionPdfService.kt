@@ -14,9 +14,11 @@ import org.apache.pdfbox.pdmodel.PDPageContentStream
 import org.apache.pdfbox.pdmodel.common.PDRectangle
 import org.apache.pdfbox.pdmodel.font.PDType1Font
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject
+import org.apache.pdfbox.cos.COSDictionary
 import org.apache.pdfbox.cos.COSName
 import org.apache.pdfbox.pdmodel.interactive.digitalsignature.PDSignature
 import org.apache.pdfbox.pdmodel.interactive.digitalsignature.SignatureOptions
+import org.apache.pdfbox.pdmodel.interactive.viewerpreferences.PDViewerPreferences
 import org.bson.types.ObjectId
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.cert.jcajce.JcaCertStore
@@ -257,6 +259,10 @@ class CertificacionPdfService(
                     cs.showText("Puede verificar la firma abriendo el PDF en Adobe Reader u otro lector compatible.")
                     cs.endText()
                 }
+
+                val viewerPreferences = PDViewerPreferences(COSDictionary())
+                viewerPreferences.setPrintScaling(PDViewerPreferences.PRINT_SCALING.None)
+                doc.documentCatalog.viewerPreferences = viewerPreferences
 
                 doc.save(tmpOut)
             } finally {

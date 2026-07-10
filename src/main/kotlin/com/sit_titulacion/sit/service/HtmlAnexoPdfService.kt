@@ -2,6 +2,8 @@ package com.sit_titulacion.sit.service
 
 import com.openhtmltopdf.outputdevice.helper.BaseRendererBuilder
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder
+import org.apache.pdfbox.cos.COSDictionary
+import org.apache.pdfbox.pdmodel.interactive.viewerpreferences.PDViewerPreferences
 import org.slf4j.LoggerFactory
 import org.springframework.core.io.ClassPathResource
 import org.springframework.stereotype.Service
@@ -30,7 +32,14 @@ class HtmlAnexoPdfService {
                 registrarFuentes(builder)
                 builder.withHtmlContent(html, baseUri)
                 builder.toStream(os)
-                builder.run()
+                val renderer = builder.buildPdfRenderer()
+                renderer.use {
+                    it.layout()
+                    val viewerPreferences = PDViewerPreferences(COSDictionary())
+                    viewerPreferences.setPrintScaling(PDViewerPreferences.PRINT_SCALING.None)
+                    it.pdfDocument.documentCatalog.viewerPreferences = viewerPreferences
+                    it.createPDF()
+                }
                 os.toByteArray()
             }
         } catch (ex: Exception) {

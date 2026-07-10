@@ -151,16 +151,26 @@
             class="se-acciones"
             *ngIf="tabActivo === 'pendientes' && !detalle.fecha_aceptacion_servicios_escolares_anexo_9_2"
           >
-            <button type="button" class="se-btn se-btn--aceptar" [disabled]="confirmando" (click)="aceptarPendiente()">
+
+            <button
+              type="button"
+              class="se-btn se-btn--sec"
+              [disabled]="descargando92"
+              (click)="descargarAnexo92()"
+            >
+              {{ descargando92 ? 'Generando…' : 'Generar Anexo 9.2' }}
+            </button>
+            
+            <button type="button" class="se-btn se-btn--aceptar" [disabled]="confirmando || !detalle.fecha_creacion_anexo_9_2" (click)="aceptarPendiente()">
               {{ confirmando ? 'Atendiendo…' : 'Solicitud Atendida' }}
             </button>
+            
           </footer>
           <footer
             class="se-acciones se-acciones--atendido"
             *ngIf="tabActivo === 'atendidos' && detalle.fecha_aceptacion_servicios_escolares_anexo_9_2"
           >
             <p class="se-aceptado" role="status">
-              <span class="se-aceptado__icon" aria-hidden="true">✓</span>
               Completado el {{ formatearFecha(detalle.fecha_aceptacion_servicios_escolares_anexo_9_2) }}
             </p>
             <button

@@ -305,13 +305,13 @@
                 <p *ngIf="!cargandoDocEscaneada && errorCargaDocEscaneada" class="seg-msg seg-msg-error">
                   {{ errorCargaDocEscaneada }}
                 </p>
-                <iframe
-                  *ngIf="!cargandoDocEscaneada && !errorCargaDocEscaneada && vistaDocEscaneadaUrl"
+                <app-pdf-viewer-panel
+                  *ngIf="!cargandoDocEscaneada && !errorCargaDocEscaneada && vistaDocEscaneadaObjectUrl"
                   class="seg-doc-escaneada-viewer"
-                  [src]="vistaDocEscaneadaUrl"
-                  title="Documento escaneado enviado por el egresado"
-                ></iframe>
-                <p *ngIf="!cargandoDocEscaneada && !errorCargaDocEscaneada && !vistaDocEscaneadaUrl" class="seg-msg">
+                  [src]="vistaDocEscaneadaObjectUrl"
+                  fileName="documentacion-escaneada.pdf"
+                ></app-pdf-viewer-panel>
+                <p *ngIf="!cargandoDocEscaneada && !errorCargaDocEscaneada && !vistaDocEscaneadaObjectUrl" class="seg-msg">
                   No se pudo cargar la vista previa del PDF.
                 </p>
 
