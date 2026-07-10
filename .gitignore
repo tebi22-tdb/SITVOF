@@ -58,6 +58,9 @@ _prisciliano_*.txt
 _esteban_pdf.txt
 _doc_extract_text.txt
 
+# Secretos locales (contraseña de correo, etc.) — nunca subir a Git
+**/application-secrets.properties
+
 ### Documentación local (no versionar en este remoto) ###
 docs/
 
