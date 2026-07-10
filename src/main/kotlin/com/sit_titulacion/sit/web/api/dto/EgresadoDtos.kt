@@ -28,6 +28,8 @@ data class EgresadoRequestDto(
     @JsonProperty("nombre_proyecto") @field:Size(max = 300) val nombreProyecto: String? = null,
     @field:NotBlank @field:Size(max = 100)
     val modalidad: String,
+    /** "titulacion" | "titulacion_integral" */
+    @JsonProperty("tipo_titulacion") @field:Size(max = 40) val tipoTitulacion: String? = null,
     @JsonProperty("curso_titulacion")  @field:Size(max = 100) val cursoTitulacion: String? = null,
     @JsonProperty("asesor_interno")    @field:Size(max = 150) val asesorInterno: String? = null,
     @JsonProperty("asesor_externo")    @field:Size(max = 150) val asesorExterno: String? = null,
@@ -267,6 +269,7 @@ data class DatosPersonalesDto(
 data class DatosProyectoDto(
     @JsonProperty("nombre_proyecto") val nombre_proyecto: String,
     val modalidad: String,
+    @JsonProperty("tipo_titulacion") val tipo_titulacion: String = "titulacion_integral",
     @JsonProperty("curso_titulacion") val curso_titulacion: String = "no",
     @JsonProperty("asesor_interno") val asesor_interno: String? = null,
     @JsonProperty("asesor_externo") val asesor_externo: String? = null,

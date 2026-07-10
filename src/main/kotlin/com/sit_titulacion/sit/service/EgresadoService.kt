@@ -131,6 +131,7 @@ class EgresadoService(
             datos_proyecto = DatosProyecto(
                 nombre_proyecto = datos.nombreProyecto ?: "",
                 modalidad = datos.modalidad,
+                tipo_titulacion = normalizarTipoTitulacion(datos.tipoTitulacion, datos.modalidad),
                 curso_titulacion = datos.cursoTitulacion?.trim()?.lowercase()?.takeIf { it == "si" } ?: "no",
                 asesor_interno = datos.asesorInterno?.takeIf { it.isNotBlank() },
                 asesor_externo = datos.asesorExterno?.takeIf { it.isNotBlank() },
@@ -197,6 +198,7 @@ class EgresadoService(
             datos_proyecto = DatosProyecto(
                 nombre_proyecto = datos.nombreProyecto ?: "",
                 modalidad = datos.modalidad,
+                tipo_titulacion = normalizarTipoTitulacion(datos.tipoTitulacion, datos.modalidad),
                 curso_titulacion = datos.cursoTitulacion?.trim()?.lowercase()?.takeIf { it == "si" } ?: "no",
                 asesor_interno = datos.asesorInterno?.takeIf { it.isNotBlank() },
                 asesor_externo = datos.asesorExterno?.takeIf { it.isNotBlank() },
@@ -239,6 +241,7 @@ class EgresadoService(
             datos_proyecto = DatosProyecto(
                 nombre_proyecto = datos.nombreProyecto ?: "",
                 modalidad = datos.modalidad,
+                tipo_titulacion = normalizarTipoTitulacion(datos.tipoTitulacion, datos.modalidad),
                 curso_titulacion = datos.cursoTitulacion?.trim()?.lowercase()?.takeIf { it == "si" } ?: "no",
                 asesor_interno = datos.asesorInterno?.takeIf { it.isNotBlank() },
                 asesor_externo = datos.asesorExterno?.takeIf { it.isNotBlank() },
@@ -1662,7 +1665,8 @@ class EgresadoService(
     private fun requiereFormatoPreguntasSinodales(p: ProcesoTitulacion): Boolean {
         val modalidad = p.datos_proyecto.modalidad.trim().lowercase(Locale.ROOT)
         val cursoTit = p.datos_proyecto.curso_titulacion.trim().lowercase(Locale.ROOT) == "si"
-        if (modalidad == "tesis") return true
+        // Tesis (integral) y TESIS PROFESIONAL (titulación tradicional)
+        if (modalidad == "tesis" || modalidad.contains("tesis")) return true
         if (modalidad.contains("monograf") && cursoTit) return true
         return false
     }
@@ -1998,12 +2002,17 @@ class EgresadoService(
             ),
             datos_proyecto = pr?.let {
                 DatosProyectoDto(
-                    nombre_proyecto = it.datos_proyecto.nombre_proyecto, modalidad = it.datos_proyecto.modalidad,
-                    curso_titulacion = it.datos_proyecto.curso_titulacion, asesor_interno = it.datos_proyecto.asesor_interno,
-                    asesor_externo = it.datos_proyecto.asesor_externo, director = it.datos_proyecto.director,
-                    asesor_1 = it.datos_proyecto.asesor_1, asesor_2 = it.datos_proyecto.asesor_2,
+                    nombre_proyecto = it.datos_proyecto.nombre_proyecto,
+                    modalidad = it.datos_proyecto.modalidad,
+                    tipo_titulacion = it.datos_proyecto.tipo_titulacion,
+                    curso_titulacion = it.datos_proyecto.curso_titulacion,
+                    asesor_interno = it.datos_proyecto.asesor_interno,
+                    asesor_externo = it.datos_proyecto.asesor_externo,
+                    director = it.datos_proyecto.director,
+                    asesor_1 = it.datos_proyecto.asesor_1,
+                    asesor_2 = it.datos_proyecto.asesor_2,
                 )
-            } ?: DatosProyectoDto("", "", "no", null, null, null, null, null),
+            } ?: DatosProyectoDto("", "", "titulacion_integral", "no", null, null, null, null, null),
             documentos = DocumentosDto(
                 anexo_xxxi = doc.anexo_xxxi.let { AnexoDto(it.fecha_registro?.let { formatter.format(it) }, it.estado) },
                 constancia_no_inconveniencia = doc.constancia_no_inconveniencia.let { ConstanciaDto(it.fecha_expedicion?.let { formatter.format(it) }, it.estado) },
@@ -2461,6 +2470,23 @@ class EgresadoService(
             "application/pdf",
             null,
         ) as ObjectId
+    }
+
+    /** Normaliza el tipo de titulación según lo enviado o la modalidad tradicional. */
+    private fun normalizarTipoTitulacion(tipo: String?, modalidad: String): String {
+        val t = tipo?.trim()?.lowercase(Locale.ROOT).orEmpty()
+        if (t == "titulacion" || t == "titulacion_integral") return t
+        val mod = modalidad.trim().lowercase(Locale.ROOT)
+        // Modalidades del tipo Titulación (tradicional)
+        if (
+            mod == "tesis profesional" ||
+            mod.contains("tesis profesional") ||
+            mod == "proyectos de investigacion" ||
+            mod.contains("proyectos de investigacion")
+        ) {
+            return "titulacion"
+        }
+        return "titulacion_integral"
     }
 
     private fun buildDocumentoAdjunto(archivo: MultipartFile?, ahora: Instant): DocumentoAdjunto {

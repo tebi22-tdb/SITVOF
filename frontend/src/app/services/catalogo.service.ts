@@ -194,6 +194,19 @@ export class CatalogoService {
   }
 
   /**
+   * Tesis / TESIS PROFESIONAL / Proyecto de Investigación / PROYECTOS DE INVESTIGACION:
+   * flujo no-residencia (director + asesores, timeline 16 pasos).
+   */
+  esFlujoTesis(nombreModalidad: string): boolean {
+    const lower = nombreModalidad.trim().toLowerCase();
+    if (!lower) return false;
+    if (lower === 'tesis' || lower === 'tesis profesional') return true;
+    if (lower.includes('tesis') && !lower.includes('tesina')) return true;
+    if (lower.includes('proyecto') && lower.includes('investigaci')) return true;
+    return false;
+  }
+
+  /**
    * Devuelve el tipo de mentores para una modalidad:
    * "residencia" → asesor interno + externo
    * "estandar"   → director + asesor 1 + asesor 2
@@ -204,6 +217,7 @@ export class CatalogoService {
       x => x.nombre.trim().toLowerCase() === nombreModalidad.trim().toLowerCase()
     );
     if (m?.tipoMentores) return m.tipoMentores as 'residencia' | 'estandar' | 'ninguno';
+    if (this.esFlujoTesis(nombreModalidad)) return 'estandar';
     // fallback: derivar de esResidencia
     const esRes = m?.esResidencia ?? nombreModalidad.trim().toLowerCase().includes('residencia');
     return esRes ? 'residencia' : 'estandar';

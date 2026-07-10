@@ -3,6 +3,8 @@ package com.sit_titulacion.sit.domain
 data class DatosProyecto(
     val nombre_proyecto: String,
     val modalidad: String,
+    /** "titulacion" | "titulacion_integral" */
+    val tipo_titulacion: String = "titulacion_integral",
     val curso_titulacion: String = "no",
     val asesor_interno: String? = null,
     val asesor_externo: String? = null,

@@ -265,6 +265,7 @@ export class HomeComponent implements OnInit {
       genero: p.genero || '',
       nombre_proyecto: this.nuevoNombreProyecto,
       modalidad: this.nuevaModalidad,
+      tipo_titulacion: 'titulacion_integral',
       curso_titulacion: 'no',
       asesor_interno: this.esResidencia(this.nuevaModalidad) ? this.nuevoAsesorInterno : '',
       asesor_externo: this.esResidencia(this.nuevaModalidad) ? this.nuevoAsesorExterno : '',

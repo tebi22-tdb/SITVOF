@@ -32,7 +32,7 @@ export const MODALIDADES_CURSO_TITULACION = [
   'Tesina',
 ] as const;
 
-/** Submodalidades de titulación tradicional (solo UI por ahora; sin flujo en el sistema). */
+/** Submodalidades de titulación tradicional. Las habilitadas reutilizan el flujo no-residencia (como Tesis / Proyecto de Investigación). */
 export const MODALIDADES_TITULACION = [
   'TESIS PROFESIONAL',
   'LIBROS DE TEXTO O PROTOTIPOS DIDACTICOS',
@@ -42,6 +42,20 @@ export const MODALIDADES_TITULACION = [
   'EXAMEN POR AREAS DE CONOCIMIENTO',
   'EXAMEN POR AREAS DE CONOCIMIENTO (CENEVAL)',
 ] as const;
+
+/** Modalidades de tipo Titulación ya habilitadas (mismo flujo que su equivalente en titulación integral). */
+export const MODALIDADES_TITULACION_HABILITADAS = [
+  'TESIS PROFESIONAL',
+  'PROYECTOS DE INVESTIGACION',
+] as const;
+
+export const MODALIDAD_TESIS_PROFESIONAL = 'TESIS PROFESIONAL';
+export const MODALIDAD_PROYECTOS_INVESTIGACION = 'PROYECTOS DE INVESTIGACION';
+
+export function esModalidadTitulacionHabilitada(nombre: string | null | undefined): boolean {
+  const n = (nombre || '').trim().toUpperCase();
+  return (MODALIDADES_TITULACION_HABILITADAS as readonly string[]).some((m) => m === n);
+}
 
 export interface EgresadoForm {
   numero_control: string;
@@ -57,6 +71,8 @@ export interface EgresadoForm {
   genero: string;
   nombre_proyecto: string;
   modalidad: string;
+  /** "titulacion" | "titulacion_integral" */
+  tipo_titulacion?: string;
   /** "si" o "no" - se envía al backend según si el checkbox está activado */
   curso_titulacion: string;
   /** Solo al actualizar: true para quitar el archivo actual */
