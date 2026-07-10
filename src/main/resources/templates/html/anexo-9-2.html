@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es" xml:lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>Anexo 9.2</title>
+<style type="text/css">
+@page { size: A4; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 10pt;
+  color: #000;
+  line-height: 1.45;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.hdr-fixed {
+  position: fixed;
+  top: 1.15cm;
+  left: 1.76cm;
+  width: 17.68cm;
+}
+table.hdr {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9.5pt;
+  table-layout: fixed;
+  font-family: Arial, Helvetica, sans-serif;
+}
+table.hdr td {
+  border: 1.5px solid #000;
+  padding: 6px 8px;
+  vertical-align: middle;
+  font-weight: bold;
+}
+table.hdr .logo {
+  width: 18%;
+  text-align: center;
+  padding: 7px 5px;
+}
+table.hdr .logo img {
+  width: 78px;
+  height: auto;
+  max-height: 78px;
+  display: block;
+  margin: 0 auto;
+}
+table.hdr .meta     { text-align: left; }
+table.hdr .meta-cod { width: 27%; text-align: left; padding: 0; }
+table.meta-cod-inner { width: 100%; height: 100%; border-collapse: collapse; }
+table.meta-cod-inner td { border: none; border-bottom: 1.5px solid #000; padding: 6px 8px; font-weight: bold; }
+table.meta-cod-inner tr:last-child td { border-bottom: none; }
+table.hdr .meta-pag { text-align: left; }
+.ftr-fixed {
+  position: fixed;
+  bottom: 1.45cm;
+  left: 1.66cm;
+  width: 17.68cm;
+  height: 2cm;
+  padding-top: 0.6cm;
+}
+table.ftr { width: 100%; border-collapse: collapse; }
+.ftr td { vertical-align: top; padding: 0; font-size: 8pt; line-height: 1.3; }
+.ftr-l {
+  font-family: Calibri, "Calibri (Cuerpo)", Arial, sans-serif;
+  font-weight: bold;
+  white-space: nowrap;
+  padding-right: 1.5em;
+  text-align: left;
+}
+.ftr-c {
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: bold;
+  text-align: center;
+  padding: 0 1.5em;
+}
+.ftr-r {
+  font-family: Calibri, "Calibri (Cuerpo)", Arial, sans-serif;
+  font-weight: bold;
+  white-space: nowrap;
+  padding-left: 1.5em;
+  text-align: right;
+}
+.doc-body { padding: 4.2cm 1.5cm 1.25cm 1.5cm; }
+.tit-anexo {
+  text-align: center;
+  font-size: 12pt;
+  font-weight: normal;
+  margin: 0 0 8px;
+  margin-left: -0.2cm;
+  line-height: 1.4;
+}
+.tit-const {
+  font-weight: bold;
+  text-align: center;
+  font-size: 11pt;
+  margin: 24px 0 38px 0;
+  margin-left: 0.2cm;
+  letter-spacing: 0.015em;
+  line-height: 1.5;
+}
+.fecha-doc { text-align: right; font-size: 12pt; margin: 0 0 53px; line-height: 1.5; }
+.dest-nombre {
+  font-weight: bold;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-size: 13pt;
+  margin: 0 0 37px;
+  margin-left: 0.26cm;
+}
+.dest-etiqueta { font-size: 12pt; margin: 0 0 58px; margin-left: 0.26cm; }
+.just { text-align: justify; }
+.cuerpo-principal { margin: 0 0 30px; margin-left: 0.26cm; font-size: 12pt; line-height: 1.7; text-align: justify; }
+.b { font-weight: bold; }
+.u { text-decoration: underline; text-underline-offset: 2px; }
+.atentamente {
+  text-align: center;
+  font-weight: normal;
+  margin: 44px 0 94px;
+  font-size: 12pt;
+  letter-spacing: 0.09em;
+}
+.firma-nombre {
+  text-align: center;
+  margin: 0 0 4px;
+  font-weight: normal;
+  font-size: 12pt;
+  text-transform: uppercase;
+  line-height: 1.35;
+}
+.firma-cargo {
+  text-align: center;
+  margin: 0 0 70px;
+  font-weight: normal;
+  font-size: 12pt;
+  text-transform: uppercase;
+  line-height: 1.35;
+}
+.ccp { font-size: 11.5pt; margin: 0 0 3px; margin-left: 0.26cm; line-height: 1.4; }
+.qr-anchor { position: relative; height: 0; }
+.qr-auth-wrap { position: absolute; top: 240px; right: 0; text-align: center; }
+.qr-img { width: 80pt; height: 80pt; display: block; }
+.qr-msg {
+  margin: 3pt 0 0;
+  font-size: 6pt;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #444;
+  text-align: center;
+  max-width: 80pt;
+  line-height: 1.25;
+}
+</style>
+</head>
+<body>
+
+<!-- ENCABEZADO FIJO -->
+<div class="hdr-fixed">
+<table class="hdr">
+  <tr>
+    <td class="logo" rowspan="2"><img src="logo-itvo.png" alt="ITVO"/></td>
+    <td class="meta">Nombre del documento: Formato de Constancia de NO Inconveniencia para Acto de Recepci&#243;n Profesional</td>
+    <td class="meta-cod">
+      <table class="meta-cod-inner">
+        <tr><td>C&#243;digo: ITVO-AC-PR-05-03</td></tr>
+        <tr><td>Revisi&#243;n: 2</td></tr>
+      </table>
+    </td>
+  </tr>
+  <tr>
+    <td class="meta">Referencia a la Norma ISO 9001:2015 8.5.1, 8.5.5</td>
+    <td class="meta-pag">P&#225;gina 1 de 1</td>
+  </tr>
+</table>
+</div>
+
+<!-- PIE FIJO -->
+<div class="ftr-fixed">
+<table class="ftr" role="presentation">
+  <tr>
+    <td class="ftr-l">ITVO-AC-PR-05-03</td>
+    <td class="ftr-c">Toda copia en PAPEL es un &quot;Documento No Controlado&quot; a excepci&#243;n del original.</td>
+    <td class="ftr-r">Rev. 2</td>
+  </tr>
+</table>
+</div>
+
+<!-- CUERPO -->
+<div class="doc-body">
+
+<p class="tit-anexo">Anexo 9.2 Formato de constancia de NO inconveniencia para acto de recepci&#243;n profesional</p>
+<p class="tit-const">CONSTANCIA DE NO INCONVENIENCIA PARA EL ACTO DE RECEPCI&#211;N PROFESIONAL.</p>
+
+<p class="fecha-doc">Nazareno, Xoxocotl&#225;n, Oaxaca, a {{FECHA_CARTA}}</p>
+
+<p class="dest-nombre">{{PREFIJO_EGRESADO}} {{NOMBRE}}</p>
+<p class="dest-etiqueta">egresado (a)</p>
+
+<p class="just cuerpo-principal">
+  Me permito informarle de acuerdo a su solicitud, que no existe inconveniente para que pueda
+  Ud. presentar su Acto de Recepci&#243;n Profesional, ya que su expediente qued&#243; integrado para
+  tal efecto.
+</p>
+
+<div class="qr-anchor">
+  <div class="qr-auth-wrap">
+    <img class="qr-img" src="{{QR_CODE}}" alt=""/>
+    <p class="qr-msg">Documento certificado:<br/>Verifica la autenticidad.</p>
+  </div>
+</div>
+
+<p class="atentamente">A T E N T A M E N T E</p>
+<p class="firma-nombre">{{FIRMA_SE_NOMBRE}}</p>
+<p class="firma-cargo">{{FIRMA_SE_CARGO}}</p>
+<div></div>
+<div></div>
+<p class="ccp">c.c.p.- Divisi&#243;n de Estudios Profesionales</p>
+<p class="ccp">c.c.p.- Archivo</p>
+
+</div>
+</body>
+</html>

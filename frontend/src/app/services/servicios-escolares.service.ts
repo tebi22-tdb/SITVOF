@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 const API = `${environment.apiUrl}/api/servicios-escolares`;
@@ -23,6 +24,7 @@ export interface ServiciosEscolaresDetalle {
   nombre_proyecto: string;
   fecha_solicitud_anexo_9_2: string;
   fecha_aceptacion_servicios_escolares_anexo_9_2?: string | null;
+  fecha_creacion_anexo_9_2?: string | null;
 }
 
 export type TabServiciosEscolares = 'pendientes' | 'atendidos';
@@ -48,5 +50,17 @@ export class ServiciosEscolaresService {
 
   revertir(id: string): Observable<unknown> {
     return this.http.post(`${API}/constancias-9-2/${id}/revertir`, {});
+  }
+
+  descargarAnexo92(id: string): Observable<{ blob: Blob; fileName: string }> {
+    return this.http
+      .get(`${environment.apiUrl}/api/egresados/${id}/anexo-9-2`, { responseType: 'blob', observe: 'response' })
+      .pipe(
+        map((res) => {
+          const disp = res.headers.get('Content-Disposition') ?? '';
+          const match = /filename[*]?=(?:UTF-8'')?["']?([^"';\n]+)/i.exec(disp);
+          return { blob: res.body!, fileName: match?.[1]?.trim() ?? 'Anexo-9.2.pdf' };
+        }),
+      );
   }
 }

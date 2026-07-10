@@ -2,11 +2,11 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { catchError, EMPTY, finalize, throwError, timeout } from 'rxjs';
 import { AgendarActoComponent, ActoAgendadoDto } from './agendar-acto/agendar-acto.component';
 import { HeaderComponent } from '../../layout/header/header.component';
+import { PdfViewerPanelComponent } from '../../shared/pdf-viewer-panel/pdf-viewer-panel.component';
 import { mensajeErrorApiConBlob } from '../../core/http-blob-error';
 import { EgresadoService, EgresadoDetail, EgresadoItem } from '../../services/egresado.service';
 import { CatalogoService } from '../../services/catalogo.service';
@@ -76,7 +76,7 @@ interface PasoProcesoUi {
 @Component({
   selector: 'app-seguimiento-proceso',
   standalone: true,
-  imports: [CommonModule, FormsModule, HeaderComponent, AgendarActoComponent],
+  imports: [CommonModule, FormsModule, HeaderComponent, AgendarActoComponent, PdfViewerPanelComponent],
   templateUrl: './seguimiento-proceso.component.html',
   styleUrl: './seguimiento-proceso.component.css',
 })
@@ -100,12 +100,11 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
   cargandoDocEscaneada = false;
   /** Mensaje si falla la descarga del PDF (timeout, red, 401, etc.). */
   errorCargaDocEscaneada = '';
-  vistaDocEscaneadaUrl: SafeResourceUrl | null = null;
+  vistaDocEscaneadaObjectUrl: string | null = null;
   mostrarModalActo93 = false;
   /** Pasos del proceso: propiedad estable (no getter) para no destruir el DOM en cada ciclo de detección de cambios. */
   pasosProcesoTitulacionCache: PasoProcesoUi[] = [];
   private detalleRequestSeq = 0;
-  private vistaDocEscaneadaObjectUrl: string | null = null;
   private refrescoListaIntervalo: ReturnType<typeof setInterval> | null = null;
 
   private readonly pasosRevertiblesSeguimiento = new Set([
@@ -201,7 +200,6 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     private router: Router,
     private route: ActivatedRoute,
     private catalogoService: CatalogoService,
-    private sanitizer: DomSanitizer,
     private auth: AuthService,
   ) {}
 
@@ -949,7 +947,6 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       URL.revokeObjectURL(this.vistaDocEscaneadaObjectUrl);
       this.vistaDocEscaneadaObjectUrl = null;
     }
-    this.vistaDocEscaneadaUrl = null;
     this.cargandoDocEscaneada = false;
     this.errorCargaDocEscaneada = '';
   }
@@ -983,7 +980,6 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
             return;
           }
           this.vistaDocEscaneadaObjectUrl = URL.createObjectURL(blob);
-          this.vistaDocEscaneadaUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.vistaDocEscaneadaObjectUrl);
         },
       });
   }

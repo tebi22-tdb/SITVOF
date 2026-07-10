@@ -17,8 +17,8 @@ body {
 }
 .hdr-fixed {
   position: fixed;
-  top: 1.25cm;
-  left: 1.66cm;
+  top: 1.15cm;
+  left: 1.02cm;
   width: 17.68cm;
 }
 table.hdr {
@@ -30,7 +30,7 @@ table.hdr {
 }
 table.hdr td {
   border: 1px solid #000;
-  padding: 5px 7px;
+  padding: 8px 7px;
   vertical-align: middle;
 }
 table.hdr .logo {
@@ -46,11 +46,14 @@ table.hdr .logo img {
   margin: 0 auto;
 }
 table.hdr .meta     { font-weight: bold; text-align: left; }
-table.hdr .meta-cod { width: 27%; font-weight: bold; text-align: left; }
-table.hdr .meta-pag { font-weight: normal; }
+table.hdr .meta-cod { width: 27%; font-weight: bold; text-align: left; padding: 0; }
+table.meta-cod-inner { width: 100%; height: 100%; border-collapse: collapse; }
+table.meta-cod-inner td { border: none; border-bottom: 1px solid #000; padding: 8px 7px; font-weight: bold; }
+table.meta-cod-inner tr:last-child td { border-bottom: none; }
+table.hdr .meta-pag { font-weight: bold; }
 .ftr-fixed {
   position: fixed;
-  bottom: 0;
+  bottom: 1.45cm;
   left: 1.66cm;
   width: 17.68cm;
   height: 2cm;
@@ -78,52 +81,55 @@ table.ftr { width: 100%; border-collapse: collapse; }
   padding-left: 1.5em;
   text-align: right;
 }
-.doc-body { padding: 5.5cm 2.5cm 2.5cm 2.5cm; }
+.doc-body { padding: 4.5cm 2.5cm 2.5cm 2.5cm; }
 .tit {
   font-weight: bold;
   text-align: center;
-  font-size: 10pt;
-  margin: 0 0 12px;
+  font-size: 8.5pt;
+  margin: 0 0 48px;
   line-height: 1.5;
   font-family: Arial, Helvetica, sans-serif;
 }
 .fecha-doc { text-align: right; font-size: 10pt; margin: 0 0 16px; line-height: 1.5; }
-.sec-jurado   { margin: 0 0 5px; font-weight: bold; font-size: 10pt; line-height: 1.35; }
-.jurado-linea { margin: 0 0 4px; font-weight: bold; font-size: 10pt; line-height: 1.38; }
+.sec-jurado   { margin: 0 0 2px; margin-left: -0.74cm; font-weight: bold; font-size: 8pt; line-height: 1.1; text-transform: uppercase; }
+.jurado-linea { margin: 0 0 1px; margin-left: -0.74cm; font-weight: bold; font-size: 8pt; line-height: 1.1; text-transform: uppercase; }
 .presente-espaciado {
   font-weight: bold;
   margin: 7px 0 14px;
+  margin-left: -0.74cm;
   letter-spacing: 0.15em;
   font-size: 10pt;
   line-height: 1.35;
 }
 .just { text-align: justify; }
-.para-principal { margin: 0 0 14px; font-size: 10pt; line-height: 1.42; text-align: justify; }
-.para-segundo   { margin: 0 0 12px; font-size: 10pt; line-height: 1.4;  text-align: justify; }
+.para-principal { margin: 0 0 14px; margin-left: -0.74cm; font-size: 8pt; line-height: 1.92; text-align: justify; }
+.para-segundo   { margin: 16px 0 12px; margin-left: -0.74cm; font-size: 8pt; line-height: 1.4;  text-align: justify; }
 .b { font-weight: bold; }
 .u { text-decoration: underline; text-underline-offset: 2px; }
-.cierre { text-align: left; overflow: hidden; }
+.cierre { text-align: left; overflow: hidden; margin-left: -0.74cm; }
 .atentamente {
   font-weight: bold;
-  margin: 0 0 56px;
-  font-size: 10pt;
-  letter-spacing: 0.06em;
+  margin: 16px 0 56px;
+  font-size: 7.5pt;
+  letter-spacing: 0;
 }
 .firma-nombre {
   margin: 0 0 4px;
   font-weight: bold;
-  font-size: 10pt;
+  font-size: 7.5pt;
   text-transform: uppercase;
   letter-spacing: 0.02em;
   line-height: 1.35;
 }
 .firma-cargo {
-  margin: 0 0 10px;
+  margin: 0 0 16px;
   font-weight: bold;
-  font-size: 10pt;
+  font-size: 7.5pt;
   text-transform: uppercase;
   line-height: 1.35;
 }
+.ccp { font-size: 7.5pt; margin: 0 0 16px; margin-left: -0.74cm; line-height: 1.35; }
+.ccp-cursiva { font-style: italic; font-weight: 600; font-size: 6.5pt; }
 .qr-auth-wrap { float: right; margin: 0 0 6pt 10pt; text-align: center; }
 .qr-img { width: 80pt; height: 80pt; display: block; }
 .qr-msg {
@@ -136,10 +142,11 @@ table.ftr { width: 100%; border-collapse: collapse; }
   line-height: 1.25;
 }
 .aviso-bloque {
-  font-size: 8pt;
+  font-size: 5pt;
   font-style: italic;
   text-align: justify;
   margin: 0 0 8px;
+  margin-left: -0.74cm;
   line-height: 1.26;
   clear: both;
 }
@@ -155,16 +162,17 @@ table.ftr { width: 100%; border-collapse: collapse; }
 <div class="hdr-fixed">
 <table class="hdr">
   <tr>
-    <td class="logo" rowspan="3"><img src="logo-itvo.png" alt="ITVO"/></td>
+    <td class="logo" rowspan="2"><img src="logo-itvo.png" alt="ITVO"/></td>
     <td class="meta">Nombre del documento: Formato de Aviso de Realizaci&#243;n del Acto de Recepci&#243;n Profesional</td>
-    <td class="meta meta-cod">C&#243;digo: ITVO-AC-PR-05-04</td>
+    <td class="meta-cod">
+      <table class="meta-cod-inner">
+        <tr><td>C&#243;digo: ITVO-AC-PR-05-04</td></tr>
+        <tr><td>Revisi&#243;n: 2</td></tr>
+      </table>
+    </td>
   </tr>
   <tr>
     <td class="meta">Referencia a la Norma ISO 9001:2015, 8.1, 8.5</td>
-    <td class="meta">Revisi&#243;n: 2</td>
-  </tr>
-  <tr>
-    <td class="meta">&#160;</td>
     <td class="meta meta-pag">P&#225;gina 1 de 1</td>
   </tr>
 </table>
@@ -187,26 +195,26 @@ table.ftr { width: 100%; border-collapse: collapse; }
 <p class="tit">Anexo 9.3 Formato de Aviso de Realizaci&#243;n del Acto Protocolario de Titulaci&#243;n Integral</p>
 <p class="fecha-doc">Fecha: {{FECHA_CARTA}}.</p>
 
-<p class="sec-jurado">C. INTEGRANTES DEL JURADO</p>
+<p class="sec-jurado">C. INTEGRANTES DEL COMIT&#201;:</p>
 <p class="jurado-linea">{{ETIQUETA_PRESIDENTE}}: {{PRESIDENTE}}</p>
 <p class="jurado-linea">{{ETIQUETA_SECRETARIO}}: {{SECRETARIO}}</p>
 <p class="jurado-linea">VOCAL: {{VOCAL}}</p>
 <p class="jurado-linea">VOCAL SUPLENTE: {{VOCAL_SUPLENTE}}</p>
-<p class="presente-espaciado">P R E S E N T E</p>
+<p class="presente-espaciado">&#160;</p>
 
 <p class="just para-principal">
-  Por este medio le informo que el Acto de Recepci&#243;n Profesional de
-  <span class="b u">{{PREFIJO_EGRESADO}} {{NOMBRE}}</span>, con No. de control
-  <span class="b u">{{NUMERO_CONTROL}}</span>, egresado del Instituto Tecnol&#243;gico del Valle de Oaxaca,
-  de la carrera de <span class="b u">{{CARRERA}}</span>, con la opci&#243;n
-  <span class="b u">TITULACI&#211;N INTEGRAL ({{TEXTO_OPCION_TI}})</span>, <span class="b u">{{FRASE_PROYECTO_93}}</span>,
-  que se realizar&#225; el d&#237;a <span class="b u">{{ACTO_DIA}}</span> de <span class="b u">{{ACTO_MES}}</span> del
-  <span class="b u">{{ACTO_ANIO}}</span> a las <span class="b u">{{ACTO_HORA}}</span> horas.
+  Por este medio le informo que el Acto de Recepci&#243;n Profesional del
+  <span class="b">{{PREFIJO_EGRESADO}} {{NOMBRE}}</span>, con No. de control
+  <span class="b">{{NUMERO_CONTROL}}</span>, egresado del Instituto Tecnol&#243;gico del Valle de Oaxaca,
+  de la carrera de <span class="b">{{CARRERA}}</span>, con la opci&#243;n
+  <span class="b">TITULACI&#211;N INTEGRAL ({{TEXTO_OPCION_TI}})</span>, {{FRASE_PROYECTO_93_ETIQUETA}} <span class="b">&quot;{{PROYECTO_93_VALOR}}&quot;</span>,
+  que se realizar&#225; el d&#237;a <span class="b">{{ACTO_DIA}}</span> de <span class="b">{{ACTO_MES}}</span> del
+  <span class="b">{{ACTO_ANIO}}</span> a las <span class="b">{{ACTO_HORA}}</span> horas, en la sala de Titulaci&#243;n del Instituto.
 </p>
 
 <p class="just para-segundo">
-  Por lo anterior, se les solicita su puntual asistencia a este acto, por lo menos con 15 minutos de anticipaci&#243;n.
-  <span class="b">ES IMPORTANTE QUE SE PRESENTEN CON VESTIMENTA FORMAL.</span>
+  Por lo anterior, se les solicita su puntual asistencia en el lugar citado, por lo menos con 15 minutos antes de la hora indicada y para darle mayor realce a este acto,
+  <span class="b">ES IMPORTANTE QUE ASISTAN CON VESTIMENTA FORMAL.</span>
 </p>
 
 <div class="qr-auth-wrap">
@@ -215,20 +223,24 @@ table.ftr { width: 100%; border-collapse: collapse; }
 </div>
 
 <div class="cierre">
-  <p class="atentamente">A T E N T A M E N T E</p>
+  <p class="atentamente">ATENTAMENTE</p>
   <div>
     <p class="firma-nombre">{{JEFE_DIVISION_NOMBRE}}</p>
     <p class="firma-cargo">{{JEFE_DIVISION_CARGO}}</p>
   </div>
 </div>
 
+<p class="ccp">{{JEFE_DEPTO_INICIALES}}</p>
+<p class="ccp ccp-cursiva">c.c.p. Depto. de Servicios Escolares</p>
+<p class="ccp ccp-cursiva">c.c.p. Exp. Alumno</p>
+
 <div class="aviso-bloque">
   <p><span class="etiq">AVISO IMPORTANTE:</span>
-    De los lineamientos que de acuerdo al lineamiento para la Titulaci&#243;n Integral de los estudiantes Tecnol&#243;gicos, en su apartado 3.14.c, y de acuerdo a lo que para la realizaci&#243;n a distancia del acto protocolario de titulaci&#243;n integral se desprende de los acuerdos de fecha emitidos por oficina de recepci&#243;n profesional.</p>
-  <p>a) Presidir la instalaci&#243;n, desarrollo, toma de protestas, lectura del juramento de &#233;tica y clausura del acto de recepci&#243;n profesional.</p>
-  <p>b) A la responsabilidad del secretario verificar el correcto llenado del acta de examen, registrando por el Departamento de Servicios Escolares.</p>
-  <p>c) Asesorar al(la) C. {{NOMBRE}} durante el acto de recepci&#243;n profesional y validar el desarrollo correspondiente.</p>
-  <p>d) En caso de ausencia del presidente, ser&#225; sustituido en el acto protocolario de la Titulaci&#243;n Integral; por el secretario, a este &#250;ltimo, por su asesor(a) interno(a) por el vocal suplente.</p>
+    Se les recuerda que de acuerdo al Lineamiento para la Titulaci&#243;n vigente de los Institutos Tecnol&#243;gicos, en apartado 14.4.9, y de acuerdo a la gu&#237;a para la realizaci&#243;n a distancia del acto protocolario de titulaci&#243;n integral. Las funciones de los sinodales en el acto de recepci&#243;n profesional son:</p>
+  <p>a) Preside la instalaci&#243;n, desarrollo, toma de protestas, lectura del juramento de &#233;tica y clausura del acto de recepci&#243;n profesional.</p>
+  <p>b) <span class="u">Es la responsabilidad del secretario verificar el correcto llenado del acta de examen, requisitado por el Departamento de Servicios Escolares.</span></p>
+  <p>c) Avalar con su firma en el libro de actas, el acto de recepci&#243;n profesional.</p>
+  <p>d) En caso de ausencia del presidente, ser&#225; sustituido en el acto protocolario de la Titulaci&#243;n Integral, por el secretario, y este &#250;ltimo, por su ausencia ser&#225; sustituido por el vocal suplente.</p>
 </div>
 
 <div class="clearfix"></div>

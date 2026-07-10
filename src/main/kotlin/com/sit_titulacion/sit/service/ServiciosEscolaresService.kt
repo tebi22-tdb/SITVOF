@@ -126,6 +126,7 @@ class ServiciosEscolaresService(
             fecha_solicitud_anexo_9_2 = formatter.format(fechaSolicitud),
             fecha_aceptacion_servicios_escolares_anexo_9_2 =
                 p.fechaAceptacionServiciosEscolaresAnexo92?.let { formatter.format(it) },
+            fecha_creacion_anexo_9_2 = p.fechaCreacionAnexo92?.let { formatter.format(it) },
         )
     }
 }

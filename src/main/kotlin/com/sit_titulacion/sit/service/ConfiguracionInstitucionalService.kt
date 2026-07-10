@@ -30,9 +30,11 @@ class ConfiguracionInstitucionalService(
             ?: env.getProperty("sit.config.jefe-division-nombre", "MANUEL FABIAN ROJAS").trim()
         val titulo = doc?.jefeDivisionTitulo
             ?: env.getProperty("sit.config.jefe-division-titulo", "JEFE").trim()
+        val iniciales = doc?.jefeDivisionIniciales?.trim().orEmpty()
         return ConfigGlobalResponseDto(
             jefeDivisionNombre = nombre,
             jefeDivisionTitulo = titulo,
+            jefeDivisionIniciales = iniciales,
             tieneImagenAnual = doc?.imagenAnualDataUri != null,
         )
     }
@@ -42,6 +44,7 @@ class ConfiguracionInstitucionalService(
         val updated = (existing ?: ConfiguracionInstitucional(tipo = "global")).copy(
             jefeDivisionNombre = dto.jefeDivisionNombre.trim().uppercase(),
             jefeDivisionTitulo = dto.jefeDivisionTitulo.trim().uppercase(),
+            jefeDivisionIniciales = dto.jefeDivisionIniciales.trim(),
             fechaActualizacion = Instant.now(),
         )
         repo.save(updated)
@@ -146,6 +149,11 @@ class ConfiguracionInstitucionalService(
 
     fun obtenerJefeDivisionCargo(): String =
         "${obtenerJefeDivisionTitulo()} DE LA DIVISIÓN DE ESTUDIOS PROFESIONALES"
+
+    fun obtenerJefeDivisionIniciales(): String {
+        val doc = repo.findFirstByTipo("global")
+        return doc?.jefeDivisionIniciales?.trim().orEmpty()
+    }
 
     fun obtenerServiciosEscolares(): ConfigServiciosEscolaresResponseDto {
         val doc = repo.findFirstByTipo(TIPO_SERVICIOS_ESCOLARES)

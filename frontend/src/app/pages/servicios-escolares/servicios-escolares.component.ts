@@ -135,6 +135,31 @@ export class ServiciosEscolaresComponent implements OnInit {
     });
   }
 
+  descargando92 = false;
+
+  // TEMPORAL: sin candado de "una sola vez" para poder regenerar mientras se prueba el formato.
+  descargarAnexo92(): void {
+    if (!this.detalle || this.descargando92) return;
+    this.descargando92 = true;
+    this.mensajeDetalle = '';
+    this.serviciosEscolaresService.descargarAnexo92(this.detalle.id).subscribe({
+      next: ({ blob, fileName }) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.descargando92 = false;
+        if (this.detalle) this.detalle.fecha_creacion_anexo_9_2 = new Date().toISOString();
+      },
+      error: () => {
+        this.descargando92 = false;
+        this.mensajeDetalle = 'No se pudo generar el Anexo 9.2. Intenta de nuevo.';
+      },
+    });
+  }
+
   formatearFecha(iso?: string | null): string {
     if (!iso) return '—';
     const d = new Date(iso);
