@@ -101,13 +101,12 @@
       </select>
       <span class="form-error-msg" *ngIf="campoInvalido('tipo_titulacion')">Campo obligatorio</span>
     </div>
-    <div class="form-campo" *ngIf="esTitulacion">
-      <label for="modalidad_titulacion">Modalidad específica</label>
+    <div class="form-campo" *ngIf="esTitulacion" [class.form-campo-error]="campoInvalido('modalidad_titulacion')">
+      <label for="modalidad_titulacion">Modalidad específica <span class="form-obligatorio">*</span></label>
       <select id="modalidad_titulacion" formControlName="modalidad_titulacion">
         <option value="">Seleccione modalidad</option>
         <option *ngFor="let m of opcionesModalidadTitulacion" [value]="m">{{ m }}</option>
       </select>
-      <p class="form-file-hint">Esta modalidad estará disponible próximamente en el sistema.</p>
     </div>
     <ng-container *ngIf="esTitulacionIntegral">
     <div class="form-campo form-campo-checkbox">
@@ -128,6 +127,8 @@
       </select>
       <span class="form-error-msg" *ngIf="campoInvalido('modalidad')">Campo obligatorio</span>
     </div>
+    </ng-container>
+    <ng-container *ngIf="esFlujoProyectoActivo">
     <ng-container *ngIf="!esCenevalModalidad">
       <div class="form-campo" [class.form-campo-error]="campoInvalido('nombre_proyecto') || originalidadEstado === 'BLOQUEADO' || originalidadEstado === 'ADVERTENCIA'">
         <label for="nombre_proyecto">Nombre del proyecto <span class="form-obligatorio">*</span></label>
@@ -205,7 +206,7 @@
     </ng-container>
   </div>
 
-  <div class="form-seccion" *ngIf="esTitulacionIntegral">
+  <div class="form-seccion" *ngIf="esFlujoProyectoActivo">
     <h3 class="form-seccion-titulo">Documentos</h3>
     <ng-container *ngIf="!esCenevalModalidad">
       <div class="form-subseccion">
@@ -277,7 +278,7 @@
       class="btn btn-agregar"
       [disabled]="
         guardando ||
-        !esTitulacionIntegral ||
+        !esFlujoProyectoActivo ||
         (!esCenevalModalidad && !puedeRegistrarTituloProyecto) ||
         errorFechaConstanciaPosterior ||
         originalidadEstado === 'comprobando' ||
