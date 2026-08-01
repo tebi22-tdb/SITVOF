@@ -2,7 +2,12 @@ import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, S
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { aplicarValidacionPdfInput } from '../../../core/archivo-pdf';
-import { EgresadoForm, MODALIDADES_CURSO_TITULACION, MODALIDADES_TITULACION } from '../../../core/datos';
+import {
+  EgresadoForm,
+  MODALIDADES_CURSO_TITULACION,
+  MODALIDADES_TITULACION,
+  esModalidadTitulacionHabilitada,
+} from '../../../core/datos';
 import { EgresadoDetail, EgresadoService } from '../../../services/egresado.service';
 import { CatalogoService, ModalidadCatalogo } from '../../../services/catalogo.service';
 import { DocenteItem, DocenteService } from '../../../services/docente.service';
@@ -115,6 +120,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
     });
     this.actualizarValidadoresPorTipoTitulacion();
     this.form.get('tipo_titulacion')?.valueChanges.subscribe(() => this.actualizarValidadoresPorTipoTitulacion());
+    this.form.get('modalidad_titulacion')?.valueChanges.subscribe(() => this.actualizarValidadoresPorModalidadTitulacion());
     this.form.get('modalidad')?.valueChanges.subscribe(() => this.actualizarValidadoresPorModalidad());
     this.form.get('fecha_registro_anexo')?.valueChanges.subscribe(() => this.revisarFechasDocumentos());
     this.form.get('fecha_expedicion_constancia')?.valueChanges.subscribe(() => this.revisarFechasDocumentos());
@@ -136,6 +142,16 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
 
   get esTitulacion(): boolean {
     return this.form.get('tipo_titulacion')?.value === 'titulacion';
+  }
+
+  /** Titulación tradicional con modalidad ya habilitada (TESIS PROFESIONAL, PROYECTOS DE INVESTIGACION, …). */
+  get esTitulacionModalidadHabilitada(): boolean {
+    return this.esTitulacion && esModalidadTitulacionHabilitada(this.form.get('modalidad_titulacion')?.value as string);
+  }
+
+  /** Muestra campos de proyecto/documentos (integral o modalidad de titulación habilitada). */
+  get esFlujoProyectoActivo(): boolean {
+    return this.esTitulacionIntegral || this.esTitulacionModalidadHabilitada;
   }
 
   get esCenevalModalidad(): boolean {
@@ -182,7 +198,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       .pipe(
         debounceTime(600),
         switchMap(([titulo, modalidad]) => {
-          if (!this.esTitulacionIntegral) {
+          if (!this.esFlujoProyectoActivo) {
             this.originalidadEstado = null;
             this.originalidadTituloSimilar = null;
             this.originalidadMotivo = null;
@@ -306,6 +322,11 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
     if (d) {
       if (this.modoNuevoProceso) this.salirModoNuevoProceso();
       const isoToDate = (s?: string) => (s ? s.slice(0, 10) : '');
+      const modalidadGuardada = d.datos_proyecto.modalidad || '';
+      const tipoGuardado =
+        d.datos_proyecto.tipo_titulacion ||
+        (esModalidadTitulacionHabilitada(modalidadGuardada) ? 'titulacion' : 'titulacion_integral');
+      const esTradicional = tipoGuardado === 'titulacion';
       this.form.patchValue({
         numero_control: d.numero_control,
         nombre: d.datos_personales.nombre,
@@ -317,10 +338,10 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
         telefono: d.datos_personales.telefono || '',
         correo_electronico: d.datos_personales.correo_electronico || '',
         genero: d.datos_personales.genero || '',
-        tipo_titulacion: 'titulacion_integral',
-        modalidad_titulacion: '',
+        tipo_titulacion: tipoGuardado,
+        modalidad_titulacion: esTradicional ? modalidadGuardada : '',
         nombre_proyecto: d.datos_proyecto.nombre_proyecto || '',
-        modalidad: d.datos_proyecto.modalidad || '',
+        modalidad: modalidadGuardada,
         curso_titulacion: d.datos_proyecto.curso_titulacion === 'si',
         asesor_interno: d.datos_proyecto.asesor_interno || '',
         asesor_externo: d.datos_proyecto.asesor_externo || '',
@@ -332,6 +353,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
         observaciones: '',
       });
       this.actualizarValidadoresPorTipoTitulacion();
+      if (esTradicional) this.actualizarValidadoresPorModalidadTitulacion();
       this.quitarArchivoSeleccionado = false;
     }
   }
@@ -497,25 +519,74 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
     const tipo = this.form.get('tipo_titulacion')?.value as string;
     if (tipo === 'titulacion_integral') {
       this.form.patchValue({ modalidad_titulacion: '' }, { emitEvent: false });
+      this.form.get('modalidad_titulacion')?.clearValidators();
+      this.form.get('modalidad_titulacion')?.updateValueAndValidity({ emitEvent: false });
       this.form.get('modalidad')?.setValidators(Validators.required);
       this.actualizarValidadoresPorModalidad();
       return;
     }
     if (tipo === 'titulacion') {
-      this.form.patchValue(
-        { modalidad: '', curso_titulacion: false },
-        { emitEvent: false },
-      );
-      this.limpiarValidadoresProyectoIntegral();
+      this.form.patchValue({ curso_titulacion: false }, { emitEvent: false });
+      this.form.get('modalidad')?.clearValidators();
+      this.form.get('modalidad')?.updateValueAndValidity({ emitEvent: false });
+      this.form.get('modalidad_titulacion')?.setValidators(Validators.required);
+      this.form.get('modalidad_titulacion')?.updateValueAndValidity({ emitEvent: false });
+      this.actualizarValidadoresPorModalidadTitulacion();
       return;
     }
     this.form.patchValue({ modalidad: '', modalidad_titulacion: '' }, { emitEvent: false });
+    this.form.get('modalidad_titulacion')?.clearValidators();
+    this.form.get('modalidad_titulacion')?.updateValueAndValidity({ emitEvent: false });
     this.limpiarValidadoresProyectoIntegral();
+  }
+
+  /** Titulación tradicional: modalidades habilitadas activan el flujo no-residencia (estilo Tesis). */
+  private actualizarValidadoresPorModalidadTitulacion(): void {
+    if (!this.esTitulacion) return;
+    const modTit = ((this.form.get('modalidad_titulacion')?.value as string) || '').trim();
+    if (esModalidadTitulacionHabilitada(modTit)) {
+      this.form.patchValue({ modalidad: modTit, curso_titulacion: false }, { emitEvent: false });
+      this.form.get('modalidad')?.setValidators(Validators.required);
+      this.form.get('modalidad')?.updateValueAndValidity({ emitEvent: false });
+      this.aplicarValidadoresEstiloTesis();
+      return;
+    }
+    this.form.patchValue({ modalidad: '' }, { emitEvent: false });
+    this.limpiarValidadoresProyectoIntegral();
+  }
+
+  /** Mentores y fechas iguales a Tesis / Proyecto de Investigación (flujo no-residencia). */
+  private aplicarValidadoresEstiloTesis(): void {
+    const required = Validators.required;
+    this.form.get('asesor_interno')?.clearValidators();
+    this.form.get('asesor_externo')?.clearValidators();
+    this.form.get('director')?.setValidators(required);
+    this.form.get('asesor_1')?.setValidators(required);
+    this.form.get('asesor_2')?.setValidators(required);
+    this.form.get('nombre_proyecto')?.setValidators(required);
+    this.form.get('fecha_registro_anexo')?.setValidators(required);
+    this.form.get('fecha_expedicion_constancia')?.setValidators(required);
+    for (const c of [
+      'nombre_proyecto',
+      'asesor_interno',
+      'asesor_externo',
+      'director',
+      'asesor_1',
+      'asesor_2',
+      'fecha_registro_anexo',
+      'fecha_expedicion_constancia',
+    ]) {
+      this.form.get(c)?.updateValueAndValidity({ emitEvent: false });
+    }
+    this.revisarFechasDocumentos();
   }
 
   /** Según modalidad: mentores, fechas de documentos (CENEVAL: carta de no inconveniencia y archivo). */
   private actualizarValidadoresPorModalidad(): void {
-    if (!this.esTitulacionIntegral) return;
+    if (!this.esTitulacionIntegral) {
+      if (this.esTitulacionModalidadHabilitada) this.aplicarValidadoresEstiloTesis();
+      return;
+    }
     const modalidad = this.form.get('modalidad')?.value as string;
     const esCeneval = this.catalogoService.esCeneval(modalidad ?? '');
     const tipo = this.catalogoService.tipoMentoresPorNombre(modalidad ?? '');
@@ -637,7 +708,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
 
   onSubmit(): void {
     if (this.guardando) return;
-    if (!this.esTitulacionIntegral) return;
+    if (!this.esFlujoProyectoActivo) return;
     this.archivoRequeridoError = false;
     this.revisarFechasDocumentos();
     if (this.form.invalid || this.errorFechaConstanciaPosterior) {
@@ -651,9 +722,16 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       return;
     }
     const raw = this.form.getRawValue();
-    const { tipo_titulacion: _tipo, modalidad_titulacion: _modTit, ...resto } = raw;
+    const { modalidad_titulacion: modTit, ...resto } = raw;
+    const tipo = (raw.tipo_titulacion as string) || 'titulacion_integral';
+    const modalidad =
+      tipo === 'titulacion' && esModalidadTitulacionHabilitada(modTit)
+        ? (modTit as string).trim()
+        : (raw.modalidad as string);
     const datos: EgresadoForm = {
       ...resto,
+      modalidad,
+      tipo_titulacion: tipo === 'titulacion' ? 'titulacion' : 'titulacion_integral',
       curso_titulacion: raw.curso_titulacion ? 'si' : 'no',
       quitar_archivo: this.editando ? this.quitarArchivoSeleccionado : undefined,
     };

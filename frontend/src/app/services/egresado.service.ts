@@ -115,6 +115,8 @@ export interface DatosPersonalesDetail {
 export interface DatosProyectoDetail {
   nombre_proyecto: string;
   modalidad: string;
+  /** "titulacion" | "titulacion_integral" */
+  tipo_titulacion?: string;
   /** "si" o "no" - viene de la base de datos */
   curso_titulacion?: string;
   asesor_interno?: string;
