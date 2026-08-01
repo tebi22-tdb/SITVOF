@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.core.io.ClassPathResource
 import org.springframework.stereotype.Service
 import java.io.ByteArrayOutputStream
-import java.io.File
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 
@@ -16,13 +15,19 @@ import java.util.Base64
 class HtmlAnexoPdfService {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    fun generarDesdeClasspath(templateClasspath: String, valores: Map<String, String>): ByteArray? {
+    fun generarDesdeClasspath(
+        templateClasspath: String,
+        valores: Map<String, String>,
+        imagenesOverride: Map<String, String> = emptyMap(),
+        valoresHtml: Map<String, String> = emptyMap(),
+    ): ByteArray? {
         return try {
             val raw =
                 ClassPathResource(templateClasspath).inputStream.use {
                     String(it.readAllBytes(), StandardCharsets.UTF_8)
                 }
-            val html = embedirImagenesLocales(aplicarPlaceholders(raw, valores), templateClasspath)
+            val conHtmlCrudo = aplicarPlaceholdersHtml(raw, valoresHtml)
+            val html = embedirImagenesLocales(aplicarPlaceholders(conHtmlCrudo, valores), templateClasspath, imagenesOverride)
             val baseUri = baseUriDirectorioPlantilla(templateClasspath)
             ByteArrayOutputStream().use { os ->
                 val builder = PdfRendererBuilder()
@@ -49,16 +54,22 @@ class HtmlAnexoPdfService {
     }
 
     /**
-     * Sustituye src="nombre.png" por un data URI base64 cargado desde el classpath
-     * junto a la plantilla. Evita problemas de resolución de rutas en fat JARs.
+     * Sustituye src="nombre.png" por un data URI base64. Si la clave (nombre de archivo)
+     * está en [imagenesOverride], usa esa imagen subida desde el admin; si no, la carga
+     * del classpath junto a la plantilla. Evita problemas de resolución de rutas en fat JARs.
      * Omite valores que ya son data URIs (empiezan con "data:").
      */
-    private fun embedirImagenesLocales(html: String, templateClasspath: String): String {
+    private fun embedirImagenesLocales(
+        html: String,
+        templateClasspath: String,
+        imagenesOverride: Map<String, String>,
+    ): String {
         val directorio = templateClasspath.substringBeforeLast("/")
         val imagenes = Regex("""src="([^"]+\.(png|jpg|jpeg|gif|svg))"""")
         return imagenes.replace(html) { match ->
             val nombreArchivo = match.groupValues[1]
             if (nombreArchivo.startsWith("data:")) return@replace match.value
+            imagenesOverride[nombreArchivo]?.let { return@replace """src="$it"""" }
             val classpath = "$directorio/$nombreArchivo"
             try {
                 val bytes = ClassPathResource(classpath).inputStream.use { it.readAllBytes() }
@@ -85,6 +96,18 @@ class HtmlAnexoPdfService {
         }
     }
 
+    /**
+     * Sustituye placeholders con HTML ya construido (ej. las insignias del pie), SIN escapar.
+     * Se aplica antes que [aplicarPlaceholders] para que el catch-all de esa función no borre
+     * el placeholder si por algún motivo no viene en [valoresHtml]. Solo usar con HTML que el
+     * propio backend arma a partir de datos controlados (nunca texto libre de usuarios).
+     */
+    private fun aplicarPlaceholdersHtml(html: String, valoresHtml: Map<String, String>): String {
+        var out = html
+        valoresHtml.forEach { (k, v) -> out = out.replace("{{$k}}", v, ignoreCase = false) }
+        return out
+    }
+
     private fun aplicarPlaceholders(html: String, valores: Map<String, String>): String {
         var out = html
         valores.forEach { (k, v) ->
@@ -109,16 +132,32 @@ class HtmlAnexoPdfService {
         }.getOrDefault(s)
     }
 
+    /**
+     * Arial no se puede redistribuir (fuente propietaria de Microsoft), así que
+     * incrustamos Liberation Sans —métricamente compatible, SIL Open Font License—
+     * registrada bajo el nombre "Arial". Se carga del classpath (funciona igual
+     * en Windows, Linux o dentro de un JAR empaquetado, a diferencia de la ruta
+     * fija a C:\Windows\Fonts que antes solo funcionaba en Windows).
+     */
     private fun registrarFuentes(builder: PdfRendererBuilder) {
-        val windir = System.getenv("WINDIR") ?: "C:\\Windows"
-        val arial = File(windir, "Fonts\\arial.ttf")
-        val arialBold = File(windir, "Fonts\\arialbd.ttf")
-        if (arial.isFile) {
-            builder.useFont(arial, "Arial", 400, BaseRendererBuilder.FontStyle.NORMAL, true)
-        }
-        if (arialBold.isFile) {
-            builder.useFont(arialBold, "Arial", 700, BaseRendererBuilder.FontStyle.NORMAL, true)
-        }
+        builder.useFont(
+            { ClassPathResource("fonts/LiberationSans-Regular.ttf").inputStream },
+            "Arial", 400, BaseRendererBuilder.FontStyle.NORMAL, true,
+        )
+        builder.useFont(
+            { ClassPathResource("fonts/LiberationSans-Bold.ttf").inputStream },
+            "Arial", 700, BaseRendererBuilder.FontStyle.NORMAL, true,
+        )
+        // Mismo caso que Arial: Times New Roman tampoco se puede redistribuir,
+        // usamos Liberation Serif (misma familia libre) registrada con ese nombre.
+        builder.useFont(
+            { ClassPathResource("fonts/LiberationSerif-Regular.ttf").inputStream },
+            "Times New Roman", 400, BaseRendererBuilder.FontStyle.NORMAL, true,
+        )
+        builder.useFont(
+            { ClassPathResource("fonts/LiberationSerif-Bold.ttf").inputStream },
+            "Times New Roman", 700, BaseRendererBuilder.FontStyle.NORMAL, true,
+        )
     }
 
     private fun escapeHtml(s: String): String {

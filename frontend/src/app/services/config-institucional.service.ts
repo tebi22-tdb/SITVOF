@@ -9,7 +9,7 @@ export interface ConfigGlobalResponse {
   jefeDivisionNombre: string;
   jefeDivisionTitulo: string;
   jefeDivisionIniciales: string;
-  tieneImagenAnual: boolean;
+  jefeDivisionCorreo: string;
 }
 
 export interface ConfigDepartamentoResponse {
@@ -20,11 +20,23 @@ export interface ConfigDepartamentoResponse {
   jefeNombre: string;
   jefeCargo: string;
   jefeIniciales: string;
+  correo: string;
 }
 
 export interface ConfigServiciosEscolaresResponse {
   jefeNombre: string;
   jefeCargo: string;
+}
+
+export interface ImagenAnexoSlot {
+  clave: string;
+  etiqueta: string;
+  tieneImagenPersonalizada: boolean;
+}
+
+export interface InsigniaAnexo {
+  id: string;
+  dataUri: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -35,14 +47,13 @@ export class ConfigInstitucionalService {
     return this.http.get<ConfigGlobalResponse>(`${API}/global`);
   }
 
-  putGlobal(data: { jefeDivisionNombre: string; jefeDivisionTitulo: string; jefeDivisionIniciales: string }): Observable<ConfigGlobalResponse> {
+  putGlobal(data: {
+    jefeDivisionNombre: string;
+    jefeDivisionTitulo: string;
+    jefeDivisionIniciales: string;
+    jefeDivisionCorreo: string;
+  }): Observable<ConfigGlobalResponse> {
     return this.http.put<ConfigGlobalResponse>(`${API}/global`, data);
-  }
-
-  subirImagenAnual(file: File): Observable<ConfigGlobalResponse> {
-    const form = new FormData();
-    form.append('imagen', file);
-    return this.http.post<ConfigGlobalResponse>(`${API}/imagen-anual`, form);
   }
 
   getDepartamentos(): Observable<ConfigDepartamentoResponse[]> {
@@ -59,5 +70,33 @@ export class ConfigInstitucionalService {
 
   putServiciosEscolares(data: ConfigServiciosEscolaresResponse): Observable<ConfigServiciosEscolaresResponse> {
     return this.http.put<ConfigServiciosEscolaresResponse>(`${API}/servicios-escolares`, data);
+  }
+
+  getImagenesAnexos(): Observable<ImagenAnexoSlot[]> {
+    return this.http.get<ImagenAnexoSlot[]>(`${API}/imagenes-anexos`);
+  }
+
+  subirImagenAnexo(clave: string, file: File): Observable<ImagenAnexoSlot[]> {
+    const form = new FormData();
+    form.append('imagen', file);
+    return this.http.post<ImagenAnexoSlot[]>(`${API}/imagenes-anexos/${clave}`, form);
+  }
+
+  getInsigniasAnexos(): Observable<InsigniaAnexo[]> {
+    return this.http.get<InsigniaAnexo[]>(`${API}/insignias-anexos`);
+  }
+
+  agregarInsigniaAnexo(file: File): Observable<InsigniaAnexo[]> {
+    const form = new FormData();
+    form.append('imagen', file);
+    return this.http.post<InsigniaAnexo[]>(`${API}/insignias-anexos`, form);
+  }
+
+  eliminarInsigniaAnexo(id: string): Observable<InsigniaAnexo[]> {
+    return this.http.delete<InsigniaAnexo[]>(`${API}/insignias-anexos/${id}`);
+  }
+
+  reordenarInsigniasAnexos(idsEnOrden: string[]): Observable<InsigniaAnexo[]> {
+    return this.http.put<InsigniaAnexo[]>(`${API}/insignias-anexos/orden`, { idsEnOrden });
   }
 }

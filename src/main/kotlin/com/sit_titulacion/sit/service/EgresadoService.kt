@@ -2349,11 +2349,20 @@ class EgresadoService(
         )
         val key = s.trim().uppercase()
         exact[key]?.let { return it }
+        return toTitleCase(s)
+    }
+
+    /** "Tipo oración": mayúscula al inicio de cada palabra, para texto libre que
+     *  pudo haberse capturado todo en mayúsculas o minúsculas (nombres de proyecto,
+     *  asesores, etc.). Cada línea de un texto multilínea se procesa por separado. */
+    private fun toTitleCase(s: String): String {
         val small = setOf("EN", "DE", "LA", "EL", "LOS", "LAS", "DEL", "Y", "O")
-        return s.trim().split("\\s+".toRegex()).mapIndexed { i, w ->
-            if (i != 0 && w.uppercase() in small) w.lowercase()
-            else w.lowercase().replaceFirstChar { it.uppercaseChar() }
-        }.joinToString(" ")
+        return s.split("\n").joinToString("\n") { linea ->
+            linea.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }.mapIndexed { i, w ->
+                if (i != 0 && w.uppercase() in small) w.lowercase()
+                else w.lowercase().replaceFirstChar { it.uppercaseChar() }
+            }.joinToString(" ")
+        }
     }
 
     /** Fecha del oficio de sinodales: 29/abril/2026 */
@@ -2535,15 +2544,22 @@ class EgresadoService(
             "JEFE_DIVISION_NOMBRE" to configInstitucionalService.obtenerJefeDivisionNombre(),
             "JEFE_DIVISION_TITULO" to configInstitucionalService.obtenerJefeDivisionTitulo(),
             "JEFE_DIVISION_TITULO_LOWER" to tituloLower,
-            "NOMBRE_PROYECTO" to p.datos_proyecto.nombre_proyecto,
-            "NOMBRE_ASESORES" to asesores,
+            "NOMBRE" to toTitleCase(nombreCompleto(e)),
+            "NOMBRE_PROYECTO" to toTitleCase(p.datos_proyecto.nombre_proyecto),
+            "NOMBRE_ASESORES" to toTitleCase(asesores),
             "NUM_ESTUDIANTES" to "1",
             "JEFE_DEPTO_NOMBRE" to (deptConfig?.jefeNombre ?: ""),
             "JEFE_DEPTO_CARGO" to (deptConfig?.jefeCargo ?: ""),
             "JEFE_DEPTO_INICIALES" to (deptConfig?.jefeIniciales ?: ""),
+            "CORREO_DEPARTAMENTO" to (deptConfig?.correo ?: ""),
             "QR_CODE" to qrDataUri32,
         ))
-        val pdf = htmlAnexoPdfService.generarDesdeClasspath("templates/html/hoja-32-registro-proyecto.html", valores)
+        val pdf = htmlAnexoPdfService.generarDesdeClasspath(
+            "templates/html/hoja-32-registro-proyecto.html",
+            valores,
+            configInstitucionalService.obtenerOverridesImagenesAnexos(),
+            mapOf("INSIGNIAS_HTML" to configInstitucionalService.construirHtmlInsignias()),
+        )
         if (pdf != null && p.fechaGeneracionHoja32 == null) {
             egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaGeneracionHoja32 = Instant.now(), fecha_actualizacion = Instant.now())))
         }
@@ -2589,21 +2605,29 @@ class EgresadoService(
             "CARRERA" to toTitleCaseCarrera(e.datos_personales.carrera),
             "DEPARTAMENTO_NOMBRE" to deptNombre33,
             "JEFE_DIVISION_NOMBRE" to configInstitucionalService.obtenerJefeDivisionNombre(),
+            "JEFE_DIVISION_TITULO" to configInstitucionalService.obtenerJefeDivisionTitulo(),
             "JEFE_DIVISION_TITULO_LOWER" to tituloLower33,
-            "NOMBRE_PROYECTO" to p.datos_proyecto.nombre_proyecto,
+            "NOMBRE" to toTitleCase(nombreCompleto(e)),
+            "NOMBRE_PROYECTO" to toTitleCase(p.datos_proyecto.nombre_proyecto),
             "PRODUCTO" to textoOpcionTitulacionIntegral(p.datos_proyecto.modalidad),
-            "FIRMA_NOMBRE_1" to firmaNombre1,
-            "FIRMA_NOMBRE_2" to firmaNombre2,
-            "FIRMA_NOMBRE_3" to firmaNombre3,
+            "FIRMA_NOMBRE_1" to toTitleCase(firmaNombre1),
+            "FIRMA_NOMBRE_2" to toTitleCase(firmaNombre2),
+            "FIRMA_NOMBRE_3" to toTitleCase(firmaNombre3),
             "FIRMA_LABEL_1" to firmaLabel1,
             "FIRMA_LABEL_2" to firmaLabel2,
             "FIRMA_LABEL_3" to firmaLabel3,
             "JEFE_DEPTO_NOMBRE" to (deptConfig?.jefeNombre ?: ""),
             "JEFE_DEPTO_CARGO" to (deptConfig?.jefeCargo ?: ""),
             "JEFE_DEPTO_INICIALES" to (deptConfig?.jefeIniciales ?: ""),
+            "CORREO_DEPARTAMENTO" to (deptConfig?.correo ?: ""),
             "QR_CODE" to qrDataUri33,
         ))
-        val pdf = htmlAnexoPdfService.generarDesdeClasspath("templates/html/hoja-33-liberacion-proyecto.html", valores)
+        val pdf = htmlAnexoPdfService.generarDesdeClasspath(
+            "templates/html/hoja-33-liberacion-proyecto.html",
+            valores,
+            configInstitucionalService.obtenerOverridesImagenesAnexos(),
+            mapOf("INSIGNIAS_HTML" to configInstitucionalService.construirHtmlInsignias()),
+        )
         if (pdf != null && p.fechaGeneracionHoja33 == null) {
             egresadoRepository.save(e.actualizarProcesoActivo(p.copy(fechaGeneracionHoja33 = Instant.now(), fecha_actualizacion = Instant.now())))
         }

@@ -155,10 +155,10 @@
             <button
               type="button"
               class="se-btn se-btn--sec"
-              [disabled]="descargando92"
+              [disabled]="descargando92 || !!detalle.fecha_creacion_anexo_9_2"
               (click)="descargarAnexo92()"
             >
-              {{ descargando92 ? 'Generando…' : 'Generar Anexo 9.2' }}
+              {{ descargando92 ? 'Generando…' : (detalle.fecha_creacion_anexo_9_2 ? 'Anexo 9.2 generado' : 'Generar Anexo 9.2') }}
             </button>
             
             <button type="button" class="se-btn se-btn--aceptar" [disabled]="confirmando || !detalle.fecha_creacion_anexo_9_2" (click)="aceptarPendiente()">

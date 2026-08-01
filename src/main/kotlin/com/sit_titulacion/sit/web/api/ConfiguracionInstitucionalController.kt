@@ -6,10 +6,13 @@ import com.sit_titulacion.sit.service.ConfiguracionInstitucionalService
 import com.sit_titulacion.sit.web.api.dto.ConfigDepartamentoDto
 import com.sit_titulacion.sit.web.api.dto.ConfigGlobalDto
 import com.sit_titulacion.sit.web.api.dto.ConfigServiciosEscolaresDto
+import com.sit_titulacion.sit.web.api.dto.ReordenarInsigniasDto
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -25,6 +28,8 @@ import org.springframework.web.multipart.MultipartFile
 class ConfiguracionInstitucionalController(
     private val service: ConfiguracionInstitucionalService,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     @GetMapping("/global")
     fun getGlobal(@AuthenticationPrincipal principal: UsuarioPrincipal?): ResponseEntity<*> {
         if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
@@ -38,18 +43,6 @@ class ConfiguracionInstitucionalController(
     ): ResponseEntity<*> {
         if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
         return ResponseEntity.ok(service.actualizarGlobal(dto))
-    }
-
-    @PostMapping("/imagen-anual", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    fun subirImagenAnual(
-        @RequestParam("imagen") imagen: MultipartFile,
-        @AuthenticationPrincipal principal: UsuarioPrincipal?,
-    ): ResponseEntity<*> {
-        if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        if (!imagen.contentType.orEmpty().startsWith("image/")) {
-            return ResponseEntity.badRequest().body(mapOf("error" to "El archivo debe ser una imagen."))
-        }
-        return ResponseEntity.ok(service.actualizarImagenAnual(imagen))
     }
 
     @GetMapping("/departamentos")
@@ -66,6 +59,69 @@ class ConfiguracionInstitucionalController(
     ): ResponseEntity<*> {
         if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
         return ResponseEntity.ok(service.actualizarDepartamento(slug, dto))
+    }
+
+    @GetMapping("/imagenes-anexos")
+    fun getImagenesAnexos(@AuthenticationPrincipal principal: UsuarioPrincipal?): ResponseEntity<*> {
+        if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        return ResponseEntity.ok(service.obtenerImagenesAnexos())
+    }
+
+    @PostMapping("/imagenes-anexos/{clave:.+}", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun subirImagenAnexo(
+        @PathVariable clave: String,
+        @RequestParam("imagen") imagen: MultipartFile,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        if (!imagen.contentType.orEmpty().startsWith("image/")) {
+            return ResponseEntity.badRequest().body(mapOf("error" to "El archivo debe ser una imagen."))
+        }
+        return try {
+            ResponseEntity.ok(service.actualizarImagenAnexo(clave, imagen))
+        } catch (ex: IllegalArgumentException) {
+            log.warn(">>> subirImagenAnexo clave='{}': clave inválida: {}", clave, ex.message)
+            ResponseEntity.badRequest().body(mapOf("error" to ex.message))
+        } catch (ex: Exception) {
+            log.error(">>> subirImagenAnexo clave='{}' FALLÓ: {}", clave, ex.message, ex)
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(mapOf("error" to (ex.message ?: ex.javaClass.simpleName)))
+        }
+    }
+
+    @GetMapping("/insignias-anexos")
+    fun getInsigniasAnexos(@AuthenticationPrincipal principal: UsuarioPrincipal?): ResponseEntity<*> {
+        if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        return ResponseEntity.ok(service.obtenerInsigniasAnexos())
+    }
+
+    @PostMapping("/insignias-anexos", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun agregarInsigniaAnexo(
+        @RequestParam("imagen") imagen: MultipartFile,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        if (!imagen.contentType.orEmpty().startsWith("image/")) {
+            return ResponseEntity.badRequest().body(mapOf("error" to "El archivo debe ser una imagen."))
+        }
+        return ResponseEntity.ok(service.agregarInsigniaAnexo(imagen))
+    }
+
+    @DeleteMapping("/insignias-anexos/{id}")
+    fun eliminarInsigniaAnexo(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        return ResponseEntity.ok(service.eliminarInsigniaAnexo(id))
+    }
+
+    @PutMapping("/insignias-anexos/orden", consumes = [MediaType.APPLICATION_JSON_VALUE])
+    fun reordenarInsigniasAnexos(
+        @RequestBody dto: ReordenarInsigniasDto,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        return ResponseEntity.ok(service.reordenarInsigniasAnexos(dto.idsEnOrden))
     }
 
     @GetMapping("/servicios-escolares")

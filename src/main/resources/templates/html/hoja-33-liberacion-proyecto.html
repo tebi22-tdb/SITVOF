@@ -4,12 +4,12 @@
 <meta charset="UTF-8"/>
 <title>Anexo XXXIII</title>
 <style type="text/css">
-@page { size: A4; margin: 0; }
+@page { size: 21.59cm 27.94cm; margin: 0; } /* Carta/Letter, tamaño real del anexo original (docs/ANEXOS33.pdf) */
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
   font-family: Arial, Helvetica, sans-serif;
-  font-size: 11pt;
+  font-size: 12pt;
   color: #000;
   line-height: 1.25;
   -webkit-print-color-adjust: exact;
@@ -35,6 +35,8 @@ body {
 }
 .hdr-left img {
   max-width: 9.5cm;
+  max-height: 3cm;
+  width: auto;
   height: auto;
   display: block;
 }
@@ -50,6 +52,7 @@ body {
 }
 .hdr-right img.mujer {
   width: 2.2cm;
+  max-height: 2.4cm;
   height: auto;
   display: block;
   margin-left: auto;
@@ -57,7 +60,7 @@ body {
 }
 .hdr-right .itvo-nombre {
   font-size: 8.5pt;
-  font-weight: normal;
+  font-weight: bold;
   color: #000;
   line-height: 1.2;
   margin: 0;
@@ -72,34 +75,44 @@ body {
 /* ── Pie fijo ────────────────────────────────────────────────── */
 .ftr-fixed {
   position: fixed;
-  top: 25.7cm;
+  top: 23.44cm; /* 23.94cm - 0.5cm: subido para compensar el renglón extra del body */
   left: 0;
   width: 100%;
   height: 3.5cm;
 }
+.ftr-layout { width: 100%; table-layout: fixed; border-collapse: collapse; height: 3.5cm; }
+.ftr-anual { width: 32%; overflow: hidden; vertical-align: bottom; padding: 0 0.3cm 0.6cm 1.5cm; }
+.ftr-anual img { max-height: 3cm; max-width: 100%; width: auto; height: auto; display: block; }
+.ftr-contenido { width: 68%; vertical-align: middle; padding: 0 1.5cm 0 0; }
+/* El tamaño de cada imagen de insignia se calcula e inserta desde el backend
+   (ver {{INSIGNIAS_HTML}}), porque depende de cuántas insignias haya. */
+.ftr-insignias { text-align: left; line-height: 0; margin-bottom: 0.15cm; }
+.ftr-linea { border-top: 1.5pt solid #9D2249; margin: 0 0 0.1cm; }
+.ftr-direccion { font-size: 7.5pt; color: #444; margin: 0; line-height: 1.35; }
+.ftr-correo { color: #1a5276; }
 /* ── Cuerpo ──────────────────────────────────────────────────── */
 .doc-body {
-  padding: 4.6cm 1.5cm 4.4cm 1.5cm;
+  padding: 5.1cm 1.5cm 4.4cm 1.5cm;
 }
 .titulo-doc {
   text-align: center;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Times New Roman", Times, serif;
   font-weight: bold;
   line-height: 16.1pt;
   margin: 4.6pt 0 0;
 }
-.t14 { font-size: 14pt; font-weight: bold; font-family: Arial, Helvetica, sans-serif; }
-.t11 { font-size: 11pt; font-weight: bold; font-family: Arial, Helvetica, sans-serif; }
+.t14 { font-size: 14pt; font-weight: bold; font-family: "Times New Roman", Times, serif; }
+.t11 { font-size: 11pt; font-weight: bold; font-family: "Times New Roman", Times, serif; }
 .val { text-decoration: underline; text-underline-offset: 2px; }
 .lugar-fecha-line {
   text-align: right;
-  font-size: 11pt;
+  font-size: 9.7pt;
   margin: 6px 0 4px;
   line-height: 1.25;
 }
 .asunto-line {
   text-align: right;
-  font-size: 11pt;
+  font-size: 9.7pt;
   font-weight: normal;
   margin: 4px 0 8px;
 }
@@ -109,12 +122,13 @@ body {
 .destinatario-bloque p {
   margin: 0;
   padding: 0;
+  font-family: "Times New Roman", Times, serif;
   font-weight: bold;
   font-size: 11pt;
   line-height: 1.25;
 }
 .cuerpo-texto {
-  font-size: 11pt;
+  font-size: 10.7pt;
   margin: 0 0 6px;
   line-height: 1.25;
   text-align: justify;
@@ -123,7 +137,7 @@ body {
   width: 100%;
   border-collapse: collapse;
   margin: 0 0 8px;
-  font-size: 11pt;
+  font-size: 9.7pt;
 }
 .tabla-datos td {
   border: 1px solid #000;
@@ -137,15 +151,17 @@ body {
   white-space: nowrap;
 }
 .agradecimiento {
-  font-size: 11pt;
+  font-size: 10.7pt;
   margin: 0 0 8px;
   line-height: 1.25;
   text-align: justify;
 }
 .atentamente {
+  font-family: "Times New Roman", Times, serif;
   font-size: 11pt;
   font-weight: bold;
   text-align: center;
+  letter-spacing: 1.5px;
   margin: 6px 0 2px;
 }
 .firma-linea {
@@ -154,6 +170,7 @@ body {
   margin: 0 auto 4px;
 }
 .firmante-nombre {
+  font-family: "Times New Roman", Times, serif;
   font-size: 11pt;
   font-weight: bold;
   text-transform: uppercase;
@@ -162,6 +179,7 @@ body {
   line-height: 1.3;
 }
 .firmante-cargo {
+  font-family: "Times New Roman", Times, serif;
   font-size: 11pt;
   font-weight: bold;
   text-transform: uppercase;
@@ -200,7 +218,7 @@ body {
 }
 .ccp-fixed {
   position: fixed;
-  top: 25.0cm;
+  top: 22.74cm; /* 23.24cm - 0.5cm, mismo ajuste por el renglón extra del body */
   left: 1.5cm;
 }
 .ccp-line {
@@ -238,13 +256,18 @@ body {
 
 <!-- PIE FIJO -->
 <div class="ftr-fixed">
-  <table cellpadding="0" cellspacing="0" style="width:100%; border-collapse:collapse; height:3.5cm;">
+  <table class="ftr-layout">
     <tr>
-      <td style="width:25%; vertical-align:bottom; padding:0;">
-        <img src="imagenAnualCambiante.png" style="height:3.5cm; width:auto; display:block;" alt=""/>
+      <td class="ftr-anual">
+        <img src="imagenAnualCambiante.png" alt=""/>
       </td>
-      <td style="width:75%; vertical-align:middle; padding:0;">
-        <img src="imagenPiePagina.png" style="height:3.5cm; width:auto; display:block;" alt=""/>
+      <td class="ftr-contenido">
+        <div class="ftr-insignias">{{INSIGNIAS_HTML}}</div>
+        <div class="ftr-linea"></div>
+        <p class="ftr-direccion">
+          Carretera al ITAO S/N C.P. 71233 San Jes&#250;s Nazareno, Santa Cruz Xoxocotl&#225;n, Oaxaca.<br/>
+          Tel. 951 517 07 88&#160; <span class="ftr-correo">{{CORREO_DEPARTAMENTO}}</span>&#160; www.https://voaxaca.tecnm.mx/
+        </p>
       </td>
     </tr>
   </table>
@@ -253,17 +276,17 @@ body {
 <!-- CUERPO -->
 <div class="doc-body">
 
-  <p class="titulo-doc"><span class="t14">A</span><span class="t11">NEXO </span><span class="t14">XXXIII</span><span class="t11">. </span><span class="t14">F</span><span class="t11">ORMATO DE </span><span class="t14">L</span><span class="t11">IBERACI&#211;N DE PROYECTO PARA LA</span></p>
-  <p class="titulo-doc" style="margin-top:0; margin-bottom:6px;"><span class="t14">T</span><span class="t11">ITULACI&#211;N </span><span class="t14">I</span><span class="t11">NTEGRAL</span></p>
+  <p class="titulo-doc t11">ANEXO XXXIII. FORMATO DE LIBERACI&#211;N DE PROYECTO PARA LA</p>
+  <p class="titulo-doc t11" style="margin-top:0; margin-bottom:6px;">TITULACI&#211;N INTEGRAL</p>
 
   
-  <p class="lugar-fecha-line">Lugar y fecha:&#160;<span class="val">{{FECHA_CARTA}}</span></p>
+  <p class="lugar-fecha-line">Lugar y fecha:&#160;Nazareno, Xoxocotl&#225;n, Oaxaca, <span class="val">{{FECHA_CARTA}}</span></p>
   <p class="asunto-line">Asunto: Liberaci&#243;n de proyecto para la titulaci&#243;n integral.</p>
 
   <div class="destinatario-bloque">
-    <p>C. <span class="val">{{JEFE_DIVISION_NOMBRE}}</span></p>
-    <p>{{JEFE_DIVISION_TITULO_LOWER}} de la Divisi&#243;n de Estudios Profesionales o su equivalente en los Institutos Tecnol&#243;gicos Descentralizados</p>
-    <p>PRESENTE</p>
+    <p>{{JEFE_DIVISION_NOMBRE}}</p>
+    <p>{{JEFE_DIVISION_TITULO}} DE LA DIVISI&#211;N DE ESTUDIOS PROFESIONALES</p>
+    <p style="letter-spacing:1.5px;">PRESENTE</p>
   </div>
 
   <p class="cuerpo-texto">

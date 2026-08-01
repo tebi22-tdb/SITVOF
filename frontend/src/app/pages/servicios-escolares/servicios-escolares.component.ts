@@ -137,9 +137,8 @@ export class ServiciosEscolaresComponent implements OnInit {
 
   descargando92 = false;
 
-  // TEMPORAL: sin candado de "una sola vez" para poder regenerar mientras se prueba el formato.
   descargarAnexo92(): void {
-    if (!this.detalle || this.descargando92) return;
+    if (!this.detalle || this.descargando92 || this.detalle.fecha_creacion_anexo_9_2) return;
     this.descargando92 = true;
     this.mensajeDetalle = '';
     this.serviciosEscolaresService.descargarAnexo92(this.detalle.id).subscribe({
