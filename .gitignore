@@ -70,3 +70,8 @@ compile-out.txt
 Thumbs.db
 .DS_Store
 *.local
+
+# Datos reales de alumnos / documentos administrativos: nunca al repo (ver anexos-imprimibles)
+*.xlsx
+*.xls
+/*.docx
