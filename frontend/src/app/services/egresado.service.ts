@@ -34,6 +34,19 @@ export interface EgresadoItem {
   fecha_solicitud_documentacion_escaneada?: string;
   fecha_envio_documentacion_escaneada_egresado?: string;
   fecha_confirmacion_documentacion_escaneada_recibida?: string;
+  // ── Para clasificar la etapa real del proceso en listados (dashboard) sin
+  // pedir el detalle completo — ver core/etapas-titulacion.ts ──
+  fecha_confirmacion_entrega_egresado_depto?: string;
+  fecha_recepcion_trabajo_division_estudios_prof?: string;
+  fecha_recepcion_registro_liberacion_depto_academico?: string;
+  fecha_creacion_anexo_9_1?: string;
+  fecha_confirmacion_entrega_anexo_9_1?: string;
+  fecha_solicitud_anexo_9_2?: string;
+  fecha_aceptacion_servicios_escolares_anexo_9_2?: string;
+  fecha_confirmacion_recibido_anexo_9_2?: string;
+  fecha_solicitud_sinodales?: string;
+  fecha_confirmacion_sinodales_recibidos?: string;
+  fecha_agenda_acto_9_3?: string;
 }
 
 // Archivo adjunto guardado (para mostrar en edición)

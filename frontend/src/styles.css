@@ -53,3 +53,18 @@ video {
   color: #1f2937 !important;
   font-weight: 700;
 }
+
+
+:root {
+  --color-marca-oscuro: #002d72;
+  --color-marca-medio: #1e4f9c;
+  --color-marca-claro: #4a7ac2;
+
+  --color-admin: #475569;
+  --color-admin-claro: #64748b;
+
+  /* semánticos — no usar para marca/módulos, solo para estados */
+  --color-vencido: #dc2626;
+  --color-rezagado: #d97706;
+  --color-en-tiempo: #16a34a;
+}

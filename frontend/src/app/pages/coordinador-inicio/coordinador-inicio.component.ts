@@ -31,7 +31,6 @@ interface UrgentItem {
   initials: string;
   avatarBg: string;
   barColor: string;
-  barPctStr: string;
   statusLabel: string;
   statusBg: string;
   statusColor: string;
@@ -48,19 +47,6 @@ interface DonutSeg {
   dasharray: string;
   dashoffset: string;
   color: string;
-}
-
-interface EtapaItem {
-  label: string;
-  count: number;
-  color: string;
-}
-
-interface ActividadRecienteItem {
-  name: string;
-  initials: string;
-  avatarBg: string;
-  hace: string;
 }
 
 interface ModuloNav {
@@ -84,66 +70,78 @@ export class CoordinadorInicioComponent implements OnInit {
   error = '';
 
   private items: DashItem[] = [];
-  private rawItems: EgresadoItem[] = [];
 
   urgentesDisplay: UrgentItem[] = [];
   modalidadesDisplay: BarDato[] = [];
   carrerasDisplay: BarDato[] = [];
 
+  // Orden = prioridad/frecuencia de uso real (más usado primero), agrupado por
+  // color para que la posición refuerce la categoría en vez de interrumpirla:
+  // Grupo A — Proceso (azul, tints de --color-marca-*) → Grupo B — Administración (--color-admin*).
+  // La intensidad del tono también sigue la prioridad dentro de cada grupo:
+  // más oscuro = más usado, más claro = más ocasional.
+  // Los colores semánticos (rojo/ámbar/verde de vencido-rezagado-en_tiempo) nunca se reusan aquí.
   readonly modulosNav: ModuloNav[] = [
-    {
-      title: 'Inicio del proceso', sub: 'Registro de egresados',
-      descripcion: 'Registra nuevos egresados al proceso de titulación. Selecciona la modalidad, captura los datos del estudiante y genera el Anexo XXXI de inicio.',
-      color: '#2563eb', key: 'alta', soloPleno: false,
-    },
+    // ── Grupo A: Proceso de titulación ──
     {
       title: 'Seguimiento del proceso', sub: 'Envíos, anexos, sinodales',
       descripcion: 'Consulta y gestiona el avance de cada egresado: envío de documentos, generación de anexos XXXII/XXXIII, asignación de sinodales y acto protocolario.',
-      color: '#0d9488', key: 'seguimiento', soloPleno: false,
-    },
-    {
-      title: 'Alta de docentes', sub: 'Registra docentes',
-      descripcion: 'Registra a los docentes del plantel que pueden fungir como director, asesor o vocal en el acto protocolario de titulación.',
-      color: '#7c3aed', key: 'docentes', soloPleno: true,
-    },
-    {
-      title: 'Revisiones de documentos', sub: 'Estado de la revisión',
-      descripcion: 'Revisa los expedientes enviados por los egresados: acepta o rechaza documentos con observaciones antes de liberarlos al departamento académico.',
-      color: '#d97706', key: 'revisiones', soloPleno: true,
+      color: 'var(--color-marca-oscuro)', key: 'seguimiento', soloPleno: false,
     },
     {
       title: 'Departamento académico', sub: 'Ingenierías, Económico',
       descripcion: 'Gestión por departamento (Ingenierías, Económico-Administrativo, Virtuales). Visualiza revisiones y libera trabajos hacia la coordinación.',
-      color: '#16a34a', key: 'departamento', soloPleno: true,
+      color: 'var(--color-marca-oscuro)', key: 'departamento', soloPleno: true,
+    },
+    {
+      title: 'Inicio del proceso', sub: 'Registro de egresados',
+      descripcion: 'Registra nuevos egresados al proceso de titulación. Selecciona la modalidad, captura los datos del estudiante y genera el Anexo XXXI de inicio.',
+      color: 'var(--color-marca-medio)', key: 'alta', soloPleno: false,
+    },
+    {
+      title: 'Revisiones de documentos', sub: 'Estado de la revisión',
+      descripcion: 'Revisa los expedientes enviados por los egresados: acepta o rechaza documentos con observaciones antes de liberarlos al departamento académico.',
+      color: 'var(--color-marca-medio)', key: 'revisiones', soloPleno: true,
     },
     {
       title: 'Servicios escolares', sub: 'Constancias de no inconv.',
       descripcion: 'Genera y controla las constancias de no inconveniencia (Anexo 9.2) que emite Servicios Escolares para habilitar el siguiente paso del trámite.',
-      color: '#ea580c', key: 'escolares', soloPleno: true,
+      color: 'var(--color-marca-claro)', key: 'escolares', soloPleno: true,
     },
+    // ── Grupo B: Administración / consulta ──
     {
       title: 'Gestión de cuentas', sub: 'Correo y contraseña',
       descripcion: 'Administra las credenciales de egresados y personal: restablece contraseñas, reactiva cuentas bloqueadas y asigna o modifica roles de acceso.',
-      color: '#475569', key: 'cuentas', soloPleno: true,
+      color: 'var(--color-admin)', key: 'cuentas', soloPleno: true,
+    },
+    {
+      title: 'Alta de docentes', sub: 'Registra docentes',
+      descripcion: 'Registra a los docentes del plantel que pueden fungir como director, asesor o vocal en el acto protocolario de titulación.',
+      color: 'var(--color-admin)', key: 'docentes', soloPleno: true,
     },
     {
       title: 'Repositorio de documentos', sub: 'Proyectos de egresados',
       descripcion: 'Consulta el repositorio público de proyectos de egresados titulados, organizados por carrera, modalidad y generación.',
-      color: '#4f46e5', key: 'repositorio', soloPleno: true,
-    },
-    {
-      title: 'Configuración institucional', sub: 'Imagen TECNM y jefes',
-      descripcion: 'Configura los datos institucionales del plantel: imagen corporativa TECNM, jefes de departamento para la firma en Anexos 32 y 33.',
-      color: '#0891b2', key: 'config', soloPleno: true,
+      color: 'var(--color-admin-claro)', key: 'repositorio', soloPleno: true,
     },
     {
       title: 'Configuración de catálogos', sub: 'Carreras, niveles, modalid.',
       descripcion: 'Administra los catálogos del sistema: carreras, niveles educativos, modalidades de titulación y departamentos académicos disponibles.',
-      color: '#db2777', key: 'catalogos', soloPleno: true,
+      color: 'var(--color-admin-claro)', key: 'catalogos', soloPleno: true,
+    },
+    {
+      title: 'Configuración institucional', sub: 'Imagen TECNM y jefes',
+      descripcion: 'Configura los datos institucionales del plantel: imagen corporativa TECNM, jefes de departamento para la firma en Anexos 32 y 33.',
+      color: 'var(--color-admin-claro)', key: 'config', soloPleno: true,
     },
   ];
 
-  private readonly AVATAR_COLORS = ['#2563eb', '#7c3aed', '#0d9488', '#db2777', '#ea580c', '#0891b2', '#16a34a', '#4f46e5'];
+  // Paleta de avatares: tints de marca + acento admin, ya no colores random.
+  // hueColor() (abajo) sigue siendo el hash — solo cambió de dónde saca los tonos.
+  private readonly AVATAR_COLORS = [
+    'var(--color-marca-oscuro)', 'var(--color-marca-medio)', 'var(--color-marca-claro)',
+    'var(--color-admin)', 'var(--color-admin-claro)',
+  ];
 
   // ── KPI counters ──
   get totalItems(): number    { return this.items.length; }
@@ -151,48 +149,6 @@ export class CoordinadorInicioComponent implements OnInit {
   get totalRezagados(): number{ return this.items.filter(i => i.estado === 'rezagado').length; }
   get totalVencidos(): number { return this.items.filter(i => i.estado === 'vencido').length; }
   get totalConcluidos(): number{ return this.items.filter(i => i.estado === 'concluido').length; }
-
-  get urgVenc(): number { return this.totalVencidos; }
-  get urgRez(): number  { return this.totalRezagados; }
-
-  // ── Sidebar: embudo de etapas ──
-  get embudoEtapas(): EtapaItem[] {
-    const activos = this.rawItems.filter(e => !e.fecha_confirmacion_documentacion_escaneada_recibida);
-    const reg = activos.filter(e => !e.fecha_enviado_departamento_academico).length;
-    const dep = activos.filter(e =>  e.fecha_enviado_departamento_academico && !e.fecha_recibido_registro_liberacion).length;
-    const lib = activos.filter(e =>  e.fecha_recibido_registro_liberacion   && !e.fecha_creacion_anexo_9_3).length;
-    const sin = activos.filter(e =>  e.fecha_creacion_anexo_9_3).length;
-    return [
-      { label: 'Registrado',       count: reg, color: '#64748b' },
-      { label: 'En departamento',  count: dep, color: '#2563eb' },
-      { label: 'Liberado',         count: lib, color: '#7c3aed' },
-      { label: 'Sinodales / acto', count: sin, color: '#16a34a' },
-    ];
-  }
-
-  // ── Sidebar: últimos 3 actualizados ──
-  get actividadReciente(): ActividadRecienteItem[] {
-    return [...this.rawItems]
-      .filter(e => e.fecha_actualizacion)
-      .sort((a, b) => new Date(b.fecha_actualizacion!).getTime() - new Date(a.fecha_actualizacion!).getTime())
-      .slice(0, 3)
-      .map(e => ({
-        name:     e.nombre || e.numero_control,
-        initials: this.initialsFromName(e.nombre || ''),
-        avatarBg: this.hueColor(e.nombre || e.numero_control),
-        hace:     this.tiempoAtras(e.fecha_actualizacion!),
-      }));
-  }
-
-  // ── Sidebar: sin movimiento >30 días (no concluidos) ──
-  get sinMovimientoCount(): number {
-    const hace30 = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    return this.rawItems.filter(e =>
-      !e.fecha_confirmacion_documentacion_escaneada_recibida &&
-      e.fecha_actualizacion &&
-      new Date(e.fecha_actualizacion).getTime() < hace30
-    ).length;
-  }
 
   // ── Donut SVG segments ──
   get donutSegments(): DonutSeg[] {
@@ -227,34 +183,6 @@ export class CoordinadorInicioComponent implements OnInit {
       : this.modulosNav;
   }
 
-  // ── User info ──
-  get nombreUsuario(): string {
-    return this.auth.getUsuario()?.nombre ?? this.auth.getUsuario()?.username ?? '—';
-  }
-
-  get rolDisplay(): string {
-    const rol = (this.auth.getUsuario()?.rol ?? '').toLowerCase();
-    if (rol.includes('coordinador')) return 'Coordinación Académica';
-    if (rol.includes('division'))    return 'Div. de Estudios Profesionales';
-    if (rol.includes('apoyo'))       return 'Apoyo a Titulación';
-    if (rol.includes('admin'))       return 'Administrador';
-    return 'Personal Institucional';
-  }
-
-  get avatarIniciales(): string {
-    const n = (this.auth.getUsuario()?.nombre ?? '').trim();
-    const partes = n.split(/\s+/);
-    if (partes.length >= 2) return (partes[0][0] + partes[1][0]).toUpperCase();
-    if (partes[0]?.length)  return partes[0].slice(0, 2).toUpperCase();
-    return 'CA';
-  }
-
-  get fechaHoy(): string {
-    return new Date().toLocaleDateString('es-MX', {
-      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-    });
-  }
-
   get esApoyoTitulacion(): boolean {
     return this.auth.isApoyoTitulacion();
   }
@@ -277,7 +205,6 @@ export class CoordinadorInicioComponent implements OnInit {
     }
     this.egresadoService.listar({ aplicar_scope_departamento: false }).subscribe({
       next: (lista) => {
-        this.rawItems = lista;
         this.items = lista.map(e => this.mapear(e));
         this.urgentesDisplay    = this.buildUrgentesDisplay();
         this.modalidadesDisplay = this.buildDistribucion('modalidad');
@@ -307,8 +234,10 @@ export class CoordinadorInicioComponent implements OnInit {
     if (routes[key]) this.router.navigate(routes[key]);
   }
 
-  irSeguimientoProceso(): void {
-    this.router.navigate(['/home/seguimiento-proceso']);
+  /** Sin `carrera`, va a la lista completa. Con `carrera`, aterriza ya filtrado
+   *  (seguimiento-proceso lee el query param igual que ya hace con `buscar`). */
+  irSeguimientoProceso(carrera?: string): void {
+    this.router.navigate(['/home/seguimiento-proceso'], carrera ? { queryParams: { carrera } } : undefined);
   }
 
   // ── Private builders ──
@@ -328,9 +257,6 @@ export class CoordinadorInicioComponent implements OnInit {
   private buildUrgente(item: DashItem): UrgentItem {
     const isVencido = item.estado === 'vencido';
     const barColor  = isVencido ? '#dc2626' : '#d97706';
-    const barPct    = isVencido
-      ? 4
-      : Math.min(90, Math.max(10, Math.round(((item.diasRestantes ?? 0) / 180) * 100)));
 
     const partes   = item.alumno.split(/\s+/).filter(Boolean);
     const initials = partes.length >= 2
@@ -346,7 +272,6 @@ export class CoordinadorInicioComponent implements OnInit {
       initials,
       avatarBg:    this.hueColor(item.alumno),
       barColor,
-      barPctStr:   barPct + '%',
       statusLabel: isVencido ? 'Vencido' : `${item.diasRestantes}d`,
       statusBg:    isVencido ? '#fee2e2' : '#fef3c7',
       statusColor: isVencido ? '#991b1b' : '#92400e',
@@ -359,21 +284,6 @@ export class CoordinadorInicioComponent implements OnInit {
     return this.AVATAR_COLORS[h % this.AVATAR_COLORS.length];
   }
 
-  private initialsFromName(nombre: string): string {
-    const partes = nombre.trim().split(/\s+/).filter(Boolean);
-    if (partes.length >= 2) return (partes[0][0] + partes[1][0]).toUpperCase();
-    return nombre.slice(0, 2).toUpperCase() || '—';
-  }
-
-  private tiempoAtras(iso: string): string {
-    const diff = Date.now() - new Date(iso).getTime();
-    const h = Math.floor(diff / 3_600_000);
-    if (h < 1)  return 'hace menos de 1 h';
-    if (h < 24) return `hace ${h} h`;
-    const d = Math.floor(h / 24);
-    return `hace ${d} día${d !== 1 ? 's' : ''}`;
-  }
-
   private buildDistribucion(field: 'modalidad' | 'carrera'): BarDato[] {
     const map = new Map<string, number>();
     for (const item of this.items) {
@@ -383,7 +293,13 @@ export class CoordinadorInicioComponent implements OnInit {
     const maxEntries = field === 'modalidad' ? 5 : 6;
     const entries = [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, maxEntries);
     const max = Math.max(...entries.map(e => e[1]), 1);
-    const colors = ['#4f46e5', '#0d9488', '#db2777', '#ea580c', '#0891b2', '#16a34a'];
+    // Antes eran 6 hex random; ahora tints de marca. La barra ya comunica la
+    // proporción con su largo — el color aquí solo diferencia visualmente filas
+    // consecutivas, no codifica información propia.
+    const colors = [
+      'var(--color-marca-oscuro)', 'var(--color-marca-medio)', 'var(--color-marca-claro)',
+      'var(--color-admin)', 'var(--color-admin-claro)', 'var(--color-marca-medio)',
+    ];
     return entries.map(([label, count], i) => ({
       label,
       count,

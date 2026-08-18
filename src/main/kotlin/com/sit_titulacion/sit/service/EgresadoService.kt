@@ -340,6 +340,17 @@ class EgresadoService(
                 fecha_solicitud_documentacion_escaneada = pr?.fechaSolicitudDocumentacionEscaneada?.let { formatter.format(it) },
                 fecha_envio_documentacion_escaneada_egresado = pr?.fechaEnvioDocumentacionEscaneadaEgresado?.let { formatter.format(it) },
                 fecha_confirmacion_documentacion_escaneada_recibida = pr?.fechaConfirmacionDocumentacionEscaneadaRecibida?.let { formatter.format(it) },
+                fecha_confirmacion_entrega_egresado_depto = pr?.fechaConfirmacionEntregaEgresadoDepto?.let { formatter.format(it) },
+                fecha_recepcion_trabajo_division_estudios_prof = pr?.fechaRecepcionTrabajoDivisionEstudiosProf?.let { formatter.format(it) },
+                fecha_recepcion_registro_liberacion_depto_academico = pr?.fechaRecepcionRegistroLiberacionDeptoAcademico?.let { formatter.format(it) },
+                fecha_creacion_anexo_9_1 = pr?.fechaCreacionAnexo91?.let { formatter.format(it) },
+                fecha_confirmacion_entrega_anexo_9_1 = pr?.fechaConfirmacionEntregaAnexo91?.let { formatter.format(it) },
+                fecha_solicitud_anexo_9_2 = pr?.fechaSolicitudAnexo92?.let { formatter.format(it) },
+                fecha_aceptacion_servicios_escolares_anexo_9_2 = pr?.fechaAceptacionServiciosEscolaresAnexo92?.let { formatter.format(it) },
+                fecha_confirmacion_recibido_anexo_9_2 = pr?.fechaConfirmacionRecibidoAnexo92?.let { formatter.format(it) },
+                fecha_solicitud_sinodales = pr?.fechaSolicitudSinodales?.let { formatter.format(it) },
+                fecha_confirmacion_sinodales_recibidos = pr?.fechaConfirmacionSinodalesRecibidos?.let { formatter.format(it) },
+                fecha_agenda_acto_9_3 = pr?.fechaAgendaActo93?.let { formatter.format(it) },
             )
         }
     }

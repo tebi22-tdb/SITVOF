@@ -2,54 +2,12 @@
   display: block;
 }
 
-@keyframes sitvo-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.45), 0 8px 24px -6px rgba(220,38,38,0.5); }
-  50%       { box-shadow: 0 0 0 8px rgba(220,38,38,0), 0 8px 24px -6px rgba(220,38,38,0.5); }
-}
-
-@keyframes sitvo-dot {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
-  50%       { box-shadow: 0 0 0 6px rgba(34,197,94,0); }
-}
-
 /* ── ROOT ── */
 .sv-root {
   display: flex;
   min-height: calc(100vh - 110px);
   width: 100%;
   background: #f0f2f9;
-}
-
-/* ── SIDEBAR ── */
-.sv-sidebar {
-  width: 220px;
-  min-width: 220px;
-  background: linear-gradient(175deg, #1a365d 0%, #2c5282 100%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 28px 20px;
-  gap: 16px;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow-y: auto;
-  flex-shrink: 0;
-  align-self: flex-start;
-}
-
-.sv-urgent {
-  animation: sitvo-pulse 2.8s ease-in-out infinite;
-}
-
-.sv-session-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #22c55e;
-  flex-shrink: 0;
-  display: inline-block;
-  animation: sitvo-dot 2s ease-in-out infinite;
 }
 
 /* ── MAIN ── */
@@ -60,16 +18,30 @@
   flex-direction: column;
 }
 
-/* ── HERO ── */
-.sv-hero {
+/* ── KPI STRIP ──
+   Único lugar de la pantalla donde viven Total/En tiempo/Rezagados/Vencidos.
+   Antes estos 4 números se repetían aquí (como hero), en el donut y en el
+   card "Resumen" de la derecha — se unificaron para no mostrar el mismo dato 3 veces. */
+.sv-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  padding: 24px 32px;
   background: linear-gradient(135deg, #e8edf8 0%, #f0f2f9 100%);
-  padding: 28px 32px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
   border-bottom: 1px solid #dde4f0;
 }
+
+.sv-kpi-box {
+  background: #fff;
+  border-radius: 12px;
+  padding: 14px 16px;
+  border-left: 4px solid #e2e8f0;
+  box-shadow: 0 2px 10px -4px rgba(30,58,95,0.10);
+}
+.sv-kpi-box.total { border-left-color: var(--color-marca-oscuro); }
+.sv-kpi-box.ok    { border-left-color: var(--color-en-tiempo); }
+.sv-kpi-box.warn  { border-left-color: var(--color-rezagado); }
+.sv-kpi-box.bad   { border-left-color: var(--color-vencido); }
 
 /* ── CONTENT ── */
 .sv-content {
@@ -176,20 +148,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   margin-top: 2px;
-}
-
-.sv-row-bar-track {
-  height: 4px;
-  background: #e2e8f0;
-  border-radius: 2px;
-  margin-top: 5px;
-  overflow: hidden;
-}
-
-.sv-row-bar-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.6s ease;
 }
 
 .sv-row-pill {
@@ -370,104 +328,6 @@
   margin: 0;
 }
 
-/* ── SIDEBAR SECTIONS ── */
-.sv-sb-section {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.sv-sb-section-title {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.66rem;
-  font-weight: 600;
-  color: rgba(255,255,255,0.45);
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  margin-bottom: 2px;
-}
-
-.sv-etapa-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.sv-etapa-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.sv-etapa-label {
-  font-family: Manrope, sans-serif;
-  font-size: 0.72rem;
-  color: rgba(255,255,255,0.70);
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sv-etapa-cnt {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.82rem;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.sv-recent-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.sv-recent-av {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: #fff;
-  flex-shrink: 0;
-}
-
-.sv-recent-name {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: rgba(255,255,255,0.85);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 130px;
-}
-
-.sv-recent-hace {
-  font-family: Manrope, sans-serif;
-  font-size: 0.64rem;
-  color: rgba(255,255,255,0.45);
-  margin-top: 1px;
-}
-
-.sv-frozen-chip {
-  margin-top: 4px;
-  background: rgba(217,119,6,0.20);
-  border: 1px solid rgba(217,119,6,0.35);
-  border-radius: 8px;
-  padding: 4px 9px;
-  font-family: Manrope, sans-serif;
-  font-size: 0.66rem;
-  color: #fcd34d;
-}
-
 /* ── LEGEND ── */
 .sv-legend-row {
   display: flex;
@@ -507,20 +367,7 @@
 
 @media (max-width: 880px) {
   .sv-root { flex-direction: column; }
-  .sv-sidebar {
-    width: 100% !important;
-    min-width: 0 !important;
-    height: auto !important;
-    position: static !important;
-    flex-direction: row !important;
-    flex-wrap: wrap !important;
-    align-items: center !important;
-    padding: 16px 24px !important;
-    gap: 16px 20px !important;
-  }
-  .sv-only-desktop { display: none !important; }
-  .sv-urgent, .sv-total { flex: 1 1 180px; }
-  .sv-hero { padding: 20px 24px; flex-direction: column; align-items: flex-start; }
+  .sv-kpi-strip { grid-template-columns: repeat(2, 1fr); padding: 20px 24px; }
   .sv-content { padding: 20px 24px 32px; }
 }
 

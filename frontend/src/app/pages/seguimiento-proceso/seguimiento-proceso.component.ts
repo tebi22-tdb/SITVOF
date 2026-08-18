@@ -206,6 +206,8 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     const buscar = this.route.snapshot.queryParamMap.get('buscar')?.trim();
     if (buscar) this.buscarControl = buscar;
+    const carrera = this.route.snapshot.queryParamMap.get('carrera')?.trim();
+    if (carrera) this.filtroCarrera = carrera;
     this.cargar();
     this.refrescoListaIntervalo = setInterval(() => this.cargar(true), 45000);
   }
