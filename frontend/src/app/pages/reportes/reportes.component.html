@@ -1,0 +1,230 @@
+<app-header [showNuevoButton]="false" [showVolverInicioButton]="true" (volverInicioClick)="volver()"></app-header>
+
+<div class="rep-contenido">
+  <div class="rep-encabezado">
+    <div>
+      <h1 class="rep-titulo">Reportes y analítica</h1>
+      <p class="rep-subtitulo">Indicadores consolidados del proceso de titulación.</p>
+    </div>
+  </div>
+
+  <form class="rep-filtros" (ngSubmit)="aplicarFiltros()">
+    <div class="rep-filtro">
+      <label for="fecha_desde">Desde</label>
+      <input id="fecha_desde" type="date" [(ngModel)]="filtros.fecha_desde" name="fecha_desde" />
+    </div>
+    <div class="rep-filtro">
+      <label for="fecha_hasta">Hasta</label>
+      <input id="fecha_hasta" type="date" [(ngModel)]="filtros.fecha_hasta" name="fecha_hasta" />
+    </div>
+    <div class="rep-filtro">
+      <label for="modalidad">Modalidad</label>
+      <select id="modalidad" [(ngModel)]="filtros.modalidad" name="modalidad">
+        <option [ngValue]="undefined">Todas</option>
+        <option *ngFor="let m of modalidades" [ngValue]="m">{{ m }}</option>
+      </select>
+    </div>
+    <div class="rep-filtro">
+      <label for="carrera">Carrera</label>
+      <select id="carrera" [(ngModel)]="filtros.carrera" name="carrera">
+        <option [ngValue]="undefined">Todas</option>
+        <option *ngFor="let c of carreras" [ngValue]="c">{{ c }}</option>
+      </select>
+    </div>
+    <div class="rep-filtro">
+      <label for="generacion">Generación (año de trámite)</label>
+      <input id="generacion" type="number" placeholder="Ej. 2026" [(ngModel)]="filtros.generacion" name="generacion" />
+    </div>
+    <div class="rep-filtro-acciones">
+      <button type="submit" class="rep-btn rep-btn-primario">Aplicar filtros</button>
+      <button type="button" class="rep-btn" (click)="limpiarFiltros()">Limpiar</button>
+    </div>
+  </form>
+
+  <div *ngIf="cargando" class="rep-estado">Cargando reporte…</div>
+  <div *ngIf="error" class="rep-estado rep-estado-error">{{ error }}</div>
+
+  <ng-container *ngIf="!cargando && !error">
+    <div class="rep-tabs">
+      <button type="button" class="rep-tab" [class.rep-tab-activo]="seccion === 'general'" (click)="cambiarSeccion('general')">
+        Resumen general
+      </button>
+      <button type="button" class="rep-tab" [class.rep-tab-activo]="seccion === 'listado'" (click)="cambiarSeccion('listado')">
+        Listado de egresados
+      </button>
+    </div>
+
+    <!-- ── Sección 1: Resumen general ── -->
+    <section *ngIf="seccion === 'general' && resumen as r">
+      <div class="rep-seccion-acciones">
+        <button type="button" class="rep-btn rep-btn-primario" (click)="exportarExcel()" [disabled]="exportando">
+          {{ exportando ? 'Generando…' : 'Exportar a Excel' }}
+        </button>
+      </div>
+
+      <div class="rep-kpis">
+        <div class="rep-kpi">
+          <span class="rep-kpi-valor">{{ r.total_procesos }}</span>
+          <span class="rep-kpi-etiq">Procesos en el filtro actual</span>
+        </div>
+        <div class="rep-kpi" *ngFor="let estado of ['en_tiempo', 'rezagado', 'vencido', 'concluido']">
+          <span class="rep-kpi-valor">{{ r.conteo_por_estado_plazo[estado] ?? 0 }}</span>
+          <span class="rep-kpi-etiq">{{ ETIQUETA_ESTADO[estado] }}</span>
+        </div>
+        <div class="rep-kpi">
+          <span class="rep-kpi-valor">{{ r.tasa_titulacion.porcentaje | number: '1.0-1' }}%</span>
+          <span class="rep-kpi-etiq">
+            Tasa de titulación
+            ({{ r.tasa_titulacion.titulados }}/{{ r.tasa_titulacion.total_procesos }})
+          </span>
+        </div>
+      </div>
+
+      <div class="rep-graficas-general">
+        <div class="rep-grafica-card">
+          <h2>Procesos registrados por mes</h2>
+          <p class="rep-nota">Cuántos egresados entraron al proceso cada mes, dentro del filtro actual.</p>
+          <div class="rep-grafica-linea">
+            <canvas baseChart [data]="tendenciaLineData" [type]="'line'" [options]="tendenciaOptions"></canvas>
+          </div>
+          <p class="rep-nota" *ngIf="tendenciaLineData.labels!.length === 0">No hay procesos registrados en el filtro actual.</p>
+        </div>
+
+        <div class="rep-grafica-card">
+          <h2>Avance de los expedientes</h2>
+          <p class="rep-nota">Muestra el total de los expedientes que hay en cada etapa.</p>
+          <div class="rep-grafica-barra" [style.height.px]="Math.max(160, embudoBarData.labels!.length * 36)">
+            <canvas baseChart [data]="embudoBarData" [type]="'bar'" [options]="barOptionsHorizontal"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="rep-tablas">
+        <div class="rep-tabla-card">
+          <h2>Distribución por modalidad</h2>
+          <div class="rep-tabla-scroll">
+            <table class="rep-tabla">
+              <thead><tr><th>Modalidad</th><th>Procesos</th><th>%</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let m of r.distribucion_modalidad">
+                  <td>{{ m.etiqueta }}</td>
+                  <td>{{ m.cantidad }}</td>
+                  <td>{{ m.porcentaje | number: '1.0-1' }}%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="rep-tabla-card">
+          <h2>Distribución por carrera</h2>
+          <div class="rep-tabla-scroll">
+            <table class="rep-tabla">
+              <thead><tr><th>Carrera</th><th>Procesos</th><th>%</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let c of r.distribucion_carrera">
+                  <td>{{ c.etiqueta }}</td>
+                  <td>{{ c.cantidad }}</td>
+                  <td>{{ c.porcentaje | number: '1.0-1' }}%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="rep-tabla-card rep-tabla-card-ancha">
+          <h2>Tiempos promedio por etapa (días)</h2>
+          <div class="rep-tabla-scroll">
+            <table class="rep-tabla">
+              <thead><tr><th>Etapa</th><th>Días promedio</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let e of r.tiempos_promedio_etapa_dias">
+                  <td>{{ e.etiqueta }}</td>
+                  <td>{{ e.dias_promedio !== null ? (e.dias_promedio | number: '1.0-1') : '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="rep-nota" *ngIf="r.tiempos_promedio_etapa_dias.length === 0">Ningún expediente del filtro actual tiene ambas fechas de alguna etapa.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Sección 2: Listado de egresados ── -->
+    <section *ngIf="seccion === 'listado'">
+      <form class="rep-filtros rep-filtros-listado" (ngSubmit)="aplicarFiltrosListado()">
+        <div class="rep-filtro">
+          <label for="busqueda">Nombre o número de control</label>
+          <input id="busqueda" type="text" placeholder="Buscar…" [(ngModel)]="busquedaListado" name="busqueda" />
+        </div>
+        <div class="rep-filtro">
+          <label for="generacion_ingreso">Generación de ingreso</label>
+          <input
+            id="generacion_ingreso" type="number" placeholder="Ej. 2022"
+            [(ngModel)]="listadoFiltros.generacion_ingreso" name="generacion_ingreso"
+          />
+        </div>
+        <div class="rep-filtro">
+          <label for="departamento">Departamento</label>
+          <select id="departamento" [(ngModel)]="listadoFiltros.departamento_slug" name="departamento">
+            <option [ngValue]="undefined">Todos</option>
+            <option *ngFor="let d of departamentos" [ngValue]="d.slug">{{ d.nombre }}</option>
+          </select>
+        </div>
+        <div class="rep-filtro">
+          <label for="estado_general">Estado</label>
+          <select id="estado_general" [(ngModel)]="listadoFiltros.estado_general" name="estado_general">
+            <option [ngValue]="undefined">Todos</option>
+            <option value="registrado">Registrado</option>
+            <option value="titulado">Titulado</option>
+            <option value="vencido">Vencido</option>
+          </select>
+        </div>
+        <div class="rep-filtro-acciones">
+          <button type="submit" class="rep-btn rep-btn-primario">Aplicar filtros</button>
+          <button type="button" class="rep-btn" (click)="limpiarFiltrosListado()">Limpiar</button>
+        </div>
+      </form>
+
+      <div class="rep-seccion-acciones">
+        <button type="button" class="rep-btn rep-btn-primario" (click)="exportarListadoExcel()" [disabled]="exportandoListado">
+          {{ exportandoListado ? 'Generando…' : 'Exportar a Excel' }}
+        </button>
+        <span class="rep-nota rep-nota-inline" *ngIf="!cargandoListado && !errorListado">{{ listadoFiltrado.length }} de {{ listado.length }} egresados</span>
+      </div>
+
+      <div *ngIf="cargandoListado" class="rep-estado">Cargando listado…</div>
+      <div *ngIf="errorListado" class="rep-estado rep-estado-error">{{ errorListado }}</div>
+
+      <ng-container *ngIf="!cargandoListado && !errorListado">
+        <p class="rep-nota" *ngIf="listadoFiltrado.length === 0">Sin egresados para este filtro.</p>
+        <div class="rep-tabla-scroll rep-tabla-scroll-listado" *ngIf="listadoFiltrado.length > 0">
+          <table class="rep-tabla">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Número de control</th>
+                <th>Carrera</th>
+                <th>Departamento</th>
+                <th>Generación</th>
+                <th>Modalidad</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let e of listadoFiltrado">
+                <td>{{ e.nombre_completo }}</td>
+                <td>{{ e.numero_control }}</td>
+                <td>{{ e.carrera }}</td>
+                <td>{{ e.departamento_nombre ?? '—' }}</td>
+                <td>{{ e.generacion_ingreso ?? '—' }}</td>
+                <td>{{ e.modalidad }}</td>
+                <td>{{ e.estado_general }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </ng-container>
+    </section>
+  </ng-container>
+</div>

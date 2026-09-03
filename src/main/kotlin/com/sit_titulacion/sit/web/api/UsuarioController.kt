@@ -1,6 +1,7 @@
 package com.sit_titulacion.sit.web.api
 
 import com.sit_titulacion.sit.config.UsuarioPrincipal
+import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.service.EmailService
 import com.sit_titulacion.sit.service.UsuarioService
 import org.slf4j.LoggerFactory
@@ -46,15 +47,12 @@ class UsuarioController(
 ) {
     private val log = LoggerFactory.getLogger(UsuarioController::class.java)
 
-    private fun puedeAdministrarUsuariosStaff(rol: String): Boolean {
-        val r = rol.trim().lowercase()
-        return r == "coordinador" || r == "division_estudios_prof_admin"
-    }
+    /** Gestión de cuentas de staff: solo Administrador (DEP dejó de administrar cuentas). */
+    private fun puedeAdministrarUsuariosStaff(rol: Rol): Boolean =
+        rol == Rol.ADMINISTRADOR
 
-    private fun puedeGestionarCuentas(rol: String): Boolean {
-        val r = rol.trim().lowercase()
-        return r == "coordinador" || r == "division_estudios_prof_admin" || r == "administrador"
-    }
+    private fun puedeGestionarCuentas(rol: Rol): Boolean =
+        rol == Rol.ADMINISTRADOR
 
     @GetMapping
     fun listar(@AuthenticationPrincipal principal: UsuarioPrincipal?): ResponseEntity<Any> {
@@ -66,7 +64,7 @@ class UsuarioController(
                 id = it.id?.toHexString() ?: "",
                 nombre = it.nombre ?: it.username,
                 username = it.username,
-                rol = it.rol,
+                rol = it.rol.valorBd,
                 curp = it.curp,
                 correo_electronico = it.correoElectronico,
                 segmento_academico = it.segmentoAcademico,
@@ -90,7 +88,9 @@ class UsuarioController(
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "No tienes permiso para agregar usuarios del personal."))
         }
         val nombre = body.nombre.trim()
-        val rol = body.rol.trim().ifBlank { "coordinador" }
+        val rolTexto = body.rol.trim().ifBlank { "coordinador" }
+        val rol = Rol.desdeBd(rolTexto)
+            ?: return ResponseEntity.badRequest().body(mapOf("error" to "Rol inválido: '$rolTexto'."))
         val correo = body.correo_electronico.trim()
         val curp = body.curp?.trim()?.uppercase() ?: ""
         var segmentoAcademico = body.segmento_academico?.trim()?.lowercase()?.ifBlank { null }
@@ -103,12 +103,12 @@ class UsuarioController(
         if (correo.isBlank()) {
             return ResponseEntity.badRequest().body(mapOf("error" to "El correo electrónico es obligatorio."))
         }
-        if (!rol.equals("academico", ignoreCase = true)) {
+        if (rol != Rol.ACADEMICO) {
             segmentoAcademico = null
             carrerasAsignadas = emptyList()
         }
         if (
-            rol.equals("academico", ignoreCase = true) &&
+            rol == Rol.ACADEMICO &&
             segmentoAcademico != null &&
             carrerasAsignadas.isEmpty()
         ) {

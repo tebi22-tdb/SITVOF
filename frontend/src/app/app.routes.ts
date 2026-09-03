@@ -5,6 +5,8 @@ import {
   egresadoGuard,
   loginGuard,
   noApoyoTitulacionGuard,
+  noApoyoTitulacionPeroDepGuard,
+  noDepGuard,
   serviciosEscolaresGuard,
   staffAdminGuard,
 } from './guards/auth.guard';
@@ -12,7 +14,13 @@ import {
 /**
  * Enrutado SITVO (titulación / residencia profesional y otras modalidades).
  *
- * - Coordinador: inicio → alta de egresados (`/home/alta`) y seguimiento de proceso (`/home/seguimiento-proceso`).
+ * - Administrador (pleno): dashboard (`/home`) con acceso a todos los módulos.
+ * - DEP (División de Estudios Profesionales): aterriza directo en
+ *   `/home/seguimiento-proceso` — solo esa pantalla y `/home/alta` (Inicio
+ *   del proceso), sin dashboard ni el resto de módulos (`noApoyoTitulacionPeroDepGuard`
+ *   en esas dos rutas, `noApoyoTitulacionGuard` en el resto de /home/**).
+ * - Apoyo a titulación: aterriza directo en `/home/revisiones` — solo revisa
+ *   expedientes, sin dashboard ni acceso a alta/seguimiento.
  * - Académico: departamento y revisión de expedientes no residencia.
  * - Egresado: seguimiento de su propio trámite.
  */
@@ -27,12 +35,12 @@ export const routes: Routes = [
     path: 'home',
     loadComponent: () =>
       import('./pages/coordinador-inicio/coordinador-inicio.component').then((m) => m.CoordinadorInicioComponent),
-    canActivate: [coordinadorGuard],
+    canActivate: [coordinadorGuard, noApoyoTitulacionGuard],
   },
   {
     path: 'home/alta',
     loadComponent: () => import('./pages/home/home.component').then((m) => m.HomeComponent),
-    canActivate: [coordinadorGuard],
+    canActivate: [coordinadorGuard, noApoyoTitulacionPeroDepGuard],
   },
   {
     path: 'home/alta-docentes',
@@ -47,18 +55,26 @@ export const routes: Routes = [
     canActivate: [coordinadorGuard, noApoyoTitulacionGuard],
   },
   {
+    path: 'home/reportes',
+    loadComponent: () =>
+      import('./pages/reportes/reportes.component').then((m) => m.ReportesComponent),
+    canActivate: [coordinadorGuard, noApoyoTitulacionGuard],
+  },
+  {
     path: 'home/seguimiento-proceso',
     loadComponent: () =>
       import('./pages/seguimiento-proceso/seguimiento-proceso.component').then((m) => m.SeguimientoProcesoComponent),
-    canActivate: [coordinadorGuard],
+    canActivate: [coordinadorGuard, noApoyoTitulacionPeroDepGuard],
   },
   {
+    // Sin noApoyoTitulacionGuard a propósito: es la única pantalla de staff completo
+    // a la que apoyo_titulacion tiene acceso. noDepGuard sí aplica: DEP no entra aquí.
     path: 'home/revisiones/revision/:id',
     loadComponent: () =>
       import('./pages/departamento-academico/revision-documento/revision-documento.component').then(
         (m) => m.RevisionDocumentoComponent,
       ),
-    canActivate: [coordinadorGuard, noApoyoTitulacionGuard],
+    canActivate: [coordinadorGuard, noDepGuard],
   },
   {
     path: 'home/departamento-academico',
@@ -69,10 +85,12 @@ export const routes: Routes = [
     canActivate: [coordinadorGuard, noApoyoTitulacionGuard],
   },
   {
+    // Sin noApoyoTitulacionGuard a propósito: es la pantalla a la que apoyo_titulacion
+    // aterriza directo tras el login. noDepGuard sí aplica: DEP no entra aquí.
     path: 'home/revisiones',
     loadComponent: () =>
       import('./pages/departamento-academico/departamento-academico.component').then((m) => m.DepartamentoAcademicoComponent),
-    canActivate: [coordinadorGuard, noApoyoTitulacionGuard],
+    canActivate: [coordinadorGuard, noDepGuard],
   },
   {
     path: 'seguimiento',

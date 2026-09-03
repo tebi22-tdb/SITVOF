@@ -75,6 +75,45 @@ select:disabled {
   font-size: 0.9rem;
 }
 
+/* Modal centrado que avisa cuando el formulario se envía con campos inválidos */
+.modal-backdrop-error {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 1000;
+}
+
+.modal-card-error {
+  width: 400px;
+  max-width: 100%;
+  background: #fff;
+  border-top: 4px solid #b91c1c;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.modal-card-error h3 {
+  margin: 0 0 0.6rem;
+  color: #991b1b;
+}
+
+.modal-card-error p {
+  margin: 0 0 1.25rem;
+  color: #374151;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.modal-card-error .btn-agregar {
+  width: 100%;
+}
+
 .form-seccion {
   margin-bottom: 1.5rem;
   padding-bottom: 1.25rem;
@@ -357,6 +396,31 @@ select:disabled {
 
 .btn-titulo-compartido--no:hover {
   background: #fef2f2;
+}
+
+.pareja-residencia-caja {
+  margin-top: 0.6rem;
+  padding: 0.75rem 0.9rem;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-left: 4px solid #16a34a;
+  border-radius: 6px;
+}
+
+.pareja-residencia-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #15803d;
+  cursor: pointer;
+}
+
+.pareja-residencia-check input[type="checkbox"] {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+  cursor: pointer;
 }
 
 @media (max-width: 640px) {

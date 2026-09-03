@@ -61,7 +61,7 @@ class AuthController(
             ResponseEntity.ok(
                 mapOf(
                     "username" to principal.username,
-                    "rol" to principal.getRol(),
+                    "rol" to principal.getRol().valorBd, // contrato con el frontend no cambia: sigue viajando en minúsculas
                     "nombre" to principal.getNombre(),
                     "segmento_academico" to principal.getSegmentoAcademico(),
                     "carreras_asignadas" to principal.getCarrerasAsignadas(),
@@ -136,7 +136,7 @@ class AuthController(
         }
         return ResponseEntity.ok(UsuarioActualDto(
             username = auth.username,
-            rol = auth.getRol(),
+            rol = auth.getRol().valorBd,
             nombre = auth.getNombre(),
             segmento_academico = auth.getSegmentoAcademico(),
             carreras_asignadas = auth.getCarrerasAsignadas(),

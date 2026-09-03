@@ -1,0 +1,318 @@
+.rep-contenido {
+  padding: 0.75rem 1.5rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.rep-encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  align-items: start;
+}
+
+.rep-titulo {
+  margin: 0 0 0.25rem;
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.rep-subtitulo {
+  margin: 0 0 1.25rem;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+/* ── Filtros ── */
+.rep-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: end;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.rep-filtro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 150px;
+}
+
+.rep-filtro label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.rep-filtro input,
+.rep-filtro select {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: #fff;
+}
+
+.rep-filtro-acciones {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.rep-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.rep-btn:hover { background: #f1f5f9; }
+
+.rep-btn-primario {
+  background: #1f4c8f;
+  border-color: #1f4c8f;
+  color: #fff;
+}
+
+.rep-btn-primario:hover { background: #1a4078; }
+.rep-btn-primario:disabled { opacity: 0.6; cursor: default; }
+
+/* ── Pestañas de sección ── */
+.rep-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 1.25rem;
+}
+
+.rep-tab {
+  padding: 0.6rem 1rem;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.rep-tab:hover { color: #1f4c8f; }
+
+.rep-tab-activo {
+  color: #1f4c8f;
+  border-bottom-color: #1f4c8f;
+}
+
+/* ── Estados ── */
+.rep-estado {
+  padding: 2rem;
+  text-align: center;
+  color: #64748b;
+}
+
+.rep-estado-error {
+  color: #b91c1c;
+}
+
+/* ── KPIs ── */
+.rep-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.rep-kpi {
+  flex: 1 1 160px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.rep-kpi-valor {
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.rep-kpi-etiq {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+/* ── Gráficas ── */
+.rep-graficas-general {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.rep-grafica-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem 1.4rem;
+  margin-bottom: 1.25rem;
+}
+
+.rep-graficas-general .rep-grafica-card {
+  margin-bottom: 0;
+}
+
+.rep-grafica-card h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.rep-grafica-linea {
+  position: relative;
+  width: 100%;
+  height: 220px;
+}
+
+.rep-grafica-barra {
+  position: relative;
+  width: 100%;
+}
+
+.rep-nota {
+  margin: 0 0 0.75rem;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+/* ── Tablas (resumen general + por departamento) ── */
+.rep-tablas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1.25rem;
+  /* Sin "stretch" (el default de grid): cada tarjeta toma su alto natural
+     (topado por .rep-tabla-scroll) en vez de estirarse para igualar a la
+     vecina más alta — así una lista corta no queda con un hueco en blanco
+     solo porque la de al lado tiene más filas. */
+  align-items: start;
+}
+
+.rep-tabla-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem 1.4rem;
+}
+
+.rep-tabla-card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.rep-tabla-card-ancha {
+  grid-column: 1 / -1;
+}
+
+/* Tope de alto por tabla — si no caben todas las filas, esta caja (no la
+   tarjeta completa) se vuelve scrolleable, con el encabezado fijo arriba. */
+.rep-tabla-scroll {
+  max-height: 320px;
+  overflow-y: auto;
+  overflow-x: auto;
+  border-radius: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.rep-tabla-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.rep-tabla-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.rep-tabla-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rep-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.rep-tabla th {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 2px solid #e2e8f0;
+  color: #475569;
+  font-weight: 600;
+  background: #fff;
+  /* El encabezado se queda fijo mientras el cuerpo de la tabla se desplaza. */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.rep-tabla td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1f2937;
+}
+
+.rep-tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ── Listado de egresados ── */
+.rep-filtros-listado {
+  margin-bottom: 1rem;
+}
+
+.rep-seccion-acciones {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.rep-nota-inline {
+  margin: 0;
+}
+
+.rep-tabla-scroll-listado {
+  max-height: 560px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.rep-tabla-scroll-listado .rep-tabla th,
+.rep-tabla-scroll-listado .rep-tabla td {
+  padding: 0.6rem 0.9rem;
+}
+
+@media (max-width: 640px) {
+  .rep-filtros { flex-direction: column; align-items: stretch; }
+  .rep-filtro { min-width: 0; }
+}

@@ -22,6 +22,9 @@ export class HeaderComponent implements OnInit {
   /** Muestra botón para volver al inicio principal (/home). */
   @Input() showVolverInicioButton = false;
   @Output() volverInicioClick = new EventEmitter<void>();
+  /** Muestra botón de acceso directo a Registrar egresado (/home/alta) — DEP no tiene /home, así que no le sirve "Volver". */
+  @Input() showRegistrarEgresadoButton = false;
+  @Output() registrarEgresadoClick = new EventEmitter<void>();
 
   constructor(
     private auth: AuthService,
@@ -41,12 +44,12 @@ export class HeaderComponent implements OnInit {
         this.catalogoService.inferirNombreDepartamentoPorCarreras(u?.carreras_asignadas ?? []) ??
         'Coordinacion de apoyo a la titulacion';
       this.nombreUsuario = `${nombre} - ${area}`;
-    } else if (username === 'coordinador' || rol === 'coordinador') {
+    } else if (rol === 'administrador') {
       this.nombreUsuario = `${nombre} - Administrador`;
     } else if (rol === 'apoyo_titulacion') {
       this.nombreUsuario = `${nombre} - Apoyo titulación`;
-    } else if (rol === 'division_estudios_prof_admin') {
-      this.nombreUsuario = `${nombre} - Administrativo`;
+    } else if (rol === 'dep') {
+      this.nombreUsuario = `${nombre} - DEP`;
     } else if (rol === 'servicios_escolares') {
       this.nombreUsuario = `${nombre} - Servicios escolares`;
     } else {

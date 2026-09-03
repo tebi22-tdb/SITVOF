@@ -59,6 +59,8 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
   archivoRequeridoError = false;
   /** Constancia: fecha de expedición posterior al registro del Anexo XXXI. */
   errorFechaConstanciaPosterior = false;
+  /** True cuando se intentó enviar el formulario con campos obligatorios vacíos o inválidos. */
+  mostrarModalCamposIncompletos = false;
   form: FormGroup;
 
   originalidadEstado: 'LIBRE' | 'CONFIRMAR' | 'ADVERTENCIA' | 'BLOQUEADO' | 'comprobando' | null = null;
@@ -72,6 +74,13 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
   readonly maxTituloPorModalidad = 3;
   /** vencido | titulado | en_proceso cuando originalidadEstado === BLOQUEADO */
   originalidadExpedienteEstado: 'vencido' | 'titulado' | 'en_proceso' | null = null;
+
+  /** true solo cuando es Residencia Profesional y hay exactamente 1 coincidencia (proyecto en pareja). */
+  esParejaResidencia = false;
+  companeroNombre: string | null = null;
+  /** El coordinador debe marcar esta casilla para confirmar que es el mismo proyecto en pareja. */
+  parejaResidenciaConfirmada = false;
+  readonly maxTituloParejaResidencia = 2;
 
   controlAltaEstado: 'LIBRE' | 'BLOQUEADO' | 'comprobando' | null = null;
   controlAltaExpedienteEstado: 'vencido' | 'titulado' | 'en_proceso' | null = null;
@@ -205,6 +214,9 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
             this.originalidadExpedienteEstado = null;
             this.tituloCompartidoConfirmado = null;
             this.originalidadCoincidencias = 0;
+            this.esParejaResidencia = false;
+            this.companeroNombre = null;
+            this.parejaResidenciaConfirmada = false;
             return of(null);
           }
           if (this.esCenevalModalidad) {
@@ -214,6 +226,9 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
             this.originalidadExpedienteEstado = null;
             this.tituloCompartidoConfirmado = null;
             this.originalidadCoincidencias = 0;
+            this.esParejaResidencia = false;
+            this.companeroNombre = null;
+            this.parejaResidenciaConfirmada = false;
             return of(null);
           }
           const t = (titulo || '').trim();
@@ -224,6 +239,9 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
             this.originalidadExpedienteEstado = null;
             this.tituloCompartidoConfirmado = null;
             this.originalidadCoincidencias = 0;
+            this.esParejaResidencia = false;
+            this.companeroNombre = null;
+            this.parejaResidenciaConfirmada = false;
             return of(null);
           }
           this.originalidadEstado = 'comprobando';
@@ -248,8 +266,11 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
         const ex = (resultado.expediente_estado || '').trim();
         this.originalidadExpedienteEstado =
           ex === 'vencido' || ex === 'titulado' || ex === 'en_proceso' ? ex : null;
+        this.esParejaResidencia = !!resultado.es_pareja_residencia;
+        this.companeroNombre = resultado.companero_nombre || null;
         if (this.originalidadEstado !== 'CONFIRMAR') {
           this.tituloCompartidoConfirmado = null;
+          this.parejaResidenciaConfirmada = false;
         }
       });
 
@@ -369,7 +390,21 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
 
   /** Mensaje bajo «Nombre del proyecto» cuando el título está bloqueado. */
   get requiereConfirmacionTituloCompartido(): boolean {
-    return !this.editando && this.originalidadEstado === 'CONFIRMAR';
+    return !this.editando && this.originalidadEstado === 'CONFIRMAR' && !this.esParejaResidencia;
+  }
+
+  /** Caso especial: Residencia Profesional en pareja, ya hay 1 egresado con este título. */
+  get muestraParejaResidenciaReconocida(): boolean {
+    return !this.editando && this.originalidadEstado === 'CONFIRMAR' && this.esParejaResidencia;
+  }
+
+  get mensajeParejaResidencia(): string {
+    const nombre = this.companeroNombre || 'otro alumno';
+    return `Proyecto en pareja: este título ya está registrado por ${nombre} en Residencia Profesional. Marca la casilla para confirmar que es el mismo equipo.`;
+  }
+
+  toggleParejaResidenciaConfirmada(): void {
+    this.parejaResidenciaConfirmada = !this.parejaResidenciaConfirmada;
   }
 
   /** Texto del cuadro Sí/No según cuántos registros ya existen (1 → 2.º alumno; 2 → 3.º). */
@@ -388,6 +423,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
   get puedeRegistrarTituloProyecto(): boolean {
     if (this.esCenevalModalidad) return true;
     if (this.originalidadEstado === 'BLOQUEADO' || this.originalidadEstado === 'ADVERTENCIA') return false;
+    if (this.muestraParejaResidenciaReconocida) return this.parejaResidenciaConfirmada === true;
     if (this.requiereConfirmacionTituloCompartido) return this.tituloCompartidoConfirmado === true;
     return true;
   }
@@ -406,6 +442,9 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
 
   get mensajeBloqueoNombreProyecto(): string {
     if (this.originalidadEstado !== 'BLOQUEADO') return '';
+    if (this.originalidadMotivo === 'cupo_pareja_residencia') {
+      return `Ya hay ${this.maxTituloParejaResidencia} egresados con este proyecto de Residencia Profesional (pareja completa). No se puede registrar un tercero.`;
+    }
     if (this.originalidadMotivo === 'cupo_modalidad') {
       return `Ya hay ${this.maxTituloPorModalidad} egresados con este nombre en la misma modalidad. No se puede registrar otro.`;
     }
@@ -691,6 +730,10 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
     return !!(c?.invalid && c?.touched);
   }
 
+  cerrarModalCamposIncompletos(): void {
+    this.mostrarModalCamposIncompletos = false;
+  }
+
   onCancelar(): void {
     this.archivoSeleccionado = null;
     this.quitarArchivoSeleccionado = false;
@@ -713,6 +756,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
     this.revisarFechasDocumentos();
     if (this.form.invalid || this.errorFechaConstanciaPosterior) {
       this.form.markAllAsTouched();
+      this.mostrarModalCamposIncompletos = true;
       return;
     }
     if (!this.esCenevalModalidad && !this.puedeRegistrarTituloProyecto) return;

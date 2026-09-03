@@ -115,7 +115,7 @@ export class CatalogosComponent implements OnInit {
     let departamentoId = '';
     if (this.esTabCarrera) {
       const dept = this.departamentosItems.find(d =>
-        d.carreras.some(c => c.trim() === item.nombre.trim()),
+        d.carreras.some(c => this.catalogoService.normalizarCarreraKey(c) === this.catalogoService.normalizarCarreraKey(item.nombre)),
       );
       departamentoId = dept?.id ?? '';
     }
@@ -215,8 +215,9 @@ export class CatalogosComponent implements OnInit {
   }
 
   nombreDeptDeCarrera(nombreCarrera: string): string {
+    const key = this.catalogoService.normalizarCarreraKey(nombreCarrera);
     return this.departamentosItems.find(d =>
-      d.carreras.some(c => c.trim() === nombreCarrera.trim())
+      d.carreras.some(c => this.catalogoService.normalizarCarreraKey(c) === key)
     )?.nombre ?? '—';
   }
 
@@ -244,8 +245,9 @@ export class CatalogosComponent implements OnInit {
       });
     } else {
       const nombreAnterior = this.form.nombreAnterior;
+      const keyAnterior = this.catalogoService.normalizarCarreraKey(nombreAnterior);
       const deptAnterior = this.departamentosItems.find(d =>
-        d.carreras.some(c => c.trim() === nombreAnterior.trim()),
+        d.carreras.some(c => this.catalogoService.normalizarCarreraKey(c) === keyAnterior),
       );
 
       this.catalogoService.actualizarItem(this.form.editandoId!, request).subscribe({
@@ -276,8 +278,9 @@ export class CatalogosComponent implements OnInit {
 
     if (mismoDept && deptAnterior) {
       // Mismo depto, solo cambia el nombre: reemplazar en la lista
+      const keyAnterior = this.catalogoService.normalizarCarreraKey(nombreAnterior);
       const nuevasCarreras = deptAnterior.carreras.map(c =>
-        c.trim() === nombreAnterior.trim() ? nombreNuevo : c,
+        this.catalogoService.normalizarCarreraKey(c) === keyAnterior ? nombreNuevo : c,
       );
       this.actualizarDepartamento(deptAnterior, nuevasCarreras, () =>
         this.finalizarGuardado('Carrera actualizada.'),
@@ -290,7 +293,8 @@ export class CatalogosComponent implements OnInit {
     const done = () => { if (--pending.count === 0) this.finalizarGuardado('Carrera actualizada y reasignada.'); };
 
     if (deptAnterior) {
-      const filtradas = deptAnterior.carreras.filter(c => c.trim() !== nombreAnterior.trim());
+      const keyAnterior = this.catalogoService.normalizarCarreraKey(nombreAnterior);
+      const filtradas = deptAnterior.carreras.filter(c => this.catalogoService.normalizarCarreraKey(c) !== keyAnterior);
       this.actualizarDepartamento(deptAnterior, filtradas, done);
     }
     if (deptNuevo) {

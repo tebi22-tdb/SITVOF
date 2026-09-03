@@ -128,23 +128,23 @@
                     paso.fechaDetalleResaltada
                   }}</strong>
                 </p>
-                <div *ngIf="paso.plazoRecepcion as plazo" class="plazo-desarrollo-rec" [ngClass]="plazo.claseSemafono">
+                <div *ngIf="paso.plazoRecepcion as plazo" class="plazo-desarrollo-rec" [ngClass]="plazo.clase_semaforo">
                   <div class="plazo-desarrollo-rec__cab">
                     <span class="plazo-desarrollo-rec__semaforo" aria-hidden="true"></span>
-                    <strong class="plazo-desarrollo-rec__estado">{{ plazo.etiquetaEstado }}</strong>
-                    <span class="plazo-desarrollo-rec__vigencia">Vigencia del proyecto: {{ plazo.mesesTotales }} mes(es) calendario</span>
+                    <strong class="plazo-desarrollo-rec__estado">{{ plazo.etiqueta_estado }}</strong>
+                    <span class="plazo-desarrollo-rec__vigencia">Vigencia del proyecto: {{ plazo.meses_totales }} mes(es) calendario</span>
                   </div>
-                  <div class="plazo-desarrollo-rec__fechas-row" role="group" [attr.aria-label]="'Fechas del plazo de desarrollo: ' + plazo.etiquetaEstado">
-                    <div class="plazo-desarrollo-rec__fecha-cuadro" [ngClass]="plazo.claseSemafono">
-                      <span class="plazo-desarrollo-rec__fecha-cuadro-etiq">{{ plazo.etiquetaLineaInicio }}</span>
-                      <strong class="plazo-desarrollo-rec__fecha-cuadro-valor">{{ plazo.fechaInicioTexto }}</strong>
+                  <div class="plazo-desarrollo-rec__fechas-row" role="group" [attr.aria-label]="'Fechas del plazo de desarrollo: ' + plazo.etiqueta_estado">
+                    <div class="plazo-desarrollo-rec__fecha-cuadro" [ngClass]="plazo.clase_semaforo">
+                      <span class="plazo-desarrollo-rec__fecha-cuadro-etiq">Fecha de inicio del plazo</span>
+                      <strong class="plazo-desarrollo-rec__fecha-cuadro-valor">{{ plazo.fecha_inicio_texto }}</strong>
                     </div>
-                    <div class="plazo-desarrollo-rec__fecha-cuadro" [ngClass]="plazo.claseSemafono">
+                    <div class="plazo-desarrollo-rec__fecha-cuadro" [ngClass]="plazo.clase_semaforo">
                       <span class="plazo-desarrollo-rec__fecha-cuadro-etiq">Fecha límite del periodo</span>
-                      <strong class="plazo-desarrollo-rec__fecha-cuadro-valor">{{ plazo.fechaLimiteTexto }}</strong>
+                      <strong class="plazo-desarrollo-rec__fecha-cuadro-valor">{{ plazo.fecha_limite_texto }}</strong>
                     </div>
                   </div>
-                  <div class="plazo-desarrollo-rec__tiempo-falta">{{ plazo.textoTiempoRestanteCorto }}</div>
+                  <div class="plazo-desarrollo-rec__tiempo-falta">{{ plazo.texto_tiempo_restante_corto }}</div>
                 </div>
                 <div *ngIf="paso.clave === 'revisiones_apoyo'" class="timeline-revisiones-resumen">
                   <span

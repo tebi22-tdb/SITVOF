@@ -16,6 +16,7 @@
       <button *ngIf="showNuevoButton" type="button" class="btn btn-nuevo" (click)="nuevoClick.emit()">Agregar egresado</button>
       <button *ngIf="showAgregarUsuarioButton" type="button" class="btn btn-agregar-usuario" (click)="agregarUsuarioClick.emit()">Agregar usuario</button>
       <button *ngIf="showVolverInicioButton" type="button" class="btn btn-volver" (click)="volverInicioClick.emit()">Volver</button>
+      <button *ngIf="showRegistrarEgresadoButton" type="button" class="btn btn-volver" (click)="registrarEgresadoClick.emit()">Registrar egresado</button>
     </div>
     <div class="sit-menu-der">
       <span class="bienvenido">Bienvenido <strong>{{ nombreUsuario }}</strong></span>

@@ -1,7 +1,7 @@
 package com.sit_titulacion.sit.web.api
 
-import com.sit_titulacion.sit.config.RolSoporte
 import com.sit_titulacion.sit.config.UsuarioPrincipal
+import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.service.ServiciosEscolaresService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -74,14 +74,14 @@ class ServiciosEscolaresController(
         }
     }
 
-    private fun puedeRevertirAtencion(rol: String?): Boolean =
-        RolSoporte.tieneAlgunRol(rol, "coordinador", "administrador", "division_estudios_prof_admin")
+    private fun puedeRevertirAtencion(rol: Rol?): Boolean =
+        rol?.esAlgunoDe(Rol.ADMINISTRADOR) ?: false
 
     private fun requireServiciosEscolares(principal: UsuarioPrincipal?): ResponseEntity<*>? {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
         }
-        if (!RolSoporte.tieneAlgunRol(principal.getRol(), "servicios_escolares", "coordinador", "administrador")) {
+        if (!principal.getRol().esAlgunoDe(Rol.SERVICIOS_ESCOLARES, Rol.ADMINISTRADOR)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
         }
         return null

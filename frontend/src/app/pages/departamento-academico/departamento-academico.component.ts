@@ -127,10 +127,10 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
    */
   get mostrarBotonVolver(): boolean {
     const rol = this.authService.getUsuario()?.rol?.toLowerCase().trim() ?? '';
-    return rol === 'coordinador' || rol === 'administrador';
+    return rol === 'administrador';
   }
 
-  /** Botón Revertir: solo coordinador/administración, no usuarios académicos de departamento. */
+  /** Botón Revertir: solo administrador, no usuarios académicos de departamento. */
   get puedeRevertirPasoDepartamento(): boolean {
     return this.authService.puedeRevertirPasoDepartamento();
   }

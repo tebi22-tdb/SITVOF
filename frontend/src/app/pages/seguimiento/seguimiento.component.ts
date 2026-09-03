@@ -1,20 +1,9 @@
 import { Component, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HeaderComponent } from '../../layout/header/header.component';
-import { EgresadoService, EgresadoDetail, RevisionApi } from '../../services/egresado.service';
+import { EgresadoService, EgresadoDetail, PlazoDesarrolloBackend, RevisionApi } from '../../services/egresado.service';
 import { CatalogoService } from '../../services/catalogo.service';
 import { aplicarValidacionPdfInput, validarArchivoPdf } from '../../core/archivo-pdf';
-import {
-  calcularVistaPlazosNoResidencia,
-  calcularVistaPlazosResidencia,
-  MESES_PLAZO_TITULACION_NO_RES,
-} from '../../core/plazos-titulacion-no-residencia';
-import {
-  calcularVistaPlazoDesarrolloRecepcionNoRes,
-  construirPlazoDesarrolloRecepcionUi,
-  mesesPlazoDesarrolloProyectoNoRes,
-  type PlazoDesarrolloRecepcionUi,
-} from '../../core/plazo-desarrollo-proyecto-no-res';
 
 /** Paso mostrado al alumno (solo lectura). */
 export interface PasoAlumnoVista {
@@ -30,13 +19,12 @@ export interface PasoAlumnoVista {
   ultimoCompletado?: boolean;
   /** Identifica bloques especiales en la plantilla (revisiones, subida de PDF, etc.). */
   clave?: string;
-  /** Cuadro de semáforo del plazo de desarrollo (recepción en división, flujo 16). */
-  plazoRecepcion?: PlazoDesarrolloRecepcionUi | null;
+  /** Cuadro de semáforo del plazo de desarrollo (recepción en división, flujo 16) — ya formateado por el backend. */
+  plazoRecepcion?: PlazoDesarrolloBackend | null;
 }
 
+/** El backend puede mandar 'concluido' además de estos 3 — se trata como 'en_tiempo' para este badge (igual que antes). */
 type EstadoAvance = 'en_tiempo' | 'rezagado' | 'vencido';
-
-const MARGEN_REZAGO_DIAS = 30;
 
 function inicioDiaLocal(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -188,8 +176,7 @@ export class SeguimientoComponent implements OnInit {
     if (d.estado_general === 'titulado') return false;
     if (d.estado_general === 'vencido') return true;
     if (this.esResidenciaProfesional || this.noResidenciaFlujoLegacy || this.esCenevalProfesional) return false;
-    const raw = calcularVistaPlazoDesarrolloRecepcionNoRes(d);
-    return raw?.estado === 'vencido';
+    return d.estado_plazo === 'vencido';
   }
 
   private pasoActivoPorClave(clave: string): boolean {
@@ -772,7 +759,7 @@ export class SeguimientoComponent implements OnInit {
     const c17s = !!d.fecha_solicitud_documentacion_escaneada;
     const c17e = !!d.fecha_envio_documentacion_escaneada_egresado;
     const c17r = !!d.fecha_confirmacion_documentacion_escaneada_recibida;
-    const plazoRecepcion = construirPlazoDesarrolloRecepcionUi(d) ?? undefined;
+    const plazoRecepcion = d.plazo_desarrollo ?? undefined;
     const fechaPasoRevision = d.fecha_liberacion_documento_coordinacion_cat || d.fecha_confirmacion_recibidos_anexo_xxxi_xxxii;
     const fechaEntregaDepto =
       d.fecha_confirmacion_entrega_egresado_depto || d.fecha_envio_solicitud_registro_anteproyecto_depto_academico;
@@ -976,43 +963,14 @@ export class SeguimientoComponent implements OnInit {
     return 'Revisa el detalle de cada paso.';
   }
 
-  get avisoPlazosNoResAlumno(): ReturnType<typeof calcularVistaPlazosNoResidencia> | null {
-    const d = this.datosVista;
-    if (!d || this.esResidenciaProfesional || this.esCenevalProfesional) return null;
-    return calcularVistaPlazosNoResidencia({
-      modalidad: d.datos_proyecto?.modalidad,
-      fecha_creacion: d.fecha_creacion,
-      fecha_envio_solicitud_registro_anteproyecto_depto_academico:
-        d.fecha_envio_solicitud_registro_anteproyecto_depto_academico,
-      fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii:
-        d.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii,
-      fecha_solicitud_registro_liberacion_depto_academico:
-        d.fecha_solicitud_registro_liberacion_depto_academico,
-      fecha_enviado_departamento_academico: d.fecha_enviado_departamento_academico,
-      fecha_confirmacion_recibidos_anexo_xxxi_xxxii: d.fecha_confirmacion_recibidos_anexo_xxxi_xxxii,
-      fecha_confirmacion_documentacion_escaneada_recibida: d.fecha_confirmacion_documentacion_escaneada_recibida,
-    });
-  }
-
-  private plazosResidenciaAlumno() {
-    const d = this.datosVista;
-    if (!d) return null;
-    return calcularVistaPlazosResidencia({
-      fecha_registro_anexo_xxxi: undefined,
-      documentos: d.documentos,
-      fecha_creacion: d.fecha_creacion,
-      fecha_confirmacion_documentacion_escaneada_recibida: d.fecha_confirmacion_documentacion_escaneada_recibida,
-    });
-  }
-
+  /**
+   * El backend ya manda `estado_plazo`/`dias_restantes_plazo`/`fecha_limite_plazo`/
+   * `linea_proyecto`/`linea_titulacion` calculados (ver PlazoTitulacionCalculator.kt)
+   * — estos getters ya no recalculan, solo pintan.
+   */
   get estadoAvance(): EstadoAvance {
-    const d = this.datosVista;
-    if (!d) return 'en_tiempo';
-    if (!this.esResidenciaProfesional && !this.esCenevalProfesional) {
-      return this.avisoPlazosNoResAlumno?.estadoGlobal ?? 'en_tiempo';
-    }
-    if (this.esCenevalProfesional) return 'en_tiempo';
-    return this.plazosResidenciaAlumno()?.estadoGlobal ?? 'en_tiempo';
+    const e = this.datosVista?.estado_plazo;
+    return e === 'rezagado' || e === 'vencido' ? e : 'en_tiempo'; // 'concluido' se pinta como 'en_tiempo', igual que antes
   }
 
   get estadoAvanceLabel(): string {
@@ -1022,19 +980,8 @@ export class SeguimientoComponent implements OnInit {
   }
 
   get fechaLimiteTexto(): string {
-    const d = this.datosVista;
-    if (!d) return '—';
-    const plazos = this.esResidenciaProfesional
-      ? this.plazosResidenciaAlumno()
-      : this.esCenevalProfesional
-        ? null
-        : this.avisoPlazosNoResAlumno;
-    const lim = plazos?.fechaLimiteMasCercana;
-    if (!lim) return '—';
-    const dia = lim.getDate().toString().padStart(2, '0');
-    const mes = (lim.getMonth() + 1).toString().padStart(2, '0');
-    const anio = lim.getFullYear();
-    return `${dia}/${mes}/${anio}`;
+    const iso = this.datosVista?.fecha_limite_plazo;
+    return iso ? this.formatearSoloFechaDesdeIso(iso) : '—';
   }
 
   get detalleEstadoAvance(): string {
@@ -1043,16 +990,11 @@ export class SeguimientoComponent implements OnInit {
     if (this.esCenevalProfesional) {
       return 'Modalidad por examen CENEVAL: sin plazo de desarrollo de proyecto; avanza según los pasos del trámite.';
     }
-    const p = this.esResidenciaProfesional ? this.plazosResidenciaAlumno() : this.avisoPlazosNoResAlumno;
-    if (!p) return '—';
-    const dias = p.diasHastaLimiteMasCercano;
-    if (dias == null) {
-      return p.lineaProyecto + (p.lineaTitulacion ? ` ${p.lineaTitulacion}` : '');
-    }
-    if (dias < 0) {
-      return `La fecha límite venció hace ${Math.abs(dias)} día(s). ${p.lineaProyecto}`;
-    }
-    return `Faltan ${dias} día(s) para la fecha límite. ${p.lineaProyecto}`;
+    const dias = d.dias_restantes_plazo;
+    const linea = d.linea_proyecto + (d.linea_titulacion ? ` ${d.linea_titulacion}` : '');
+    if (dias == null) return linea;
+    if (dias < 0) return `La fecha límite venció hace ${Math.abs(dias)} día(s). ${d.linea_proyecto}`;
+    return `Faltan ${dias} día(s) para la fecha límite. ${d.linea_proyecto}`;
   }
 
   get nombreCompletoEgresado(): string {
@@ -1323,21 +1265,24 @@ export class SeguimientoComponent implements OnInit {
     return `${dia}/${mes}/${dt.getFullYear()}`;
   }
 
-  /** Texto breve del paso de desarrollo / recepción en división (flujo 7 pasos, no residencia). */
+  /**
+   * Texto breve del paso de desarrollo / recepción en división (flujo 7 pasos, no residencia).
+   * 12 y 6 meses son los mismos plazos fijos que usa el backend
+   * (PlazoTitulacionCalculator.MESES_PLAZO_PROYECTO_NO_RES / MESES_PLAZO_TITULACION_NO_RES) —
+   * aquí solo se arma el texto, ya no hay cálculo de fechas.
+   */
   private detallePasoDesarrolloAlumnoNoRes16(d: EgresadoDetail, modalidad: string): string {
     const mod = modalidad.trim() || 'titulación integral';
-    const mesesDev = mesesPlazoDesarrolloProyectoNoRes(d.datos_proyecto?.modalidad);
-    const plazoDevTxt = mesesDev === 18 ? '18 meses' : '12 meses';
     const liberacion = d.fecha_solicitud_registro_liberacion_depto_academico?.trim();
     if (liberacion) {
       const ini = this.formatearSoloFechaDesdeIso(liberacion);
-      return `Tu departamento académico liberó tu ${mod} el ${ini}. El plazo de desarrollo del proyecto quedó concluido. Cuentas con ${MESES_PLAZO_TITULACION_NO_RES} meses calendario desde esa fecha para avanzar en el trámite de titulación.`;
+      return `Tu departamento académico liberó tu ${mod} el ${ini}. El plazo de desarrollo del proyecto quedó concluido. Cuentas con 6 meses calendario desde esa fecha para avanzar en el trámite de titulación.`;
     }
     const inicial = d.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii?.trim();
     if (!inicial) {
-      return `El plazo de ${plazoDevTxt} calendario para desarrollar tu ${mod} comenzará cuando la división confirme en la DEP la recepción del registro de tu ${mod}.`;
+      return `El plazo de 12 meses calendario para desarrollar tu ${mod} comenzará cuando la división confirme en la DEP la recepción del registro de tu ${mod}.`;
     }
     const ref = this.formatearSoloFechaDesdeIso(inicial);
-    return `Tienes un plazo de ${plazoDevTxt} calendario para desarrollar tu ${mod}, contado desde el ${ref}. El plazo termina cuando tu departamento académico libere tu ${mod}.`;
+    return `Tienes un plazo de 12 meses calendario para desarrollar tu ${mod}, contado desde el ${ref}. El plazo termina cuando tu departamento académico libere tu ${mod}.`;
   }
 }

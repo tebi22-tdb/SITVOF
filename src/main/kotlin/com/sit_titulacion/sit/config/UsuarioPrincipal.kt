@@ -1,5 +1,6 @@
 package com.sit_titulacion.sit.config
 
+import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.domain.Usuario
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.authority.SimpleGrantedAuthority
@@ -11,8 +12,9 @@ import org.springframework.security.core.userdetails.UserDetails
 class UsuarioPrincipal(private val usuario: Usuario) : UserDetails {
 
     override fun getAuthorities(): MutableCollection<out GrantedAuthority> {
-        val rol = usuario.rol.uppercase().replace("-", "_")
-        return mutableListOf(SimpleGrantedAuthority("ROLE_$rol"))
+        // Antes normalizaba el String a mano (con una lógica distinta a RolSoporte,
+        // fuente de una inconsistencia ya detectada). El enum ya es consistente por construcción.
+        return mutableListOf(SimpleGrantedAuthority("ROLE_${usuario.rol.name}"))
     }
 
     override fun getPassword(): String = usuario.passwordHash
@@ -27,7 +29,7 @@ class UsuarioPrincipal(private val usuario: Usuario) : UserDetails {
 
     override fun isEnabled(): Boolean = usuario.activo
 
-    fun getRol(): String = usuario.rol
+    fun getRol(): Rol = usuario.rol
 
     fun getEgresadoId(): org.bson.types.ObjectId? = usuario.egresadoId
 

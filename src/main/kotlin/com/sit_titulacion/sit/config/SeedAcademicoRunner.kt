@@ -1,5 +1,6 @@
 package com.sit_titulacion.sit.config
 
+import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.domain.Usuario
 import com.sit_titulacion.sit.repository.UsuarioRepository
 import org.slf4j.LoggerFactory
@@ -28,7 +29,7 @@ class SeedAcademicoRunner(
     companion object {
         const val USERNAME_ACADEMICO = "academico"
         const val PASSWORD_ACADEMICO = "12345"
-        const val ROL_ACADEMICO = "academico"
+        val ROL_ACADEMICO = Rol.ACADEMICO
     }
 
     override fun run(args: ApplicationArguments) {

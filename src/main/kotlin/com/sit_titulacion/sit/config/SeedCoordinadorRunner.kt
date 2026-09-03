@@ -1,5 +1,6 @@
 package com.sit_titulacion.sit.config
 
+import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.domain.Usuario
 import com.sit_titulacion.sit.repository.UsuarioRepository
 import org.slf4j.LoggerFactory
@@ -12,8 +13,10 @@ import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 
 /**
- * Al arrancar la aplicación, crea el usuario coordinador por defecto (coordinador / 12345)
- * en la colección usuarios si aún no existe. Es temporal hasta definir cómo se gestionan usuarios.
+ * Al arrancar la aplicación, crea el usuario administrador por defecto
+ * (username "coordinador" / 12345 — el username de login no cambió, solo el
+ * rol que se le asigna) en la colección usuarios si aún no existe. Es
+ * temporal hasta definir cómo se gestionan usuarios.
  */
 @Component
 @Order(1)
@@ -28,7 +31,7 @@ class SeedCoordinadorRunner(
     companion object {
         const val USERNAME_COORDINADOR = "coordinador"
         const val PASSWORD_COORDINADOR = "12345"
-        const val ROL_COORDINADOR = "coordinador"
+        val ROL_COORDINADOR = Rol.ADMINISTRADOR
     }
 
     override fun run(args: ApplicationArguments) {

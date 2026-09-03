@@ -45,7 +45,7 @@ class RepositorioController(
                     .joinToString(" ")
                 val anio = (pr?.fechaTitulacion ?: pr?.fechaCreacionAnexo93 ?: e.fechaCreacion)
                     .atZone(ZoneId.systemDefault()).year
-                val gridfsId = pr?.gridfsIdDocFinal ?: pr?.documento_adjunto?.gridfs_id
+                val gridfsId = pr?.documento_adjunto?.gridfs_id
                 TituladoPublicoDto(
                     egresadoId = e.id?.toHexString() ?: "",
                     nombre = nombre.ifBlank { "—" },
@@ -79,7 +79,7 @@ class RepositorioController(
             ?: eg.procesoActivoOrNull()
             ?: return ResponseEntity.notFound().build<Any>()
 
-        val gridfsId = pr.gridfsIdDocFinal ?: pr.documento_adjunto.gridfs_id
+        val gridfsId = pr.documento_adjunto.gridfs_id
             ?: return ResponseEntity.notFound().build<Any>()
 
         val file = gridFsTemplate.findOne(Query.query(Criteria.where("_id").`is`(gridfsId)))

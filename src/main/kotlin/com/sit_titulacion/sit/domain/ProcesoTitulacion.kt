@@ -98,10 +98,6 @@ data class ProcesoTitulacion(
     val cert_hash: String? = null,
     @Field("fecha_certificacion")
     val fechaCertificacion: Instant? = null,
-    @Field("gridfs_id_doc_final")
-    val gridfsIdDocFinal: ObjectId? = null,
-    @Field("fecha_subida_doc_final")
-    val fechaSubidaDocFinal: Instant? = null,
     @Field("fecha_titulacion")
     val fechaTitulacion: Instant? = null,
 

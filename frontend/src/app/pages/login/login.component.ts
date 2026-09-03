@@ -90,9 +90,11 @@ export class LoginComponent implements OnInit {
           this.router.navigate(['/servicios-escolares']);
         } else if (rol === 'academico') {
           this.router.navigate(['/departamento-academico']);
-        } else if (this.auth.esDivisionAdministrativa()) {
-          this.router.navigate(['/home/gestion-cuentas']);
-        } else if (this.auth.isCoordinador()) {
+        } else if (this.auth.isApoyoTitulacion()) {
+          this.router.navigate(['/home/revisiones']);
+        } else if (this.auth.isDep()) {
+          this.router.navigate(['/home/seguimiento-proceso']);
+        } else if (this.auth.isAdministrador()) {
           this.router.navigate(['/home']);
         } else {
           this.router.navigate(['/seguimiento']);

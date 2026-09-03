@@ -1,7 +1,9 @@
 package com.sit_titulacion.sit.service
 
 import com.sit_titulacion.sit.domain.*
+import com.sit_titulacion.sit.repository.CarreraRepository
 import com.sit_titulacion.sit.repository.CatalogoRepository
+import com.sit_titulacion.sit.repository.DepartamentoRepository
 import com.sit_titulacion.sit.repository.DocumentacionEscaneadaRepository
 import com.sit_titulacion.sit.repository.DocenteRepository
 import com.sit_titulacion.sit.repository.EgresadoRepository
@@ -38,6 +40,8 @@ class DepartamentoBandejaTest {
     @Mock private lateinit var egresadoRepository: EgresadoRepository
     @Mock private lateinit var documentacionEscaneadaRepository: DocumentacionEscaneadaRepository
     @Mock private lateinit var catalogoRepository: CatalogoRepository
+    @Mock private lateinit var carreraRepository: CarreraRepository
+    @Mock private lateinit var departamentoRepository: DepartamentoRepository
     @Mock private lateinit var usuarioRepository: UsuarioRepository
     @Mock private lateinit var docenteRepository: DocenteRepository
     @Mock private lateinit var emailService: EmailService
@@ -70,6 +74,8 @@ class DepartamentoBandejaTest {
             egresadoRepository,
             documentacionEscaneadaRepository,
             catalogoRepository,
+            carreraRepository,
+            departamentoRepository,
             usuarioRepository,
             docenteRepository,
             emailService,
@@ -84,7 +90,7 @@ class DepartamentoBandejaTest {
         )
 
         // lenient() evita UnnecessaryStubbingException en tests donde no se llaman todos los stubs
-        val coord = Usuario(username = COORD, passwordHash = "x", rol = "coordinador")
+        val coord = Usuario(username = COORD, passwordHash = "x", rol = Rol.ADMINISTRADOR)
         lenient().`when`(usuarioRepository.findByUsername(COORD)).thenReturn(coord)
 
         val deptoCat = Catalogo(

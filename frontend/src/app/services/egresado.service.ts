@@ -47,6 +47,13 @@ export interface EgresadoItem {
   fecha_solicitud_sinodales?: string;
   fecha_confirmacion_sinodales_recibidos?: string;
   fecha_agenda_acto_9_3?: string;
+  // ── Clasificación de plazo calculada por el backend (única fuente de verdad,
+  // ver PlazoTitulacionCalculator.kt) — reemplaza el cálculo que antes hacía
+  // cada componente por su cuenta con los campos de fecha de arriba. ──
+  /** 'en_tiempo' | 'rezagado' | 'vencido' | 'concluido'. */
+  estado_plazo: string;
+  dias_restantes_plazo?: number | null;
+  fecha_limite_plazo?: string | null;
 }
 
 // Archivo adjunto guardado (para mostrar en edición)
@@ -109,6 +116,32 @@ export interface EgresadoDetail {
   fecha_confirmacion_documentacion_escaneada_recibida?: string;
   fecha_solicitud_reenvio_documentacion_escaneada?: string;
   observaciones_reenvio_documentacion_escaneada?: string;
+  // ── Clasificación de plazo calculada por el backend (única fuente de verdad,
+  // ver PlazoTitulacionCalculator.kt) — reemplaza el cálculo que antes hacía
+  // cada componente por su cuenta con los campos de fecha de arriba. ──
+  /** 'en_tiempo' | 'rezagado' | 'vencido' | 'concluido'. */
+  estado_plazo: string;
+  dias_restantes_plazo?: number | null;
+  fecha_limite_plazo?: string | null;
+  /** Texto narrativo del avance del sub-plazo de proyecto/desarrollo (vista alumno). */
+  linea_proyecto: string;
+  /** Texto narrativo del avance del sub-plazo de titulación (solo aplica al flujo legacy). */
+  linea_titulacion: string;
+  /** Widget "cuadro verde" del paso 4 (desarrollo); null si no aplica a este proceso/etapa. */
+  plazo_desarrollo?: PlazoDesarrolloBackend | null;
+}
+
+/** Ya formateado por el backend (PlazoTitulacionCalculator.cuadroDesarrollo) — el frontend solo pinta. */
+export interface PlazoDesarrolloBackend {
+  estado: 'en_tiempo' | 'rezagado' | 'vencido';
+  etiqueta_estado: string;
+  clase_semaforo: 'plazo-desarrollo-rec--ok' | 'plazo-desarrollo-rec--warn' | 'plazo-desarrollo-rec--bad';
+  fecha_inicio_texto: string;
+  meses_totales: number;
+  fase_post_recepcion: boolean;
+  fecha_limite_texto: string;
+  texto_meses_restantes: string;
+  texto_tiempo_restante_corto: string;
 }
 
 // Datos personales dentro del detalle
@@ -237,6 +270,19 @@ export interface DepartamentoCounts {
 
 export interface AgendaActo93OcupadosResponse {
   ocupados: string[];
+}
+
+/** Respuesta de /verificar-originalidad. */
+export interface OriginalidadResponse {
+  estado: string;
+  titulo_similar: string;
+  expediente_estado?: string;
+  motivo?: string;
+  coincidencias_misma_modalidad?: number;
+  /** true solo cuando es Residencia Profesional y hay exactamente 1 coincidencia (proyecto en pareja). */
+  es_pareja_residencia?: boolean;
+  /** Nombre del compañero, solo si es_pareja_residencia. */
+  companero_nombre?: string;
 }
 
 /** Respuesta del POST al crear egresado (incluye aviso sobre correo de credenciales). */
@@ -562,25 +608,16 @@ export class EgresadoService {
     return this.http.post(`${API}/${id}/confirmar-entrega-anexo-9-3`, {});
   }
 
-  subirDocumentoFinal(archivo: File): Observable<unknown> {
-    const formData = new FormData();
-    formData.append('archivo', archivo);
-    return this.http.post(`${API}/mi-seguimiento/documento-final`, formData);
-  }
-
   /** Comprueba originalidad del título contra registros existentes. */
   verificarOriginalidad(
     titulo: string,
     excluirId?: string,
     modalidad?: string,
-  ): Observable<{ estado: string; titulo_similar: string; expediente_estado?: string; motivo?: string; coincidencias_misma_modalidad?: number }> {
+  ): Observable<OriginalidadResponse> {
     let params = new HttpParams().set('titulo', titulo);
     if (excluirId) params = params.set('excluirId', excluirId);
     if (modalidad?.trim()) params = params.set('modalidad', modalidad.trim());
-    return this.http.get<{ estado: string; titulo_similar: string; expediente_estado?: string; motivo?: string; coincidencias_misma_modalidad?: number }>(
-      `${API}/verificar-originalidad`,
-      { params },
-    );
+    return this.http.get<OriginalidadResponse>(`${API}/verificar-originalidad`, { params });
   }
 
   /** Comprueba si el número de control ya está en uso (alta / edición). */

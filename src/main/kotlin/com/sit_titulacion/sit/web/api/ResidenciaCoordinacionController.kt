@@ -1,6 +1,7 @@
 package com.sit_titulacion.sit.web.api
 
 import com.sit_titulacion.sit.config.UsuarioPrincipal
+import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.service.DocumentoStream
 import com.sit_titulacion.sit.service.ResidenciaCoordinacionService
 import com.sit_titulacion.sit.service.ResidenciaRequest
@@ -68,8 +69,8 @@ class ResidenciaCoordinacionController(
         @RequestPart(value = "anexo_29", required = false) anexo29: MultipartFile?,
         @RequestPart(value = "anexo_30", required = false) anexo30: MultipartFile?,
     ): ResponseEntity<Any> {
-        if (principal == null || principal.getRol() != "coordinador")
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el coordinador puede registrar residencias"))
+        if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede registrar residencias"))
         return service.crear(req, anexo29, anexo30).fold(
             onSuccess = { ResponseEntity.status(HttpStatus.CREATED).body(it) },
             onFailure = { ResponseEntity.badRequest().body(mapOf("error" to it.message)) },
@@ -84,8 +85,8 @@ class ResidenciaCoordinacionController(
         @RequestPart(value = "anexo_29", required = false) anexo29: MultipartFile?,
         @RequestPart(value = "anexo_30", required = false) anexo30: MultipartFile?,
     ): ResponseEntity<Any> {
-        if (principal == null || principal.getRol() != "coordinador")
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el coordinador puede editar residencias"))
+        if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede editar residencias"))
         val oid = parseId(id) ?: return ResponseEntity.badRequest().body(mapOf("error" to "ID inválido"))
         return service.actualizar(oid, req, anexo29, anexo30).fold(
             onSuccess = { item ->
@@ -101,8 +102,8 @@ class ResidenciaCoordinacionController(
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
         @PathVariable id: String,
     ): ResponseEntity<Any> {
-        if (principal == null || principal.getRol() != "coordinador")
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el coordinador puede eliminar residencias"))
+        if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede eliminar residencias"))
         val oid = parseId(id) ?: return ResponseEntity.badRequest().body(mapOf("error" to "ID inválido"))
         if (!service.eliminar(oid)) return ResponseEntity.notFound().build()
         return ResponseEntity.ok(mapOf("ok" to true))

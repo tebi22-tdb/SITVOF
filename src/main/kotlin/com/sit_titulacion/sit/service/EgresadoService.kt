@@ -1,6 +1,5 @@
 package com.sit_titulacion.sit.service
 
-import com.sit_titulacion.sit.config.RolSoporte
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.client.j2se.MatrixToImageWriter
@@ -17,9 +16,13 @@ import com.sit_titulacion.sit.domain.DocumentacionEscaneada
 import com.sit_titulacion.sit.domain.Egresado
 import com.sit_titulacion.sit.domain.HistorialEstado
 import com.sit_titulacion.sit.domain.ProcesoTitulacion
+import com.sit_titulacion.sit.domain.NormalizacionTexto
+import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.domain.SinodalesTribunal
 import com.sit_titulacion.sit.domain.Usuario
+import com.sit_titulacion.sit.repository.CarreraRepository
 import com.sit_titulacion.sit.repository.CatalogoRepository
+import com.sit_titulacion.sit.repository.DepartamentoRepository
 import com.sit_titulacion.sit.repository.DocumentacionEscaneadaRepository
 import com.sit_titulacion.sit.repository.DocenteRepository
 import com.sit_titulacion.sit.repository.EgresadoRepository
@@ -35,6 +38,7 @@ import com.sit_titulacion.sit.web.api.dto.EgresadoDetailDto
 import com.sit_titulacion.sit.web.api.dto.EgresadoListItemDto
 import com.sit_titulacion.sit.web.api.dto.EgresadoRequestDto
 import com.sit_titulacion.sit.web.api.dto.EgresadoResponseDto
+import com.sit_titulacion.sit.web.api.dto.PlazoDesarrolloDto
 import org.bson.types.ObjectId
 import org.slf4j.LoggerFactory
 import org.springframework.core.env.Environment
@@ -94,6 +98,8 @@ class EgresadoService(
     private val egresadoRepository: EgresadoRepository,
     private val documentacionEscaneadaRepository: DocumentacionEscaneadaRepository,
     private val catalogoRepository: CatalogoRepository,
+    private val carreraRepository: CarreraRepository,
+    private val departamentoRepository: DepartamentoRepository,
     private val usuarioRepository: UsuarioRepository,
     private val docenteRepository: DocenteRepository,
     private val emailService: EmailService,
@@ -317,6 +323,7 @@ class EgresadoService(
             val pr = e.procesoActivoOrNull()
             val nombreCompleto = listOf(p.nombre, p.apellido_paterno, p.apellido_materno)
                 .filter { !it.isNullOrBlank() }.joinToString(" ").ifBlank { "—" }
+            val plazo = clasificarPlazo(e, pr)
             EgresadoListItemDto(
                 id = e.id?.toString() ?: "",
                 numero_control = e.numero_control,
@@ -351,6 +358,9 @@ class EgresadoService(
                 fecha_solicitud_sinodales = pr?.fechaSolicitudSinodales?.let { formatter.format(it) },
                 fecha_confirmacion_sinodales_recibidos = pr?.fechaConfirmacionSinodalesRecibidos?.let { formatter.format(it) },
                 fecha_agenda_acto_9_3 = pr?.fechaAgendaActo93?.let { formatter.format(it) },
+                estado_plazo = plazo.estado,
+                dias_restantes_plazo = plazo.dias,
+                fecha_limite_plazo = plazo.fechaLimite?.let { formatter.format(it) },
             )
         }
     }
@@ -580,19 +590,20 @@ class EgresadoService(
 
     private fun puedeUsarFiltroSegmentoCoordinacion(username: String): Boolean {
         val u = usuarioRepository.findByUsername(username.trim()) ?: return false
-        return RolSoporte.tieneAlgunRol(u.rol, "coordinador", "apoyo_titulacion", "division_estudios_prof_admin", "administrador")
+        return u.rol.esAlgunoDe(Rol.ADMINISTRADOR, Rol.APOYO_TITULACION, Rol.DEP)
     }
 
-    private fun carrerasFiltroAcademico(username: String): Set<String>? {
+    /** internal (no private): la reutiliza `ReporteService` para forzar el scope del reporte de académico. */
+    internal fun carrerasFiltroAcademico(username: String): Set<String>? {
         val u = usuarioRepository.findByUsername(username.trim()) ?: return null
-        if (!u.rol.trim().equals("academico", ignoreCase = true)) return null
+        if (u.rol != Rol.ACADEMICO) return null
         val permitidas = u.carrerasAsignadas.map { it.trim() }.filter { it.isNotEmpty() }.toSet()
         return if (permitidas.isEmpty()) null else permitidas
     }
 
     private fun esAcademicoSoloRevisiones(username: String): Boolean {
         val u = usuarioRepository.findByUsername(username.trim()) ?: return false
-        if (!u.rol.trim().equals("academico", ignoreCase = true)) return false
+        if (u.rol != Rol.ACADEMICO) return false
         return u.segmentoAcademico?.trim().isNullOrEmpty() && u.carrerasAsignadas.isEmpty()
     }
 
@@ -601,26 +612,21 @@ class EgresadoService(
         val u = usuarioRepository.findByUsername(username.trim()) ?: return false
         if (!u.segmentoAcademico.isNullOrBlank()) return false
         if (u.carrerasAsignadas.isNotEmpty()) return false
-        return RolSoporte.tieneAlgunRol(u.rol, "coordinador", "apoyo_titulacion", "division_estudios_prof_admin", "administrador")
+        return u.rol.esAlgunoDe(Rol.ADMINISTRADOR, Rol.APOYO_TITULACION, Rol.DEP)
     }
 
-    private fun normalizarCarreraKey(carrera: String): String {
-        val sinAcentos = java.text.Normalizer.normalize(carrera.trim(), java.text.Normalizer.Form.NFD)
-            .replace(Regex("\\p{M}+"), "")
-        return sinAcentos.replace(Regex("\\s+"), " ").lowercase()
-    }
-
-    /** Departamento académico (slug + nombre) al que pertenece la carrera del egresado, según catálogo. */
+    /**
+     * Departamento académico (slug + nombre) al que pertenece la carrera del egresado.
+     * Antes iteraba `Catalogo.carreras` a mano; ahora resuelve contra `carreras`/
+     * `departamentos` (id estable, normalización única) — ver `NormalizacionTexto`
+     * y `CarreraDepartamentoSyncRunner`.
+     */
     private fun resolverDepartamentoPorCarrera(carrera: String): Pair<String, String>? {
-        val key = normalizarCarreraKey(carrera)
-        if (key.isEmpty()) return null
-        for (cat in catalogoRepository.findByTipoAndActivoTrue("departamento")) {
-            val slug = cat.slug?.trim()?.lowercase()?.ifBlank { null } ?: continue
-            if (cat.carreras.any { normalizarCarreraKey(it) == key }) {
-                return slug to cat.nombre
-            }
-        }
-        return null
+        val slug = NormalizacionTexto.normalizarClave(carrera)
+        if (slug.isEmpty()) return null
+        val carreraDoc = carreraRepository.findBySlug(slug) ?: return null
+        val depto = departamentoRepository.findByCarreraIdsContains(carreraDoc.id).firstOrNull() ?: return null
+        return depto.slug to depto.nombre
     }
 
     /** Jefe de división, jefe de departamento e iniciales desde Configuración Institucional. */
@@ -649,9 +655,9 @@ class EgresadoService(
     )
 
     private fun carreraPermitidaParaAcademico(carrera: String, permitidas: Set<String>): Boolean {
-        val key = normalizarCarreraKey(carrera)
+        val key = NormalizacionTexto.normalizarClave(carrera)
         if (key.isEmpty()) return false
-        return permitidas.any { normalizarCarreraKey(it) == key }
+        return permitidas.any { NormalizacionTexto.normalizarClave(it) == key }
     }
 
     fun obtenerPorId(id: String): EgresadoDetailDto? {
@@ -1682,7 +1688,8 @@ class EgresadoService(
         return false
     }
 
-    fun crearAnexo93(id: String): Pair<ByteArray, Int>? {
+    /** Triple: PDF del anexo, cuántos sinodales tenían correo registrado, cuántos recibieron el correo. */
+    fun crearAnexo93(id: String): Triple<ByteArray, Int, Int>? {
         val e = cargarEgresadoPorId(id) ?: return null
         val p = e.procesoActivoOrNull() ?: return null
         if (p.fechaAgendaActo93 == null) return null
@@ -1734,6 +1741,7 @@ class EgresadoService(
             ?: return null
 
         var emailsEnviados = 0
+        var sinodalesConCorreo = 0
         if (esNuevaGeneracion) {
             val tribunal = p.sinodalesTribunal
             if (tribunal != null) {
@@ -1755,6 +1763,7 @@ class EgresadoService(
                     correoSinodal(tribunal.vocal, RolSinodalCorreo.VOCAL),
                     correoSinodal(tribunal.vocal_suplente, RolSinodalCorreo.VOCAL_SUPLENTE),
                 )
+                sinodalesConCorreo = destinatarios.size
 
                 if (destinatarios.isNotEmpty()) {
                     val nombreEgresado = listOf(
@@ -1778,7 +1787,7 @@ class EgresadoService(
             }
         }
 
-        return Pair(bytes, emailsEnviados)
+        return Triple(bytes, sinodalesConCorreo, emailsEnviados)
     }
 
     fun confirmarEntregaAnexo93(id: String): Boolean {
@@ -1801,6 +1810,13 @@ class EgresadoService(
         return true
     }
 
+    /**
+     * Confirmar que llegó la documentación escaneada es, en la práctica, el
+     * cierre real del proceso — de ahí que también marque `"titulado"` aquí.
+     * (Antes había un mecanismo aparte, `subirDocumentoFinal`, para este
+     * último paso — se retiró: no tenía ningún botón en el frontend que lo
+     * disparara, así que ningún egresado podía llegar nunca a "titulado".)
+     */
     fun confirmarDocumentacionEscaneadaRecibida(id: String): Boolean {
         val e = cargarEgresadoPorId(id) ?: return false
         val p = e.procesoActivoOrNull() ?: return false
@@ -1808,7 +1824,15 @@ class EgresadoService(
         if (p.fechaConfirmacionDocumentacionEscaneadaRecibida != null) return false
         val ahora = Instant.now()
         val guardado = egresadoRepository.save(
-            e.actualizarProcesoActivo(p.copy(fechaConfirmacionDocumentacionEscaneadaRecibida = ahora, fecha_actualizacion = ahora)),
+            e.actualizarProcesoActivo(p.copy(
+                fechaConfirmacionDocumentacionEscaneadaRecibida = ahora,
+                fechaTitulacion = ahora,
+                estado_general = "titulado",
+                fecha_actualizacion = ahora,
+                historial_estados = p.historial_estados + HistorialEstado(
+                    estado = "titulado", fecha = ahora, observacion = "Documentación escaneada confirmada por el departamento académico.",
+                ),
+            )),
         )
         notificarPlazoResidenciaSiAplica(guardado)
         return true
@@ -1922,17 +1946,11 @@ class EgresadoService(
         val reagenda = p.fechaAgendaActo93 != null
         if (reagenda) e.id?.let { eliminarEntregaEscaneadaAnterior(it) }
 
-        var gridFinal = p.gridfsIdDocFinal
-        var fechaSubidaFinal = p.fechaSubidaDocFinal
         var fechaTitulacionVal = p.fechaTitulacion
         var estado = p.estado_general
         var historial = p.historial_estados
         if (reagenda && p.estado_general == "titulado") {
-            gridFinal?.let { gid ->
-                try { gridFsTemplate.delete(Query.query(Criteria.where("_id").`is`(gid))) }
-                catch (ex: Exception) { log.warn("GridFS doc final {} no eliminado al reagendar 9.3: {}", gid, ex.message) }
-            }
-            gridFinal = null; fechaSubidaFinal = null; fechaTitulacionVal = null; estado = "registrado"
+            fechaTitulacionVal = null; estado = "registrado"
             historial = historial + HistorialEstado(estado = "registrado", fecha = ahora, observacion = "Reagenda acto protocolario 9.3: se reinician pasos posteriores al agendamiento.")
         }
 
@@ -1946,8 +1964,6 @@ class EgresadoService(
             fechaConfirmacionDocumentacionEscaneadaRecibida = if (reagenda) null else p.fechaConfirmacionDocumentacionEscaneadaRecibida,
             fechaSolicitudReenvioDocumentacionEscaneada = if (reagenda) null else p.fechaSolicitudReenvioDocumentacionEscaneada,
             observacionesReenvioDocumentacionEscaneada = if (reagenda) null else p.observacionesReenvioDocumentacionEscaneada,
-            gridfsIdDocFinal = if (reagenda) gridFinal else p.gridfsIdDocFinal,
-            fechaSubidaDocFinal = if (reagenda) fechaSubidaFinal else p.fechaSubidaDocFinal,
             fechaTitulacion = if (reagenda) fechaTitulacionVal else p.fechaTitulacion,
             estado_general = if (reagenda) estado else p.estado_general,
             historial_estados = if (reagenda) historial else p.historial_estados,
@@ -2001,6 +2017,22 @@ class EgresadoService(
         val doc = pr?.documentos ?: Documentos()
         val formatter = DateTimeFormatter.ISO_INSTANT
         val deptoCarrera = resolverDepartamentoPorCarrera(p.carrera)
+        val plazo = clasificarPlazo(e, pr)
+        val cuadroDesarrolloDto = pr?.let {
+            PlazoTitulacionCalculator.cuadroDesarrollo(it, LocalDate.now(ZoneId.systemDefault()))
+        }?.let {
+            PlazoDesarrolloDto(
+                estado = it.estado.valorApi,
+                etiqueta_estado = it.etiquetaEstado,
+                clase_semaforo = it.claseSemaforo,
+                fecha_inicio_texto = it.fechaInicioTexto,
+                meses_totales = it.mesesTotales,
+                fase_post_recepcion = it.fasePostRecepcion,
+                fecha_limite_texto = it.fechaLimiteTexto,
+                texto_meses_restantes = it.textoMesesRestantes,
+                texto_tiempo_restante_corto = it.textoTiempoRestanteCorto,
+            )
+        }
         return EgresadoDetailDto(
             id = e.id?.toString() ?: "",
             numero_control = e.numero_control,
@@ -2103,35 +2135,18 @@ class EgresadoService(
             fecha_creacion_anexo_9_3 = pr?.fechaCreacionAnexo93?.let { formatter.format(it) },
             fecha_confirmacion_entrega_anexo_9_3 = pr?.fechaConfirmacionEntregaAnexo93?.let { formatter.format(it) },
             fecha_titulacion = pr?.fechaTitulacion?.let { formatter.format(it) },
-            tiene_doc_final = pr?.gridfsIdDocFinal != null,
             fecha_solicitud_documentacion_escaneada = pr?.fechaSolicitudDocumentacionEscaneada?.let { formatter.format(it) },
             fecha_envio_documentacion_escaneada_egresado = pr?.fechaEnvioDocumentacionEscaneadaEgresado?.let { formatter.format(it) },
             fecha_confirmacion_documentacion_escaneada_recibida = pr?.fechaConfirmacionDocumentacionEscaneadaRecibida?.let { formatter.format(it) },
             fecha_solicitud_reenvio_documentacion_escaneada = pr?.fechaSolicitudReenvioDocumentacionEscaneada?.let { formatter.format(it) },
             observaciones_reenvio_documentacion_escaneada = pr?.observacionesReenvioDocumentacionEscaneada,
+            estado_plazo = plazo.estado,
+            dias_restantes_plazo = plazo.dias,
+            fecha_limite_plazo = plazo.fechaLimite?.let { formatter.format(it) },
+            linea_proyecto = plazo.lineaProyecto,
+            linea_titulacion = plazo.lineaTitulacion,
+            plazo_desarrollo = cuadroDesarrolloDto,
         )
-    }
-
-    fun subirDocumentoFinal(numeroControl: String, archivo: MultipartFile): Boolean {
-        val e = egresadoRepository.findByNumeroControl(numeroControl.trim()) ?: return false
-        val p = e.procesoActivoOrNull() ?: return false
-        if (p.fechaCreacionAnexo93 == null) return false
-        if (p.estado_general == "titulado") return false
-        val ahora = Instant.now()
-        val gridFsId = subirArchivo(archivo)
-        val guardado = egresadoRepository.save(e.actualizarProcesoActivo(p.copy(
-            gridfsIdDocFinal = gridFsId,
-            fechaSubidaDocFinal = ahora,
-            fechaTitulacion = ahora,
-            estado_general = "titulado",
-            fecha_actualizacion = ahora,
-            historial_estados = p.historial_estados + HistorialEstado(
-                estado = "titulado", fecha = ahora, observacion = "Documentos finales entregados por el egresado",
-            ),
-        )))
-        log.info("Egresado numero_control={} marcado como titulado", numeroControl)
-        notificarPlazoResidenciaSiAplica(guardado)
-        return true
     }
 
     private fun esResidenciaProfesional(e: Egresado): Boolean {
@@ -2147,6 +2162,38 @@ class EgresadoService(
         val cat = catalogoRepository.findByTipoAndActivoTrue("modalidad")
             .find { it.nombre.trim().equals(nombre, ignoreCase = true) }
         return cat?.nombre?.contains("ceneval", ignoreCase = true) == true
+    }
+
+    /**
+     * Clasificación de plazo para listados y detalle: estado a 4 valores
+     * (en_tiempo/rezagado/vencido/concluido — misma precedencia que antes aplicaba
+     * `mapear()` en `coordinador-inicio.component.ts`), más el texto narrativo
+     * (`lineaProyecto`/`lineaTitulacion`) que antes generaban `seguimiento*.component.ts`.
+     * `PlazoTitulacionCalculator.vista()` SIEMPRE se llama (incluso si ya está
+     * concluido o es CENEVAL) porque cada sub-flujo ya sabe describir su propio
+     * "concluido" con matices distintos (p. ej. "Residencia: proceso concluido..."
+     * vs. legacy con proyecto y titulación concluidos por separado) — perder eso
+     * con un atajo tipo `return "concluido"` sin más habría sido menos fiel que el
+     * TS original. Solo el campo `estado` de 4 valores se sobreescribe encima,
+     * para las vistas tipo dashboard que necesitan ese bucket extra.
+     */
+    /** internal (no private): la reutiliza `ReporteService` para no duplicar la clasificación. */
+    internal data class ClasificacionPlazo(
+        val estado: String,
+        val dias: Long?,
+        val fechaLimite: Instant?,
+        val lineaProyecto: String,
+        val lineaTitulacion: String,
+    )
+
+    internal fun clasificarPlazo(e: Egresado, pr: ProcesoTitulacion?): ClasificacionPlazo {
+        if (pr == null) return ClasificacionPlazo("en_tiempo", null, null, "", "")
+        if (esCeneval(e)) return ClasificacionPlazo("en_tiempo", null, null, "", "")
+        val zone = ZoneId.systemDefault()
+        val vista = PlazoTitulacionCalculator.vista(pr, esResidencia = esResidenciaProfesional(e), hoy = LocalDate.now(zone), zone = zone)
+        val estado = if (pr.fechaConfirmacionDocumentacionEscaneadaRecibida != null) "concluido" else vista.estadoGlobal.valorApi
+        val fechaLimiteInstant = vista.fechaLimiteMasCercana?.atStartOfDay(zone)?.toInstant()
+        return ClasificacionPlazo(estado, vista.diasHastaLimiteMasCercano, fechaLimiteInstant, vista.lineaProyecto, vista.lineaTitulacion)
     }
 
     private fun liberacionRevisionCompletada(e: Egresado): Boolean {
@@ -2170,8 +2217,16 @@ class EgresadoService(
         return "pendiente"
     }
 
-    /** Límite del plazo activo (residencia 6 m desde Anexo XXXI; tesis 12/18 m paso 3 o 6 m tras liberación). */
-    private fun limitePlazoProcesoActivoLocal(e: Egresado): LocalDate? {
+    /** Fecha límite del plazo activo + cuántos meses se usaron para llegar a ella (para el historial/log). */
+    private data class PlazoActivoLocal(val fechaLimite: LocalDate, val meses: Long)
+
+    /**
+     * Límite del plazo activo (residencia 6 m desde Anexo XXXI; tesis 12/18 m paso 3 o 6 m tras
+     * liberación). Única fuente de este cálculo — antes vivía duplicado (con el riesgo de que
+     * alguien tocara una copia y no la otra): [verificarYMarcarVencido] recalculaba `meses` por
+     * su cuenta en vez de reusar el resultado de esta función.
+     */
+    private fun plazoActivoLocal(e: Egresado): PlazoActivoLocal? {
         val p = e.procesoActivoOrNull() ?: return null
         if (p.estado_general.equals("titulado", ignoreCase = true) ||
             p.estado_general.equals("vencido", ignoreCase = true)
@@ -2183,7 +2238,7 @@ class EgresadoService(
         if (esCeneval(e)) return null
         if (esResidenciaProfesional(e)) {
             val inicio = p.documentos.anexo_xxxi.fecha_registro ?: p.fechaCreacion
-            return inicio.atZone(zone).toLocalDate().plusMonths(6)
+            return PlazoActivoLocal(inicio.atZone(zone).toLocalDate().plusMonths(6), 6L)
         }
         if (p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii != null ||
             p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null
@@ -2197,7 +2252,7 @@ class EgresadoService(
             } else {
                 mesesDesarrolloProyectoNoRes(p.datos_proyecto.modalidad)
             }
-            return inicio.atZone(zone).toLocalDate().plusMonths(meses)
+            return PlazoActivoLocal(inicio.atZone(zone).toLocalDate().plusMonths(meses), meses)
         }
         val modalidad = p.datos_proyecto.modalidad
         val meses = catalogoRepository.findByTipoAndActivoTrue("modalidad")
@@ -2205,7 +2260,7 @@ class EgresadoService(
             ?.mesesVigencia?.toLong() ?: mesesPorModalidadFallback(modalidad)
             ?: return null
         val inicio = p.fechaEnviadoDepartamentoAcademico ?: p.fechaCreacion
-        return inicio.atZone(zone).toLocalDate().plusMonths(meses)
+        return PlazoActivoLocal(inicio.atZone(zone).toLocalDate().plusMonths(meses), meses)
     }
 
     private fun mesesDesarrolloProyectoNoRes(modalidad: String): Long = 12L
@@ -2213,31 +2268,19 @@ class EgresadoService(
     private fun verificarYMarcarVencido(e: Egresado): Egresado {
         val p = e.procesoActivoOrNull() ?: return e
         if (p.estado_general == "titulado" || p.estado_general == "vencido") return e
-        val limiteLocal = limitePlazoProcesoActivoLocal(e) ?: return e
-        if (LocalDate.now(ZoneId.systemDefault()) > limiteLocal) {
-            val meses = when {
-                esResidenciaProfesional(e) -> 6L
-                p.fechaSolicitudRegistroLiberacionDeptoAcademico != null -> 6L
-                p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii != null ->
-                    mesesDesarrolloProyectoNoRes(p.datos_proyecto.modalidad)
-                else ->
-                    catalogoRepository.findByTipoAndActivoTrue("modalidad")
-                        .find { it.nombre.trim().equals(p.datos_proyecto.modalidad.trim(), ignoreCase = true) }
-                        ?.mesesVigencia?.toLong()
-                        ?: mesesPorModalidadFallback(p.datos_proyecto.modalidad)
-                        ?: 12L
-            }
+        val plazo = plazoActivoLocal(e) ?: return e
+        if (LocalDate.now(ZoneId.systemDefault()) > plazo.fechaLimite) {
             val ahora = Instant.now()
             val pVencido = p.copy(
                 estado_general = "vencido",
                 fecha_actualizacion = ahora,
                 historial_estados = p.historial_estados + HistorialEstado(
-                    estado = "vencido", fecha = ahora, observacion = "Plazo de $meses mes(es) expirado",
+                    estado = "vencido", fecha = ahora, observacion = "Plazo de ${plazo.meses} mes(es) expirado",
                 ),
             )
             val vencido = e.actualizarProcesoActivo(pVencido)
             val guardado = egresadoRepository.save(vencido)
-            log.info("Egresado id={} marcado como vencido (plazo {} meses expirado)", e.id, meses)
+            log.info("Egresado id={} marcado como vencido (plazo {} meses expirado)", e.id, plazo.meses)
             notificarPlazoResidenciaSiAplica(guardado)
             return guardado
         }
@@ -2569,9 +2612,7 @@ class EgresadoService(
             p.datos_proyecto.asesor_1,
             p.datos_proyecto.asesor_2,
         ).filter { it.isNotBlank() }.joinToString("\n")
-        val deptNombre = catalogoRepository.findByTipoAndActivoTrue("departamento")
-            .firstOrNull { d -> d.carreras.any { it.trim().equals(e.datos_personales.carrera.trim(), ignoreCase = true) } }
-            ?.nombre ?: ""
+        val deptNombre = resolverDepartamentoPorCarrera(e.datos_personales.carrera)?.second ?: ""
         val tituloLower = configInstitucionalService.obtenerJefeDivisionTitulo()
             .lowercase().replaceFirstChar { it.uppercase() }
         val valores = construirValoresPlantillaHtml(e, listOf(
@@ -2610,9 +2651,7 @@ class EgresadoService(
             ?: e.id?.toHexString() ?: e.numero_control
         val qrDataUri33 = generarQrDataUri("${baseUrlCert().trimEnd('/')}/#/verificar/$certId33")
         val deptConfig = configInstitucionalService.resolverPorCarrera(e.datos_personales.carrera)
-        val deptNombre33 = catalogoRepository.findByTipoAndActivoTrue("departamento")
-            .firstOrNull { d -> d.carreras.any { it.trim().equals(e.datos_personales.carrera.trim(), ignoreCase = true) } }
-            ?.nombre ?: ""
+        val deptNombre33 = resolverDepartamentoPorCarrera(e.datos_personales.carrera)?.second ?: ""
         val esResidencia = esResidenciaProfesional(e)
         val firmaNombre1: String
         val firmaNombre2: String

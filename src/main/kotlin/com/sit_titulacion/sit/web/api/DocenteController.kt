@@ -1,6 +1,7 @@
 package com.sit_titulacion.sit.web.api
 
 import com.sit_titulacion.sit.config.UsuarioPrincipal
+import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.service.DocenteRequest
 import com.sit_titulacion.sit.service.DocenteService
 import org.bson.types.ObjectId
@@ -32,8 +33,8 @@ class DocenteController(private val docenteService: DocenteService) {
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
         @RequestBody req: DocenteRequest,
     ): ResponseEntity<Any> {
-        if (principal == null || principal.getRol() != "coordinador")
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el coordinador puede registrar docentes"))
+        if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede registrar docentes"))
         return docenteService.crear(req).fold(
             onSuccess = { ResponseEntity.status(HttpStatus.CREATED).body(it) },
             onFailure = { ResponseEntity.badRequest().body(mapOf("error" to it.message)) },
@@ -46,8 +47,8 @@ class DocenteController(private val docenteService: DocenteService) {
         @PathVariable id: String,
         @RequestBody req: DocenteRequest,
     ): ResponseEntity<Any> {
-        if (principal == null || principal.getRol() != "coordinador")
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el coordinador puede editar docentes"))
+        if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede editar docentes"))
         val oid = try { ObjectId(id) } catch (_: Exception) {
             return ResponseEntity.badRequest().body(mapOf("error" to "ID inválido"))
         }
@@ -65,8 +66,8 @@ class DocenteController(private val docenteService: DocenteService) {
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
         @PathVariable id: String,
     ): ResponseEntity<Any> {
-        if (principal == null || principal.getRol() != "coordinador")
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el coordinador puede eliminar docentes"))
+        if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede eliminar docentes"))
         val oid = try { ObjectId(id) } catch (_: Exception) {
             return ResponseEntity.badRequest().body(mapOf("error" to "ID inválido"))
         }

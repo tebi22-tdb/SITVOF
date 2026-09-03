@@ -4,11 +4,7 @@ import { Router } from '@angular/router';
 import { HeaderComponent } from '../../layout/header/header.component';
 import { AuthService } from '../../services/auth.service';
 import { EgresadoService, EgresadoItem } from '../../services/egresado.service';
-import { CatalogoService } from '../../services/catalogo.service';
-import {
-  calcularVistaPlazosResidencia,
-  calcularVistaPlazosNoResidencia,
-} from '../../core/plazos-titulacion-no-residencia';
+import { ConfigInstitucionalService } from '../../services/config-institucional.service';
 
 type EstadoItem = 'en_tiempo' | 'rezagado' | 'vencido' | 'concluido';
 
@@ -69,6 +65,10 @@ export class CoordinadorInicioComponent implements OnInit {
   cargando = true;
   error = '';
 
+  /** Se muestra un aviso en el panel si el último intento de envío de correo (credenciales, avisos, sinodales…) falló. */
+  correoFallando = false;
+  correoUltimoError = '';
+
   private items: DashItem[] = [];
 
   urgentesDisplay: UrgentItem[] = [];
@@ -118,6 +118,11 @@ export class CoordinadorInicioComponent implements OnInit {
       title: 'Alta de docentes', sub: 'Registra docentes',
       descripcion: 'Registra a los docentes del plantel que pueden fungir como director, asesor o vocal en el acto protocolario de titulación.',
       color: 'var(--color-admin)', key: 'docentes', soloPleno: true,
+    },
+    {
+      title: 'Reportes y analítica', sub: 'KPIs, tendencias, tiempos',
+      descripcion: 'Consulta indicadores consolidados del proceso de titulación: distribución por modalidad y carrera, tiempos promedio por etapa y tasa de aprobación en primera revisión.',
+      color: 'var(--color-admin-claro)', key: 'reportes', soloPleno: true,
     },
     {
       title: 'Repositorio de documentos', sub: 'Proyectos de egresados',
@@ -174,35 +179,29 @@ export class CoordinadorInicioComponent implements OnInit {
   }
 
   // ── Modules visible per role ──
+  // Solo administrador llega a este componente: apoyo_titulacion y DEP quedan
+  // fuera desde la ruta (ver noApoyoTitulacionGuard en app.routes.ts), así que
+  // no hace falta filtrar modulosNav por rol — siempre se ve completo.
   get modulosVisibles(): ModuloNav[] {
-    if (this.esDivisionAdministrativa) {
-      return this.modulosNav.filter((m) => m.key === 'cuentas');
-    }
-    return this.esApoyoTitulacion
-      ? this.modulosNav.filter(m => !m.soloPleno)
-      : this.modulosNav;
-  }
-
-  get esApoyoTitulacion(): boolean {
-    return this.auth.isApoyoTitulacion();
-  }
-
-  get esDivisionAdministrativa(): boolean {
-    return this.auth.esDivisionAdministrativa();
+    return this.modulosNav;
   }
 
   constructor(
     private router: Router,
     private auth: AuthService,
     private egresadoService: EgresadoService,
-    private catalogoService: CatalogoService,
+    private configInstitucionalService: ConfigInstitucionalService,
   ) {}
 
   ngOnInit(): void {
-    if (this.auth.esDivisionAdministrativa()) {
-      this.router.navigate(['/home/gestion-cuentas']);
-      return;
-    }
+    this.configInstitucionalService.getEstadoCorreo().subscribe({
+      next: (estado) => {
+        this.correoFallando = !estado.ok;
+        this.correoUltimoError = estado.ultimo_error ?? '';
+      },
+      // Si el propio chequeo falla (ej. red), no molestamos con un aviso de correo que no confirmamos.
+      error: () => {},
+    });
     this.egresadoService.listar({ aplicar_scope_departamento: false }).subscribe({
       next: (lista) => {
         this.items = lista.map(e => this.mapear(e));
@@ -227,6 +226,7 @@ export class CoordinadorInicioComponent implements OnInit {
       departamento: ['/home/departamento-academico'],
       escolares:    ['/servicios-escolares'],
       cuentas:      ['/home/gestion-cuentas'],
+      reportes:     ['/home/reportes'],
       repositorio:  ['/repositorio'],
       config:       ['/home/config-institucional'],
       catalogos:    ['/home/catalogos'],
@@ -308,34 +308,19 @@ export class CoordinadorInicioComponent implements OnInit {
     }));
   }
 
+  /**
+   * El backend ya manda `estado_plazo`/`dias_restantes_plazo` calculados (ver
+   * PlazoTitulacionCalculator.kt) — este componente solo pinta, ya no recalcula.
+   */
   private mapear(e: EgresadoItem): DashItem {
-    const hoy      = new Date();
-    const modalidad = e.modalidad?.trim() || '—';
-    const esRes    = this.catalogoService.esResidencia(modalidad);
-    const esCeneval = this.catalogoService.esCeneval(modalidad);
-
-    if (e.fecha_confirmacion_documentacion_escaneada_recibida) {
-      return { id: e.id, alumno: e.nombre || '—', noControl: e.numero_control || '—',
-               carrera: e.carrera || '—', modalidad, estado: 'concluido', diasRestantes: null };
-    }
-
-    if (esCeneval) {
-      return { id: e.id, alumno: e.nombre || '—', noControl: e.numero_control || '—',
-               carrera: e.carrera || '—', modalidad, estado: 'en_tiempo', diasRestantes: null };
-    }
-
-    const plazos = esRes
-      ? calcularVistaPlazosResidencia(e, hoy)
-      : calcularVistaPlazosNoResidencia(e, hoy);
-
     return {
       id:            e.id,
       alumno:        e.nombre || '—',
       noControl:     e.numero_control || '—',
       carrera:       e.carrera || '—',
-      modalidad,
-      estado:        plazos.estadoGlobal,
-      diasRestantes: plazos.diasHastaLimiteMasCercano,
+      modalidad:     e.modalidad?.trim() || '—',
+      estado:        e.estado_plazo as EstadoItem,
+      diasRestantes: e.dias_restantes_plazo ?? null,
     };
   }
 }

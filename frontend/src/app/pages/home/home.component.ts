@@ -19,8 +19,9 @@ interface CrearUsuarioStaffForm extends CrearUsuarioBody {
 }
 
 /**
- * Personal de titulación: alta/edición de egresados.
- * Coordinador / división administrativa: además administración de usuarios staff.
+ * Personal de titulación: alta/edición de egresados. Administrador y DEP
+ * llegan aquí (una de las dos pantallas de DEP); solo administrador ve además
+ * la administración de usuarios staff (pestaña Usuarios / agregar usuario).
  * El seguimiento del proceso está en `/home/seguimiento-proceso`.
  */
 @Component({
@@ -57,16 +58,12 @@ export class HomeComponent implements OnInit {
   guardandoUsuario = false;
   mensajeUsuario = '';
 
-  /** Solo coordinador o división administrativa: agregar usuario y pestaña Usuarios. */
+  /** Solo administrador: agregar usuario y pestaña Usuarios (DEP no administra cuentas). */
   get esAdminUsuariosStaff(): boolean {
     return this.authService.puedeAdministrarUsuariosStaff();
   }
 
-  /** Perfiles disponibles al crear usuario (administrativo solo ve división administrativa). */
   get perfilesParaCrearUsuario(): PerfilCreacionUsuarioItem[] {
-    if (this.authService.esDivisionAdministrativa()) {
-      return PERFILES_ESTATICOS.filter((p) => p.id === 'division_estudios_prof_admin');
-    }
     return this.perfilesCreacionUsuario;
   }
 
@@ -78,10 +75,6 @@ export class HomeComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    if (this.authService.esDivisionAdministrativa()) {
-      this.router.navigate(['/home/gestion-cuentas']);
-      return;
-    }
     if (this.tabLista === 'usuarios' && !this.authService.puedeAdministrarUsuariosStaff()) {
       this.tabLista = 'egresados';
     }
@@ -292,7 +285,12 @@ export class HomeComponent implements OnInit {
     });
   }
 
+  /** DEP no tiene /home: su "Volver" va directo a su otra pantalla (Seguimiento del proceso). */
   volverInicio(): void {
+    if (this.authService.isDep()) {
+      this.router.navigate(['/home/seguimiento-proceso']);
+      return;
+    }
     this.router.navigate(['/home']);
   }
 
@@ -479,10 +477,10 @@ export class HomeComponent implements OnInit {
   }
 
   private crearUsuarioFormInicial(): CrearUsuarioStaffForm {
-    const d = datosRolDesdePerfil('division_estudios_prof_admin');
+    const d = datosRolDesdePerfil('dep');
     return {
       nombre: '',
-      perfil: 'division_estudios_prof_admin',
+      perfil: 'dep',
       rol: d.rol,
       correo_electronico: '',
       segmento_academico: d.segmento_academico,

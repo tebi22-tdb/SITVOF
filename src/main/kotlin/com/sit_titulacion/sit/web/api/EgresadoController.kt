@@ -1,7 +1,7 @@
 package com.sit_titulacion.sit.web.api
 
-import com.sit_titulacion.sit.config.RolSoporte
 import com.sit_titulacion.sit.config.UsuarioPrincipal
+import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.repository.EgresadoRepository
 import com.sit_titulacion.sit.service.EgresadoService
 import com.sit_titulacion.sit.service.EmailService
@@ -200,10 +200,9 @@ class EgresadoController(
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
         if (principal != null) {
-            val rolTokens = RolSoporte.tokensRol(principal.getRol())
-            val esAcademico = rolTokens.contains("academico")
-            // Coordinador / administrador (p. ej. rol compuesto) acceden sin restricción de carrera
-            if (!RolSoporte.esCoordinadorOAdmin(principal.getRol())) {
+            val esAcademico = principal.getRol() == Rol.ACADEMICO
+            // Administrador / DEP acceden sin restricción de carrera
+            if (!principal.getRol().esAlgunoDe(Rol.ADMINISTRADOR, Rol.DEP)) {
                 when {
                     esAcademico -> respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
                     puedeVerBandejaDepartamento(principal.getRol()) ->
@@ -304,6 +303,8 @@ class EgresadoController(
                 "expediente_estado" to (resultado.expedienteEstado ?: ""),
                 "motivo" to (resultado.motivo ?: ""),
                 "coincidencias_misma_modalidad" to resultado.coincidenciasMismaModalidad,
+                "es_pareja_residencia" to resultado.esParejaResidencia,
+                "companero_nombre" to (resultado.companeroNombre ?: ""),
             ),
         )
     }
@@ -355,6 +356,8 @@ class EgresadoController(
         val origResultado = originalidadService.verificar(datos.nombreProyecto ?: "", datos.modalidad)
         if (origResultado.estado == "BLOQUEADO" || origResultado.estado == "ADVERTENCIA") {
             val aviso = when {
+                origResultado.motivo == "cupo_pareja_residencia" ->
+                    "Ya hay ${OriginalidadService.MAX_CUPO_RESIDENCIA_PAREJA} egresados con el título «${datos.nombreProyecto}» en Residencia Profesional (proyecto en pareja). No se puede registrar un tercero con el mismo nombre."
                 origResultado.motivo == "cupo_modalidad" ->
                     "Ya hay ${OriginalidadService.MAX_CUPO_MISMA_MODALIDAD} egresados con el título «${datos.nombreProyecto}» en la modalidad «${datos.modalidad}». No se puede registrar otro con el mismo nombre."
                 origResultado.estado == "BLOQUEADO" ->
@@ -869,34 +872,9 @@ class EgresadoController(
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
         }
         respuestaSiNoAccesoEgresadoBandeja(id, principal)?.let { return it }
-        val creada = revisionService.crear(id, body, principal.getRol())
+        val creada = revisionService.crear(id, body, principal.getRol().valorBd)
         return if (creada != null) ResponseEntity.status(HttpStatus.CREATED).body(creada)
         else ResponseEntity.notFound().build<Void>()
-    }
-
-    /** Egresado sube su PDF final (9.1 + 9.2 + 9.3) para concluir la titulación. */
-    @PostMapping("/mi-seguimiento/documento-final")
-    fun subirDocumentoFinal(
-        @RequestParam("archivo") archivo: MultipartFile,
-        @AuthenticationPrincipal principal: UsuarioPrincipal?,
-    ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        val numeroControl = principal.username.trim().ifBlank { null }
-            ?: return ResponseEntity.notFound().build<Void>()
-        if (archivo.isEmpty) {
-            return ResponseEntity.badRequest().body(mapOf("error" to "Selecciona un archivo PDF no vacío."))
-        }
-        return try {
-            if (egresadoService.subirDocumentoFinal(numeroControl, archivo)) {
-                ResponseEntity.ok().build<Void>()
-            } else {
-                ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                    mapOf("error" to "No se pudo registrar la titulación. Verifica que el proceso esté completo o que no hayas subido el documento previamente."),
-                )
-            }
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(mapOf("error" to (e.message ?: "Archivo no válido.")))
-        }
     }
 
     /** Crea revisión con adjunto PDF opcional en multipart/form-data. */
@@ -915,7 +893,7 @@ class EgresadoController(
         val creada = revisionService.crear(
             id,
             CreateRevisionRequestDto(resultado = resultado, observaciones = observaciones),
-            principal.getRol(),
+            principal.getRol().valorBd,
             archivo,
         )
         return if (creada != null) {
@@ -1033,7 +1011,8 @@ class EgresadoController(
         return ResponseEntity.ok()
             .contentType(MediaType.APPLICATION_PDF)
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"$fileName\"")
-            .header("X-Sinodales-Notificados", resultado.second.toString())
+            .header("X-Sinodales-Intentados", resultado.second.toString())
+            .header("X-Sinodales-Notificados", resultado.third.toString())
             .body(resultado.first)
     }
 
@@ -1142,35 +1121,23 @@ class EgresadoController(
         }
     }
 
-    private fun esRolEgresado(principal: UsuarioPrincipal): Boolean {
-        val r = principal.getRol().trim().lowercase().replace(' ', '_')
-        return r == "egresado"
-    }
+    private fun esRolEgresado(principal: UsuarioPrincipal): Boolean = principal.getRol() == Rol.EGRESADO
 
     /**
      * Misma idea que el front `AuthService.isCoordinador()` + académicos:
      * pueden ver la bandeja de revisión / coordinación y listados de departamento.
      */
-    private fun puedeVerBandejaDepartamento(rol: String?): Boolean {
-        if (rol.isNullOrBlank()) return false
-        return RolSoporte.tieneAlgunRol(
-            rol,
-            "academico",
-            "coordinador",
-            "apoyo_titulacion",
-            "division_estudios_prof_admin",
-            "administrador",
-        )
-    }
+    private fun puedeVerBandejaDepartamento(rol: Rol?): Boolean =
+        rol?.esAlgunoDe(Rol.ACADEMICO, Rol.ADMINISTRADOR, Rol.APOYO_TITULACION) ?: false
 
-    /** Revertir pasos de bandeja departamento: solo perfiles administrativos, no académicos de departamento. */
-    private fun puedeRevertirPasoDepartamento(rol: String?): Boolean =
-        RolSoporte.tieneAlgunRol(rol, "coordinador", "administrador", "division_estudios_prof_admin")
+    /** Revertir pasos de bandeja departamento: solo Administrador (DEP no tiene esta pantalla). */
+    private fun puedeRevertirPasoDepartamento(rol: Rol?): Boolean =
+        rol?.esAlgunoDe(Rol.ADMINISTRADOR) ?: false
 
     /** Académico con carreras asignadas no puede abrir expedientes de otras carreras. */
     private fun respuestaSiAcademicoSinCarrera(id: String, principal: UsuarioPrincipal?): ResponseEntity<*>? {
         if (principal == null) return null
-        if (principal.getRol().trim().lowercase() != "academico") return null
+        if (principal.getRol() != Rol.ACADEMICO) return null
         return respuestaSiNoAccesoEgresadoBandeja(id, principal)
     }
 

@@ -1,5 +1,6 @@
 package com.sit_titulacion.sit.config
 
+import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.domain.Usuario
 import com.sit_titulacion.sit.repository.UsuarioRepository
 import org.slf4j.LoggerFactory
@@ -31,8 +32,8 @@ class SeedAdminRunner(
     companion object {
         const val USERNAME_ADMIN = "admin"
         const val PASSWORD_ADMIN = "sitvo2026"
-        /** Mismo acceso que división administrativa → gestión de cuentas. */
-        const val ROL_ADMIN = "division_estudios_prof_admin"
+        /** DEP: Inicio del proceso y Seguimiento del proceso (antes: división administrativa). */
+        val ROL_ADMIN = Rol.DEP
     }
 
     override fun run(args: ApplicationArguments) {
@@ -41,16 +42,27 @@ class SeedAdminRunner(
         @Suppress("USELESS_CAST")
         val passwordHash = passwordEncoder.encode(PASSWORD_ADMIN) as String
         if (existing != null) {
-            if (sync && !passwordEncoder.matches(PASSWORD_ADMIN, existing.passwordHash)) {
+            // El rol de esta cuenta se re-sincroniza SIEMPRE (independiente de `sync`,
+            // que solo gobierna la contraseña): "admin" es la cuenta de respaldo para no
+            // quedar fuera del sistema, así que su identidad (qué rol tiene) no debe poder
+            // desviarse por una edición manual — a diferencia de la contraseña, que si ya
+            // la cambiaron a mano se respeta.
+            val passwordDesincronizada = sync && !passwordEncoder.matches(PASSWORD_ADMIN, existing.passwordHash)
+            val rolDesincronizado = existing.rol != ROL_ADMIN
+            if (passwordDesincronizada || rolDesincronizado) {
                 usuarioRepository.save(
                     existing.copy(
-                        passwordHash = passwordHash,
+                        passwordHash = if (passwordDesincronizada) passwordHash else existing.passwordHash,
                         rol = ROL_ADMIN,
                         activo = true,
                         fechaActualizacion = Instant.now(),
                     ),
                 )
-                log.info("Usuario admin: credenciales sincronizadas (usuario: $USERNAME_ADMIN).")
+                val queSincronizo = listOfNotNull(
+                    "credenciales".takeIf { passwordDesincronizada },
+                    "rol".takeIf { rolDesincronizado },
+                ).joinToString(" y ")
+                log.info("Usuario admin: se sincronizó $queSincronizo (usuario: $USERNAME_ADMIN).")
             } else {
                 log.debug("Usuario admin ya existe, no se modifica.")
             }

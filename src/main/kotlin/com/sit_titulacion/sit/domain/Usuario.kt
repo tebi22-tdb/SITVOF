@@ -17,7 +17,7 @@ data class Usuario(
     @Id val id: ObjectId? = null,
     @Indexed(unique = true) val username: String,
     val passwordHash: String,
-    val rol: String = "egresado",
+    val rol: Rol = Rol.EGRESADO,
     val egresadoId: ObjectId? = null,
     val nombre: String? = null,
     val curp: String? = null,

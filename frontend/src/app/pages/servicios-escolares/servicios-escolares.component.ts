@@ -39,10 +39,10 @@ export class ServiciosEscolaresComponent implements OnInit {
   ) {}
 
   get mostrarVolverInicio(): boolean {
-    return this.auth.isCoordinador();
+    return this.auth.isAdministrador();
   }
 
-  /** Revertir atención: solo coordinador o administración, no el perfil de servicios escolares. */
+  /** Revertir atención: solo administrador, no el perfil de servicios escolares. */
   get puedeRevertirAtencion(): boolean {
     return this.auth.puedeRevertirPasoDepartamento();
   }

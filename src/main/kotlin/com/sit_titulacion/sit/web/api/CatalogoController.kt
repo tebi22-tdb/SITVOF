@@ -1,6 +1,7 @@
 package com.sit_titulacion.sit.web.api
 
 import com.sit_titulacion.sit.config.UsuarioPrincipal
+import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.service.CatalogoRequest
 import com.sit_titulacion.sit.service.CatalogoService
 import org.bson.types.ObjectId
@@ -36,12 +37,12 @@ class CatalogoController(
     @GetMapping("/departamentos")
     fun departamentos() = catalogoService.departamentos()
 
-    // ─── Endpoints de gestión (solo coordinador) ─────────────────────────────
+    // ─── Endpoints de gestión (solo administrador) ─────────────────────────────
 
     @GetMapping
     fun listarTodos(@AuthenticationPrincipal principal: UsuarioPrincipal?): ResponseEntity<Any> {
-        if (principal == null || principal.getRol() != "coordinador")
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el coordinador puede gestionar catálogos"))
+        if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede gestionar catálogos"))
         return ResponseEntity.ok(catalogoService.listarTodos())
     }
 
@@ -50,8 +51,8 @@ class CatalogoController(
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
         @RequestBody request: CatalogoRequest,
     ): ResponseEntity<Any> {
-        if (principal == null || principal.getRol() != "coordinador")
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el coordinador puede crear catálogos"))
+        if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede crear catálogos"))
         return catalogoService.crear(request).fold(
             onSuccess = { ResponseEntity.status(HttpStatus.CREATED).body(it) },
             onFailure = { ResponseEntity.badRequest().body(mapOf("error" to it.message)) },
@@ -64,8 +65,8 @@ class CatalogoController(
         @PathVariable id: String,
         @RequestBody request: CatalogoRequest,
     ): ResponseEntity<Any> {
-        if (principal == null || principal.getRol() != "coordinador")
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el coordinador puede editar catálogos"))
+        if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede editar catálogos"))
         val oid = try { ObjectId(id) } catch (_: Exception) {
             return ResponseEntity.badRequest().body(mapOf("error" to "ID inválido"))
         }
@@ -83,8 +84,8 @@ class CatalogoController(
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
         @PathVariable id: String,
     ): ResponseEntity<Any> {
-        if (principal == null || principal.getRol() != "coordinador")
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el coordinador puede desactivar catálogos"))
+        if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede desactivar catálogos"))
         val oid = try { ObjectId(id) } catch (_: Exception) {
             return ResponseEntity.badRequest().body(mapOf("error" to "ID inválido"))
         }
@@ -98,8 +99,8 @@ class CatalogoController(
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
         @PathVariable id: String,
     ): ResponseEntity<Any> {
-        if (principal == null || principal.getRol() != "coordinador")
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el coordinador puede activar catálogos"))
+        if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede activar catálogos"))
         val oid = try { ObjectId(id) } catch (_: Exception) {
             return ResponseEntity.badRequest().body(mapOf("error" to "ID inválido"))
         }

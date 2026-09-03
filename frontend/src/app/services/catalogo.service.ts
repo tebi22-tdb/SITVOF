@@ -48,7 +48,7 @@ export interface DepartamentoCatalogo {
   carreras: string[];
 }
 
-// ── Fallbacks (copia exacta de datos.ts y segmentos-academicos.ts) ─────────────
+// ── Fallbacks (copia exacta de datos.ts) ─────────────
 // Se usan si el backend no responde. Mantenerlos sincronizados con el seed.
 
 const CARRERAS_FALLBACK: string[] = [
@@ -66,8 +66,8 @@ const CARRERAS_FALLBACK: string[] = [
 const NIVELES_FALLBACK: string[] = ['Licenciatura', 'Maestría', 'Posgrado'];
 
 const MODALIDADES_FALLBACK: ModalidadCatalogo[] = [
-  { nombre: 'Tesis',                     mesesVigencia: 18,   esResidencia: false, esCursoTitulacion: false, tipoMentores: 'estandar'   },
-  { nombre: 'Tesina',                    mesesVigencia: 18,   esResidencia: false, esCursoTitulacion: true,  tipoMentores: 'estandar'   },
+  { nombre: 'Tesis',                     mesesVigencia: 12,   esResidencia: false, esCursoTitulacion: false, tipoMentores: 'estandar'   },
+  { nombre: 'Tesina',                    mesesVigencia: 12,   esResidencia: false, esCursoTitulacion: true,  tipoMentores: 'estandar'   },
   { nombre: 'Residencia Profesional',    mesesVigencia: 6,    esResidencia: true,  esCursoTitulacion: false, tipoMentores: 'residencia' },
   { nombre: 'CENEVAL',                   mesesVigencia: null, esResidencia: false, esCursoTitulacion: false, tipoMentores: 'ninguno'    },
   { nombre: 'Proyecto de Investigación', mesesVigencia: 12,   esResidencia: false, esCursoTitulacion: true,  tipoMentores: 'estandar'  },

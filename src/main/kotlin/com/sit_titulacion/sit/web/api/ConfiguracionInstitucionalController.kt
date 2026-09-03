@@ -1,8 +1,9 @@
 package com.sit_titulacion.sit.web.api
 
-import com.sit_titulacion.sit.config.RolSoporte
 import com.sit_titulacion.sit.config.UsuarioPrincipal
+import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.service.ConfiguracionInstitucionalService
+import com.sit_titulacion.sit.service.EmailService
 import com.sit_titulacion.sit.web.api.dto.ConfigDepartamentoDto
 import com.sit_titulacion.sit.web.api.dto.ConfigGlobalDto
 import com.sit_titulacion.sit.web.api.dto.ConfigServiciosEscolaresDto
@@ -27,8 +28,23 @@ import org.springframework.web.multipart.MultipartFile
 @RequestMapping("/api/config-institucional")
 class ConfiguracionInstitucionalController(
     private val service: ConfiguracionInstitucionalService,
+    private val emailService: EmailService,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
+
+    /** Estado del envío de correos (SMTP), para el aviso en el panel de coordinación. */
+    @GetMapping("/estado-correo")
+    fun getEstadoCorreo(@AuthenticationPrincipal principal: UsuarioPrincipal?): ResponseEntity<*> {
+        if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        val estado = emailService.estadoActual()
+        return ResponseEntity.ok(
+            mapOf(
+                "ok" to estado.ok,
+                "ultimo_error" to estado.ultimoError,
+                "momento" to estado.momento?.toString(),
+            ),
+        )
+    }
 
     @GetMapping("/global")
     fun getGlobal(@AuthenticationPrincipal principal: UsuarioPrincipal?): ResponseEntity<*> {
@@ -141,6 +157,6 @@ class ConfiguracionInstitucionalController(
 
     private fun esAdmin(principal: UsuarioPrincipal?): Boolean {
         if (principal == null) return false
-        return RolSoporte.tieneAlgunRol(principal.getRol(), "coordinador", "administrador")
+        return principal.getRol() == Rol.ADMINISTRADOR
     }
 }

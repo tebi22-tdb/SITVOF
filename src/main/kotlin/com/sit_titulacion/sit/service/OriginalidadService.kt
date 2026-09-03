@@ -11,18 +11,30 @@ data class OriginalidadResultado(
     val tituloSimilar: String? = null,
     /** Solo si [estado] es BLOQUEADO: vencido, titulado o en_proceso (mensajes en alta). */
     val expedienteEstado: String? = null,
-    /** cupo_modalidad: cupo lleno (3); otra_modalidad: título igual en otra modalidad; misma_modalidad_existente: pide confirmación. */
+    /** cupo_modalidad: cupo lleno (3); otra_modalidad: título igual en otra modalidad; misma_modalidad_existente: pide confirmación;
+     *  pareja_residencia: caso especial (ver [esParejaResidencia]); cupo_pareja_residencia: ya hay 2 en Residencia Profesional. */
     val motivo: String? = null,
     /** Cuántos expedientes activos ya usan el mismo título en la misma modalidad. */
     val coincidenciasMismaModalidad: Int = 0,
+    /** true solo cuando es Residencia Profesional y hay exactamente 1 coincidencia: proyecto en pareja reconocido. */
+    val esParejaResidencia: Boolean = false,
+    /** Nombre completo del compañero, solo si [esParejaResidencia]. */
+    val companeroNombre: String? = null,
+    /** Número de control del compañero, solo si [esParejaResidencia]. */
+    val companeroNumeroControl: String? = null,
 )
 
 @Service
-class OriginalidadService(private val egresadoRepository: EgresadoRepository) {
+class OriginalidadService(
+    private val egresadoRepository: EgresadoRepository,
+    private val catalogoService: CatalogoService,
+) {
 
     companion object {
         /** Máximo de egresados con el mismo nombre de proyecto en una modalidad. */
         const val MAX_CUPO_MISMA_MODALIDAD = 3
+        /** Residencia Profesional se hace en pareja: máximo 2 egresados con el mismo título. */
+        const val MAX_CUPO_RESIDENCIA_PAREJA = 2
     }
 
     private val STOPWORDS = setOf(
@@ -47,6 +59,7 @@ class OriginalidadService(private val egresadoRepository: EgresadoRepository) {
         val modalidadNorm = normalizarModalidad(modalidad)
         var coincidenciasMismaModalidad = 0
         var tituloReferenciaMismaModalidad: String? = null
+        var companeroMismaModalidad: Egresado? = null
         var conflictoOtraModalidad: Egresado? = null
         var tituloConflictoOtraModalidad: String? = null
         var advertenciaOtraModalidad: Pair<String, Egresado>? = null
@@ -66,6 +79,7 @@ class OriginalidadService(private val egresadoRepository: EgresadoRepository) {
                 if (modalidadNorm.isNotEmpty() && modalidadNorm == modExistente) {
                     coincidenciasMismaModalidad++
                     tituloReferenciaMismaModalidad = tituloExistente
+                    companeroMismaModalidad = e
                 } else if (conflictoOtraModalidad == null) {
                     conflictoOtraModalidad = e
                     tituloConflictoOtraModalidad = tituloExistente
@@ -92,16 +106,34 @@ class OriginalidadService(private val egresadoRepository: EgresadoRepository) {
                 "otra_modalidad",
             )
         }
-        if (coincidenciasMismaModalidad >= MAX_CUPO_MISMA_MODALIDAD) {
+
+        val esResidencia = catalogoService.esResidenciaPorNombre(modalidad ?: "")
+        val cupoAplicable = if (esResidencia) MAX_CUPO_RESIDENCIA_PAREJA else MAX_CUPO_MISMA_MODALIDAD
+
+        if (coincidenciasMismaModalidad >= cupoAplicable) {
             return OriginalidadResultado(
                 "BLOQUEADO",
                 tituloReferenciaMismaModalidad,
-                motivo = "cupo_modalidad",
+                motivo = if (esResidencia) "cupo_pareja_residencia" else "cupo_modalidad",
                 coincidenciasMismaModalidad = coincidenciasMismaModalidad,
             )
         }
         if (advertenciaOtraModalidad != null) {
             return OriginalidadResultado("ADVERTENCIA", advertenciaOtraModalidad.first)
+        }
+        if (esResidencia && coincidenciasMismaModalidad == 1) {
+            // Proyecto en pareja: ya hay un egresado con este título en Residencia Profesional.
+            // No es un conflicto, es el segundo integrante — se reconoce automáticamente y se
+            // muestra quién es el compañero (el frontend pide confirmar con un checkbox).
+            return OriginalidadResultado(
+                "CONFIRMAR",
+                tituloReferenciaMismaModalidad,
+                motivo = "pareja_residencia",
+                coincidenciasMismaModalidad = coincidenciasMismaModalidad,
+                esParejaResidencia = true,
+                companeroNombre = companeroMismaModalidad?.let { nombreCompletoDe(it) },
+                companeroNumeroControl = companeroMismaModalidad?.numero_control,
+            )
         }
         if (coincidenciasMismaModalidad in 1 until MAX_CUPO_MISMA_MODALIDAD) {
             return OriginalidadResultado(
@@ -113,6 +145,10 @@ class OriginalidadService(private val egresadoRepository: EgresadoRepository) {
         }
         return OriginalidadResultado("LIBRE")
     }
+
+    private fun nombreCompletoDe(e: Egresado): String =
+        listOf(e.datos_personales.nombre, e.datos_personales.apellido_paterno, e.datos_personales.apellido_materno)
+            .filter { !it.isNullOrBlank() }.joinToString(" ").ifBlank { e.numero_control }
 
     private fun esModalidadCeneval(modalidad: String?): Boolean {
         val m = normalizarModalidad(modalidad)

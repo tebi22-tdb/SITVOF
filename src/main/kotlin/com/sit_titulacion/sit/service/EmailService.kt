@@ -32,6 +32,13 @@ data class SinodalCorreoDestino(
     val rol: RolSinodalCorreo,
 )
 
+/** Snapshot del estado del envío de correos, para mostrar un aviso en el panel si el SMTP está fallando. */
+data class EstadoSmtp(
+    val ok: Boolean,
+    val ultimoError: String?,
+    val momento: java.time.Instant?,
+)
+
 @Service
 class EmailService(
     @Autowired(required = false) private val mailSender: JavaMailSender?,
@@ -39,6 +46,28 @@ class EmailService(
     @Value("\${sit.cert.base-url:https://sitvo.net}") private val baseUrl: String,
 ) {
     private val log = LoggerFactory.getLogger(EmailService::class.java)
+
+    // Solo importa el último resultado: si el envío más reciente falló, hay un problema activo
+    // que vale la pena mostrar en el panel. Un éxito posterior lo limpia automáticamente.
+    @Volatile private var ultimoError: String? = null
+    @Volatile private var momentoUltimoError: java.time.Instant? = null
+
+    private fun registrarExito() {
+        ultimoError = null
+        momentoUltimoError = null
+    }
+
+    private fun registrarFallo(mensaje: String?) {
+        ultimoError = mensaje ?: "Error SMTP desconocido"
+        momentoUltimoError = java.time.Instant.now()
+    }
+
+    /** Para el endpoint de estado que consulta el panel de coordinación. */
+    fun estadoActual(): EstadoSmtp = EstadoSmtp(
+        ok = ultimoError == null,
+        ultimoError = ultimoError,
+        momento = momentoUltimoError,
+    )
 
     /**
      * Envía las credenciales al correo del destinatario.
@@ -82,9 +111,11 @@ class EmailService(
         }
         try {
             mailSender.send(mensaje)
+            registrarExito()
             log.info("Correo enviado a {} con credenciales para usuario {}", correoDestino, usuario)
             return true
         } catch (e: Exception) {
+            registrarFallo(e.message)
             log.error("Error al enviar correo a {}: {}", correoDestino, e.message)
             throw e
         }
@@ -120,9 +151,11 @@ class EmailService(
         }
         return try {
             mailSender.send(mensaje)
+            registrarExito()
             log.info("Correo de recuperación enviado a {} (usuario {})", correoDestino, usuario)
             true
         } catch (e: Exception) {
+            registrarFallo(e.message)
             log.error("Error al enviar correo de recuperación a {}: {}", correoDestino, e.message)
             false
         }
@@ -238,9 +271,11 @@ class EmailService(
                     }
                 }
                 mailSender.send(mime)
+                registrarExito()
                 log.info("Anexo 9.3 enviado a sinodal {} ({}, egresado {})", correo, dest.rol, numeroControl)
                 enviados++
             } catch (ex: Exception) {
+                registrarFallo(ex.message)
                 log.error("Error al enviar Anexo 9.3 a sinodal {}: {}", correo, ex.message)
             }
         }
@@ -327,9 +362,11 @@ class EmailService(
         }
         return try {
             mailSender.send(mensaje)
+            registrarExito()
             log.info("Aviso acto protocolario agendado enviado a {} control={}", correoDestino, numeroControl)
             true
         } catch (e: Exception) {
+            registrarFallo(e.message)
             log.error("Error al enviar aviso acto protocolario agendado a {}: {}", correoDestino, e.message)
             false
         }
@@ -368,9 +405,11 @@ class EmailService(
         }
         return try {
             mailSender.send(mensaje)
+            registrarExito()
             log.info("Aviso plazo residencia ({}) enviado a {} control={}", tipoAviso, correoDestino, numeroControl)
             true
         } catch (e: Exception) {
+            registrarFallo(e.message)
             log.error("Error aviso plazo residencia a {}: {}", correoDestino, e.message)
             false
         }
@@ -505,9 +544,11 @@ class EmailService(
         }
         return try {
             mailSender.send(mensaje)
+            registrarExito()
             log.info("Aviso plazo no residencia ({}) enviado a {}", tipoAviso, correoDestino)
             true
         } catch (e: Exception) {
+            registrarFallo(e.message)
             log.error("Error aviso plazo no residencia a {}: {}", correoDestino, e.message)
             false
         }

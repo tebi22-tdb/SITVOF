@@ -2,8 +2,11 @@ package com.sit_titulacion.sit.service
 
 import com.sit_titulacion.sit.domain.ConfiguracionInstitucional
 import com.sit_titulacion.sit.domain.InsigniaAnexoEntry
+import com.sit_titulacion.sit.domain.NormalizacionTexto
+import com.sit_titulacion.sit.repository.CarreraRepository
 import com.sit_titulacion.sit.repository.CatalogoRepository
 import com.sit_titulacion.sit.repository.ConfiguracionInstitucionalRepository
+import com.sit_titulacion.sit.repository.DepartamentoRepository
 import com.sit_titulacion.sit.web.api.dto.ConfigDepartamentoDto
 import com.sit_titulacion.sit.web.api.dto.ConfigDepartamentoResponseDto
 import com.sit_titulacion.sit.web.api.dto.ConfigGlobalDto
@@ -26,6 +29,8 @@ import java.util.UUID
 class ConfiguracionInstitucionalService(
     private val repo: ConfiguracionInstitucionalRepository,
     private val catalogoRepository: CatalogoRepository,
+    private val carreraRepository: CarreraRepository,
+    private val departamentoRepository: DepartamentoRepository,
     private val env: Environment,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -98,29 +103,28 @@ class ConfiguracionInstitucionalService(
         )
     }
 
-    /** Resuelve la config de departamento a partir de la carrera del egresado. */
+    /**
+     * Resuelve la config de departamento a partir de la carrera del egresado.
+     * Antes iteraba `Catalogo.carreras` con `.trim().equals(ignoreCase=true)` (sin
+     * quitar acentos) — una de las 5 estrategias de normalización divergentes del
+     * proyecto. Ahora resuelve contra `carreras`/`departamentos` (id estable,
+     * normalización única), ver `NormalizacionTexto` y `CarreraDepartamentoSyncRunner`.
+     */
     fun resolverPorCarrera(carrera: String): ConfigDepartamentoResponseDto? {
-        val todos = catalogoRepository.findByTipoAndActivoTrue("departamento")
-        log.info("resolverPorCarrera: carrera='{}' | deptos activos={} | carreras en BD={}",
-            carrera, todos.size,
-            todos.joinToString("; ") { "${it.slug}=[${it.carreras.joinToString()}]" })
-        val cat = todos.firstOrNull { dept ->
-            dept.carreras.any { it.trim().equals(carrera.trim(), ignoreCase = true) }
-        } ?: run {
-            log.warn("resolverPorCarrera: ningún depto tiene carrera='{}'. No se puede resolver jefe.", carrera)
+        val slugCarrera = NormalizacionTexto.normalizarClave(carrera)
+        val carreraDoc = carreraRepository.findBySlug(slugCarrera)
+        val depto = carreraDoc?.let { departamentoRepository.findByCarreraIdsContains(it.id).firstOrNull() }
+        if (depto == null) {
+            log.warn("resolverPorCarrera: ningún departamento tiene la carrera='{}'. No se puede resolver jefe.", carrera)
             return null
         }
-        val slug = cat.slug ?: run {
-            log.warn("resolverPorCarrera: depto '{}' no tiene slug.", cat.nombre)
-            return null
-        }
-        val doc = repo.findFirstByTipoAndDepartamentoSlug("departamento", slug)
+        val doc = repo.findFirstByTipoAndDepartamentoSlug("departamento", depto.slug)
         log.info("resolverPorCarrera: depto='{}' slug='{}' | jefeNombre='{}' (doc={})",
-            cat.nombre, slug, doc?.jefeNombre, if (doc != null) "encontrado" else "NO EXISTE en configuracion_institucional")
+            depto.nombre, depto.slug, doc?.jefeNombre, if (doc != null) "encontrado" else "NO EXISTE en configuracion_institucional")
         return ConfigDepartamentoResponseDto(
-            slug = slug,
-            nombre = cat.nombre,
-            departamentoNombreCompleto = doc?.departamentoNombreCompleto ?: cat.nombre,
+            slug = depto.slug,
+            nombre = depto.nombre,
+            departamentoNombreCompleto = doc?.departamentoNombreCompleto ?: depto.nombre,
             jefeNombre = doc?.jefeNombre ?: "",
             jefeCargo = doc?.jefeCargo ?: "",
             jefeIniciales = doc?.jefeIniciales ?: "",

@@ -11,9 +11,13 @@ function redirigirInicioPorRol(auth: AuthService, router: Router): void {
     router.navigate(['/departamento-academico']);
   } else if (auth.isSubdireccionAcademica()) {
     router.navigate(['/repositorio']);
-  } else if (auth.esDivisionAdministrativa()) {
-    router.navigate(['/home/gestion-cuentas']);
-  } else if (auth.isCoordinador()) {
+  } else if (auth.isApoyoTitulacion()) {
+    // Antes de isAdministrador(): isAdministrador() incluye a apoyo_titulacion, así
+    // que esta rama debe ganar primero — su única pantalla es Revisiones.
+    router.navigate(['/home/revisiones']);
+  } else if (auth.isDep()) {
+    router.navigate(['/home/seguimiento-proceso']);
+  } else if (auth.isAdministrador()) {
     router.navigate(['/home']);
   } else if (auth.isEgresado()) {
     router.navigate(['/seguimiento']);
@@ -22,14 +26,14 @@ function redirigirInicioPorRol(auth: AuthService, router: Router): void {
   }
 }
 
-/** Gestión de cuentas staff: solo coordinador o división administrativa. */
+/** Gestión de cuentas staff: solo administrador. */
 export const staffAdminGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   return auth.me().pipe(
     map(() => {
       if (auth.puedeAdministrarUsuariosStaff()) return true;
-      if (auth.isCoordinador()) {
+      if (auth.isAdministrador()) {
         router.navigate(['/home']);
         return false;
       }
@@ -72,14 +76,93 @@ export const authGuard: CanActivateFn = (route, state) => {
   );
 };
 
-/** Bloquea rutas de staff completo para Apoyo a Titulación (solo inicio, alta y seguimiento). */
+/** Puerta base de todo lo bajo /home/**: deja pasar Administrador (pleno o apoyo_titulacion) y DEP. */
+export const coordinadorGuard: CanActivateFn = (route, state) => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  return auth.me().pipe(
+    map((user) => {
+      if (auth.isServiciosEscolares()) {
+        router.navigate(['/servicios-escolares']);
+        return false;
+      }
+      if (auth.isSubdireccionAcademica()) {
+        router.navigate(['/repositorio']);
+        return false;
+      }
+      if (auth.isAcademico()) {
+        router.navigate(['/departamento-academico']);
+        return false;
+      }
+      if (auth.isAdministrador() || auth.isDep()) return true;
+      if (auth.isEgresado()) {
+        router.navigate(['/seguimiento']);
+        return false;
+      }
+      router.navigate(['/login']);
+      return false;
+    }),
+    catchError(() => {
+      router.navigate(['/login']);
+      return of(false);
+    })
+  );
+};
+
+/**
+ * Bloquea Apoyo a Titulación (solo revisiones) y DEP (solo alta + seguimiento-proceso)
+ * para las pantallas de staff pleno: dashboard, catálogos, docentes, reportes,
+ * departamento académico (menú) y config institucional.
+ */
 export const noApoyoTitulacionGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   return auth.me().pipe(
     map(() => {
-      if (auth.isApoyoTitulacion() || auth.esDivisionAdministrativa()) {
-        router.navigate(['/home']);
+      if (auth.isApoyoTitulacion()) {
+        router.navigate(['/home/revisiones']);
+        return false;
+      }
+      if (auth.isDep()) {
+        router.navigate(['/home/seguimiento-proceso']);
+        return false;
+      }
+      return true;
+    }),
+    catchError(() => {
+      router.navigate(['/login']);
+      return of(false);
+    }),
+  );
+};
+
+/** Bloquea solo DEP: usar en Revisiones, la pantalla de Apoyo a Titulación (DEP no entra ahí). */
+export const noDepGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  return auth.me().pipe(
+    map(() => {
+      if (auth.isDep()) {
+        router.navigate(['/home/seguimiento-proceso']);
+        return false;
+      }
+      return true;
+    }),
+    catchError(() => {
+      router.navigate(['/login']);
+      return of(false);
+    }),
+  );
+};
+
+/** Bloquea solo Apoyo a Titulación: usar en Inicio del proceso y Seguimiento, las dos pantallas de DEP. */
+export const noApoyoTitulacionPeroDepGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  return auth.me().pipe(
+    map(() => {
+      if (auth.isApoyoTitulacion()) {
+        router.navigate(['/home/revisiones']);
         return false;
       }
       return true;
@@ -97,7 +180,7 @@ export const serviciosEscolaresGuard: CanActivateFn = () => {
   return auth.me().pipe(
     map(() => {
       if (auth.isServiciosEscolares()) return true;
-      if (auth.isCoordinador() && !auth.isApoyoTitulacion()) return true;
+      if (auth.isAdministrador() && !auth.isApoyoTitulacion()) return true;
       if (auth.isAcademico()) {
         router.navigate(['/departamento-academico']);
         return false;
@@ -126,43 +209,10 @@ export const academicoGuard: CanActivateFn = (route, state) => {
         router.navigate(['/servicios-escolares']);
         return false;
       }
-      if (auth.isCoordinador()) {
+      if (auth.isAdministrador()) {
         router.navigate(['/home']);
         return false;
       }
-      if (auth.isEgresado()) {
-        router.navigate(['/seguimiento']);
-        return false;
-      }
-      router.navigate(['/login']);
-      return false;
-    }),
-    catchError(() => {
-      router.navigate(['/login']);
-      return of(false);
-    })
-  );
-};
-
-export const coordinadorGuard: CanActivateFn = (route, state) => {
-  const auth = inject(AuthService);
-  const router = inject(Router);
-  return auth.me().pipe(
-    map((user) => {
-      const rol = auth.getUsuario()?.rol?.toLowerCase();
-      if (rol === 'servicios_escolares') {
-        router.navigate(['/servicios-escolares']);
-        return false;
-      }
-      if (auth.isSubdireccionAcademica()) {
-        router.navigate(['/repositorio']);
-        return false;
-      }
-      if (auth.isAcademico()) {
-        router.navigate(['/departamento-academico']);
-        return false;
-      }
-      if (auth.isCoordinador() || auth.esDivisionAdministrativa()) return true;
       if (auth.isEgresado()) {
         router.navigate(['/seguimiento']);
         return false;
@@ -215,7 +265,7 @@ export const egresadoGuard: CanActivateFn = (route, state) => {
         router.navigate(['/departamento-academico']);
         return false;
       }
-      if (auth.isCoordinador()) {
+      if (auth.isAdministrador()) {
         router.navigate(['/home']);
         return false;
       }

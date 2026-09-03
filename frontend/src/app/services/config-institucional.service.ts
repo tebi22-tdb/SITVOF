@@ -39,12 +39,22 @@ export interface InsigniaAnexo {
   dataUri: string;
 }
 
+export interface EstadoCorreoResponse {
+  ok: boolean;
+  ultimo_error: string | null;
+  momento: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ConfigInstitucionalService {
   constructor(private http: HttpClient) {}
 
   getGlobal(): Observable<ConfigGlobalResponse> {
     return this.http.get<ConfigGlobalResponse>(`${API}/global`);
+  }
+
+  getEstadoCorreo(): Observable<EstadoCorreoResponse> {
+    return this.http.get<EstadoCorreoResponse>(`${API}/estado-correo`);
   }
 
   putGlobal(data: {

@@ -5,9 +5,24 @@ import { environment } from '../../environments/environment';
 
 export const SIT_ACCESS_TOKEN_KEY = 'sit_access_token';
 
+/**
+ * Roles reales del sistema (ver Rol.kt en backend y CLAUDE.md). Un solo rol por usuario.
+ * Consolidación sep-2026: 'coordinador' se renombró a 'administrador' (mismo
+ * acceso pleno), y el viejo 'administrador' (restringido) + 'division_estudios_prof_admin'
+ * se fusionaron en 'dep' (Inicio del proceso + Seguimiento del proceso).
+ */
+export type RolUsuario =
+  | 'administrador'
+  | 'dep'
+  | 'academico'
+  | 'egresado'
+  | 'apoyo_titulacion'
+  | 'servicios_escolares'
+  | 'subdireccion_academica';
+
 export interface UsuarioActual {
   username: string;
-  rol: string;
+  rol: RolUsuario;
   nombre?: string;
   segmento_academico?: string;
   carreras_asignadas?: string[];
@@ -33,7 +48,7 @@ export interface UsuarioStaffItem {
   id: string;
   nombre: string;
   username: string;
-  rol: string;
+  rol: RolUsuario;
   curp?: string;
   correo_electronico?: string;
   segmento_academico?: string;
@@ -112,87 +127,60 @@ export class AuthService {
     sessionStorage.removeItem(SIT_ACCESS_TOKEN_KEY);
   }
 
-  isCoordinador(): boolean {
-    const raw = this.usuario?.rol?.toLowerCase().trim() ?? '';
-    if (!raw) return false;
-    const partes = raw.split(/\s*[-–—]\s*|,/g).map((p) => p.trim()).filter(Boolean);
-    const candidatos = partes.length ? partes : [raw.replace(/\s+/g, ' ')];
-    return candidatos.some(
-      (r) =>
-        r === 'coordinador' ||
-        r === 'apoyo_titulacion' ||
-        r === 'apoyo titulacion',
-    );
+  // Antes, cada método partía el string por si el rol venía "compuesto" (ej.
+  // "Coordinador - Administrador"), con una lógica duplicada 6 veces y encima
+  // inconsistente entre métodos. El backend ya no soporta roles compuestos
+  // (un solo Rol por usuario, ver Rol.kt) — la comparación es directa.
+
+  /** Acceso pleno (antes 'coordinador'). Incluye apoyo_titulacion, variante recortada del mismo perfil. */
+  isAdministrador(): boolean {
+    return this.usuario?.rol === 'administrador' || this.isApoyoTitulacion();
   }
 
-  /** División administrativa o rol administrador: solo gestión de cuentas, no coordinación ni departamentos. */
-  esDivisionAdministrativa(): boolean {
-    const raw = this.usuario?.rol?.toLowerCase().trim() ?? '';
-    if (!raw) return false;
-    const partes = raw.split(/\s*[-–—]\s*|,/g).map((p) => p.trim()).filter(Boolean);
-    const candidatos = partes.length ? partes : [raw.replace(/\s+/g, ' ')];
-    return candidatos.some((r) => r === 'division_estudios_prof_admin' || r === 'administrador');
+  /** DEP (División de Estudios Profesionales): solo Inicio del proceso y Seguimiento del proceso. */
+  isDep(): boolean {
+    return this.usuario?.rol === 'dep';
   }
 
-  /** Acceso al área de coordinación (pleno o solo administrativo). */
+  /** Acceso al área de coordinación (pleno o DEP). */
   puedeAccederCoordinacion(): boolean {
-    return this.isCoordinador() || this.esDivisionAdministrativa();
+    return this.isAdministrador() || this.isDep();
   }
 
   /** División de Estudios Profesionales — Apoyo a Titulación (solo inicio y seguimiento). */
   isApoyoTitulacion(): boolean {
-    const raw = this.usuario?.rol?.toLowerCase().trim() ?? '';
-    if (!raw) return false;
-    const partes = raw.split(/\s*[-–—]\s*|,/g).map((p) => p.trim()).filter(Boolean);
-    const candidatos = partes.length ? partes : [raw.replace(/\s+/g, ' ')];
-    return candidatos.some((r) => r === 'apoyo_titulacion' || r === 'apoyo titulacion');
+    return this.usuario?.rol === 'apoyo_titulacion';
   }
 
-  /** Listar/crear usuarios staff: coordinador o división administrativa (no apoyo a titulación). */
+  /** Listar/crear usuarios staff: solo administrador (DEP ya no administra cuentas). */
   puedeAdministrarUsuariosStaff(): boolean {
-    const raw = this.usuario?.rol?.toLowerCase().trim() ?? '';
-    if (!raw) return false;
-    const partes = raw.split(/\s*[-–—]\s*|,/g).map((p) => p.trim()).filter(Boolean);
-    const candidatos = partes.length ? partes : [raw];
-    return candidatos.some((r) => r === 'coordinador' || r === 'division_estudios_prof_admin');
+    return this.usuario?.rol === 'administrador';
   }
 
   isSubdireccionAcademica(): boolean {
-    return this.usuario?.rol?.toLowerCase().trim() === 'subdireccion_academica';
+    return this.usuario?.rol === 'subdireccion_academica';
   }
 
-  /** Solo coordinador, administrador y subdireccion_academica pueden acceder al repositorio. */
+  /** El repositorio ya es público (sin guard); esto solo controla si se muestra su link en algún menú de staff. */
   puedeAccederRepositorio(): boolean {
-    const raw = this.usuario?.rol?.toLowerCase().trim() ?? '';
-    if (!raw) return false;
-    const partes = raw.split(/\s*[-–—]\s*|,/g).map((p) => p.trim()).filter(Boolean);
-    const candidatos = partes.length ? partes : [raw];
-    return candidatos.some(
-      (r) => r === 'coordinador' || r === 'administrador' || r === 'subdireccion_academica',
-    );
+    return this.usuario?.rol === 'administrador' || this.usuario?.rol === 'subdireccion_academica';
   }
 
   isEgresado(): boolean {
-    return this.usuario?.rol?.toLowerCase() === 'egresado';
+    return this.usuario?.rol === 'egresado';
   }
 
   isAcademico(): boolean {
-    return this.usuario?.rol?.toLowerCase() === 'academico';
+    return this.usuario?.rol === 'academico';
   }
 
-  /** Revertir liberación/registro en bandeja departamento: coordinador o administración, no académicos. */
+  /** Revertir liberación/registro en bandeja departamento: solo administrador (no DEP, no académicos). */
   puedeRevertirPasoDepartamento(): boolean {
-    const raw = this.usuario?.rol?.toLowerCase().trim() ?? '';
-    if (!raw) return false;
-    const partes = raw.split(/\s*[-–—]\s*|,/g).map((p) => p.trim()).filter(Boolean);
-    const candidatos = partes.length ? partes : [raw.replace(/\s+/g, ' ')];
-    return candidatos.some(
-      (r) => r === 'coordinador' || r === 'administrador' || r === 'division_estudios_prof_admin',
-    );
+    return this.usuario?.rol === 'administrador';
   }
 
   isServiciosEscolares(): boolean {
-    return this.usuario?.rol?.toLowerCase() === 'servicios_escolares';
+    return this.usuario?.rol === 'servicios_escolares';
   }
 
   crearUsuario(body: CrearUsuarioBody): Observable<{

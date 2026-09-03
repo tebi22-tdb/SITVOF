@@ -7,7 +7,7 @@ export interface PerfilCreacionUsuarioItem {
 /** Perfiles estáticos (no dependen del catálogo de departamentos). */
 export const PERFILES_ESTATICOS: PerfilCreacionUsuarioItem[] = [
   { id: 'apoyo_titulacion',            etiqueta: 'División de Estudios Profesionales — Apoyo a Titulación' },
-  { id: 'division_estudios_prof_admin', etiqueta: 'División de Estudios Profesionales — Administrativo' },
+  { id: 'dep',                         etiqueta: 'División de Estudios Profesionales (DEP)' },
   { id: 'academico_general',           etiqueta: 'Coordinacion de apoyo a la titulacion' },
   { id: 'servicios_escolares',         etiqueta: 'Departamento de Servicios Escolares' },
   { id: 'subdireccion_academica',      etiqueta: 'Subdirección Académica' },
@@ -40,8 +40,8 @@ export function datosRolDesdePerfil(perfil: string): DatosRolDesdePerfil {
   switch (perfil) {
     case 'apoyo_titulacion':
       return { rol: 'apoyo_titulacion', segmento_academico: '', carreras_asignadas: [] };
-    case 'division_estudios_prof_admin':
-      return { rol: 'division_estudios_prof_admin', segmento_academico: '', carreras_asignadas: [] };
+    case 'dep':
+      return { rol: 'dep', segmento_academico: '', carreras_asignadas: [] };
     case 'servicios_escolares':
       return { rol: 'servicios_escolares', segmento_academico: '', carreras_asignadas: [] };
     case 'subdireccion_academica':
@@ -53,6 +53,6 @@ export function datosRolDesdePerfil(perfil: string): DatosRolDesdePerfil {
         const slug = perfil.slice('academico_'.length);
         return { rol: 'academico', segmento_academico: slug, carreras_asignadas: [] };
       }
-      return { rol: 'division_estudios_prof_admin', segmento_academico: '', carreras_asignadas: [] };
+      return { rol: 'dep', segmento_academico: '', carreras_asignadas: [] };
   }
 }

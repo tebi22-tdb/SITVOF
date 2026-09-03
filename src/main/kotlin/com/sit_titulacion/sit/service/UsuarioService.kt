@@ -1,6 +1,7 @@
 package com.sit_titulacion.sit.service
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.domain.Usuario
 import com.sit_titulacion.sit.repository.EgresadoRepository
 import com.sit_titulacion.sit.repository.UsuarioRepository
@@ -38,7 +39,7 @@ class UsuarioService(
     /** Solo puede reutilizarse el username si no existe o si pertenece a un usuario egresado. */
     fun puedeReutilizarUsernameParaEgresado(username: String): Boolean {
         val existente = usuarioRepository.findByUsername(username.trim()) ?: return true
-        return existente.rol.trim().equals("egresado", ignoreCase = true)
+        return existente.rol == Rol.EGRESADO
     }
 
     fun crearUsuarioEgresado(numeroControl: String, egresadoId: ObjectId): Pair<String, String> {
@@ -50,7 +51,7 @@ class UsuarioService(
         val usuario = Usuario(
             username = numeroControl,
             passwordHash = passwordHash,
-            rol = "egresado",
+            rol = Rol.EGRESADO,
             egresadoId = egresadoId,
             activo = true,
         )
@@ -90,7 +91,7 @@ class UsuarioService(
     fun crearUsuarioStaff(
         nombre: String,
         usernameLogin: String,
-        rol: String,
+        rol: Rol,
         correoElectronico: String,
         curp: String = "",
         segmentoAcademico: String? = null,
@@ -132,7 +133,7 @@ class UsuarioService(
         if (correoTrim.isBlank()) return "El correo no puede estar vacío."
         val usuario = usuarioRepository.findByUsername(username.trim())
             ?: return "No se encontró ningún usuario con ese nombre de usuario."
-        val esEgresado = usuario.rol.trim().equals("egresado", ignoreCase = true)
+        val esEgresado = usuario.rol == Rol.EGRESADO
         if (esEgresado) {
             usuarioRepository.save(usuario.copy(correoElectronico = correoTrim, fechaActualizacion = Instant.now()))
             usuario.egresadoId?.let { eid ->
@@ -183,7 +184,7 @@ class UsuarioService(
 
     fun buscarPorUsername(username: String): UsuarioCuentaInfo? {
         val u = usuarioRepository.findByUsername(username.trim()) ?: return null
-        val esEgresado = u.rol.trim().equals("egresado", ignoreCase = true)
+        val esEgresado = u.rol == Rol.EGRESADO
         val nombre = if (esEgresado) {
             u.egresadoId?.let { eid ->
                 egresadoRepository.findById(eid).orElse(null)?.let { eg ->
@@ -198,14 +199,14 @@ class UsuarioService(
             username = u.username,
             correo = u.correoElectronico ?: "",
             nombre = nombre,
-            rol = u.rol,
+            rol = u.rol.valorBd, // contrato con el frontend no cambia: sigue viajando en minúsculas
             esEgresado = esEgresado,
         )
     }
 
     fun listarUsuariosStaff(): List<Usuario> =
         usuarioRepository.findAll()
-            .filter { !it.rol.trim().equals("egresado", ignoreCase = true) }
+            .filter { it.rol != Rol.EGRESADO }
             .sortedByDescending { it.fechaCreacion }
 
     private fun generarUsernameStaffUnico(baseUsername: String): String {

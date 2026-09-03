@@ -148,6 +148,12 @@
           </div>
           <span *ngIf="tituloCompartidoConfirmado === true" class="orig-libre">Confirmado: puede registrar con este título.</span>
         </div>
+        <div class="pareja-residencia-caja" *ngIf="muestraParejaResidenciaReconocida">
+          <label class="pareja-residencia-check">
+            <input type="checkbox" [checked]="parejaResidenciaConfirmada" (change)="toggleParejaResidenciaConfirmada()" />
+            <span>{{ mensajeParejaResidencia }}</span>
+          </label>
+        </div>
       </div>
     </ng-container>
     <ng-container *ngIf="catalogoService.tipoMentoresPorNombre(form.get('modalidad')?.value || '') === 'residencia'">
@@ -292,3 +298,11 @@
     </button>
   </div>
 </form>
+
+<div class="modal-backdrop-error" *ngIf="mostrarModalCamposIncompletos" (click)="cerrarModalCamposIncompletos()">
+  <div class="modal-card-error" (click)="$event.stopPropagation()">
+    <h3>Faltan campos por completar</h3>
+    <p>Revisa el formulario: hay campos obligatorios sin llenar o con datos inválidos.</p>
+    <button type="button" class="btn btn-agregar" (click)="cerrarModalCamposIncompletos()">Entendido</button>
+  </div>
+</div>

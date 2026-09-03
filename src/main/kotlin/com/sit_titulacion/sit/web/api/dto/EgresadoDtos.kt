@@ -90,6 +90,13 @@ data class EgresadoListItemDto(
     @JsonProperty("fecha_solicitud_sinodales") val fecha_solicitud_sinodales: String? = null,
     @JsonProperty("fecha_confirmacion_sinodales_recibidos") val fecha_confirmacion_sinodales_recibidos: String? = null,
     @JsonProperty("fecha_agenda_acto_9_3") val fecha_agenda_acto_9_3: String? = null,
+    // ── Clasificación de plazo, calculada por el backend (única fuente de verdad,
+    // ver PlazoTitulacionCalculator) — reemplaza el cálculo que antes hacía cada
+    // componente del frontend por su cuenta con los campos de fecha de arriba. ──
+    /** "en_tiempo" | "rezagado" | "vencido" | "concluido". */
+    @JsonProperty("estado_plazo") val estado_plazo: String,
+    @JsonProperty("dias_restantes_plazo") val dias_restantes_plazo: Long? = null,
+    @JsonProperty("fecha_limite_plazo") val fecha_limite_plazo: String? = null,
 )
 
 /** Item para la lista del departamento académico (Pendientes, En corrección, Aprobados, etc.). */
@@ -224,7 +231,6 @@ data class EgresadoDetailDto(
     @JsonProperty("fecha_creacion_anexo_9_3") val fecha_creacion_anexo_9_3: String? = null,
     @JsonProperty("fecha_confirmacion_entrega_anexo_9_3") val fecha_confirmacion_entrega_anexo_9_3: String? = null,
     @JsonProperty("fecha_titulacion") val fecha_titulacion: String? = null,
-    @JsonProperty("tiene_doc_final") val tiene_doc_final: Boolean = false,
     @JsonProperty("fecha_solicitud_documentacion_escaneada") val fecha_solicitud_documentacion_escaneada: String? = null,
     @JsonProperty("fecha_envio_documentacion_escaneada_egresado") val fecha_envio_documentacion_escaneada_egresado: String? = null,
     @JsonProperty("fecha_confirmacion_documentacion_escaneada_recibida") val fecha_confirmacion_documentacion_escaneada_recibida: String? = null,
@@ -232,6 +238,31 @@ data class EgresadoDetailDto(
     val fecha_solicitud_reenvio_documentacion_escaneada: String? = null,
     @JsonProperty("observaciones_reenvio_documentacion_escaneada")
     val observaciones_reenvio_documentacion_escaneada: String? = null,
+    // ── Clasificación de plazo, calculada por el backend (única fuente de verdad,
+    // ver PlazoTitulacionCalculator) — reemplaza el cálculo que antes hacía cada
+    // componente del frontend por su cuenta con los campos de fecha de arriba. ──
+    /** "en_tiempo" | "rezagado" | "vencido" | "concluido". */
+    @JsonProperty("estado_plazo") val estado_plazo: String,
+    @JsonProperty("dias_restantes_plazo") val dias_restantes_plazo: Long? = null,
+    @JsonProperty("fecha_limite_plazo") val fecha_limite_plazo: String? = null,
+    /** Texto narrativo del avance del sub-plazo de proyecto/desarrollo (vista alumno). */
+    @JsonProperty("linea_proyecto") val linea_proyecto: String = "",
+    /** Texto narrativo del avance del sub-plazo de titulación (solo aplica al flujo legacy). */
+    @JsonProperty("linea_titulacion") val linea_titulacion: String = "",
+    /** Widget "cuadro verde" del paso 4 (desarrollo); null si no aplica a este proceso/etapa. */
+    @JsonProperty("plazo_desarrollo") val plazo_desarrollo: PlazoDesarrolloDto? = null,
+)
+
+data class PlazoDesarrolloDto(
+    val estado: String,
+    @JsonProperty("etiqueta_estado") val etiqueta_estado: String,
+    @JsonProperty("clase_semaforo") val clase_semaforo: String,
+    @JsonProperty("fecha_inicio_texto") val fecha_inicio_texto: String,
+    @JsonProperty("meses_totales") val meses_totales: Long,
+    @JsonProperty("fase_post_recepcion") val fase_post_recepcion: Boolean,
+    @JsonProperty("fecha_limite_texto") val fecha_limite_texto: String,
+    @JsonProperty("texto_meses_restantes") val texto_meses_restantes: String,
+    @JsonProperty("texto_tiempo_restante_corto") val texto_tiempo_restante_corto: String,
 )
 
 data class ProcesoAnteriorDto(

@@ -8,37 +8,12 @@ import { AgendarActoComponent, ActoAgendadoDto } from './agendar-acto/agendar-ac
 import { HeaderComponent } from '../../layout/header/header.component';
 import { PdfViewerPanelComponent } from '../../shared/pdf-viewer-panel/pdf-viewer-panel.component';
 import { mensajeErrorApiConBlob } from '../../core/http-blob-error';
-import { EgresadoService, EgresadoDetail, EgresadoItem } from '../../services/egresado.service';
+import { EgresadoService, EgresadoDetail, EgresadoItem, PlazoDesarrolloBackend } from '../../services/egresado.service';
 import { CatalogoService } from '../../services/catalogo.service';
 import { AuthService } from '../../services/auth.service';
-import {
-  calcularVistaPlazosNoResidencia,
-  calcularVistaPlazosResidencia,
-} from '../../core/plazos-titulacion-no-residencia';
-import {
-  calcularVistaPlazoDesarrolloRecepcionNoRes,
-  construirPlazoDesarrolloRecepcionUi,
-  type PlazoDesarrolloRecepcionUi,
-} from '../../core/plazo-desarrollo-proyecto-no-res';
 
 type EstadoFiltro = 'todos' | 'en_tiempo' | 'rezagado' | 'vencido' | 'concluido';
 type OrdenFiltro = 'reciente' | 'prioridad' | 'nombre' | 'control';
-
-/** Días de margen antes del límite para pasar de "en tiempo" a "rezagado". */
-const MARGEN_REZAGO_DIAS = 30;
-
-function inicioDiaLocal(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
-function diffDiasCalendario(fechaFin: Date, fechaInicio: Date): number {
-  const ms = inicioDiaLocal(fechaFin).getTime() - inicioDiaLocal(fechaInicio).getTime();
-  return Math.round(ms / 86400000);
-}
-
-function sumarMesesCalendario(base: Date, meses: number): Date {
-  return new Date(base.getFullYear(), base.getMonth() + meses, base.getDate());
-}
 
 interface SeguimientoItem {
   id: string;
@@ -70,7 +45,7 @@ interface PasoProcesoUi {
   fecha?: string;
   estado: EstadoPaso;
   /** Semáforo y fechas del plazo de desarrollo (paso recepción en división, flujo 16 no residencia). */
-  plazoDesarrolloRecepcion?: PlazoDesarrolloRecepcionUi | null;
+  plazoDesarrolloRecepcion?: PlazoDesarrolloBackend | null;
 }
 
 @Component({
@@ -226,6 +201,15 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
 
   volverInicio(): void {
     this.router.navigate(['/home']);
+  }
+
+  /** DEP no tiene dashboard (/home): en vez de "Volver" ve acceso directo a su otra pantalla. */
+  get esDep(): boolean {
+    return this.auth.isDep();
+  }
+
+  irARegistrarEgresado(): void {
+    this.router.navigate(['/home/alta']);
   }
 
   esEstadoActivo(estado: EstadoFiltro): boolean {
@@ -413,13 +397,13 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     if (this.procesoConcluido) return false;
     if (d.estado_general === 'titulado') return false;
     if (d.estado_general === 'vencido') return true;
-    if (this.esResidenciaProfesionalSeguimiento || this.noResidenciaFlujoLegacy || this.esCenevalSeguimiento) return false;
-    const raw = calcularVistaPlazoDesarrolloRecepcionNoRes(d);
-    return raw?.estado === 'vencido';
+    return d.estado_plazo === 'vencido';
   }
 
   /**
-   * Etiqueta EN TIEMPO / REZAGADO / VENCIDO junto al título del panel (mismo criterio que la tabla y el plazo de desarrollo).
+   * Etiqueta EN TIEMPO / REZAGADO / VENCIDO junto al título del panel — mismo criterio que la
+   * tabla, ya no hay que distinguir residencia/legacy/CENEVAL ni consultar la fila de `items`:
+   * el backend ya resolvió esa rama en `estado_plazo`.
    */
   get etiquetaPlazoTitulacionCabecera(): string {
     const d = this.detalleSeleccionado;
@@ -427,20 +411,8 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     if (this.procesoConcluido) return 'CONCLUIDO';
     if (d.estado_general === 'titulado') return '';
     if (d.estado_general === 'vencido') return 'VENCIDO';
-    if (!this.esResidenciaProfesionalSeguimiento && !this.noResidenciaFlujoLegacy && !this.esCenevalSeguimiento) {
-      const raw = calcularVistaPlazoDesarrolloRecepcionNoRes(d);
-      if (raw) {
-        if (raw.estado === 'vencido') return 'VENCIDO';
-        if (raw.estado === 'rezagado') return 'REZAGADO';
-        return 'EN TIEMPO';
-      }
-    }
-    const row = this.items.find((i) => i.id === d.id);
-    if (row) {
-      if (row.estado === 'vencido') return 'VENCIDO';
-      if (row.estado === 'rezagado') return 'REZAGADO';
-      return 'EN TIEMPO';
-    }
+    if (d.estado_plazo === 'vencido') return 'VENCIDO';
+    if (d.estado_plazo === 'rezagado') return 'REZAGADO';
     return 'EN TIEMPO';
   }
 
@@ -804,8 +776,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         else if (!inicial || !todosPreviosCompletados) estado = 'pendiente';
         else estado = 'en_curso';
         if (!completado) todosPreviosCompletados = false;
-        const plazoDesarrolloRecepcion =
-          estado === 'en_curso' ? construirPlazoDesarrolloRecepcionUi(d) ?? undefined : undefined;
+        const plazoDesarrolloRecepcion = estado === 'en_curso' ? d.plazo_desarrollo ?? undefined : undefined;
         return {
           numero: i + 1,
           key: s.key,
@@ -1303,10 +1274,22 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       next: (response) => {
         this.procesandoPaso = false;
         this.descargarBlob(response.body!, `Anexo-9.3-${nc}.pdf`);
+        const intentados = Number(response.headers.get('X-Sinodales-Intentados') ?? '0');
         const notificados = Number(response.headers.get('X-Sinodales-Notificados') ?? '0');
-        this.mensajeProceso = notificados > 0
-          ? `Anexo 9.3 generado. Correo enviado a ${notificados} sinodal(es).`
-          : 'Anexo 9.3 generado.';
+        if (intentados === 0) {
+          // Nadie del tribunal tiene correo capturado en el catálogo de docentes: no es una falla
+          // del servidor, es un dato faltante — hay que avisar a los sinodales por otro medio.
+          this.mensajeProceso =
+            'Anexo 9.3 generado. Ningún sinodal tiene correo registrado en el catálogo de docentes: avísales manualmente.';
+        } else if (notificados === 0) {
+          // Sí había a quién mandarle, pero el envío falló (típicamente el SMTP del servidor).
+          this.mensajeProceso =
+            'Anexo 9.3 generado, pero no se pudo enviar el correo a los sinodales (falla del servidor de correo). Avísales manualmente.';
+        } else if (notificados < intentados) {
+          this.mensajeProceso = `Anexo 9.3 generado. Correo enviado a ${notificados} de ${intentados} sinodal(es); revisa a quién le faltó.`;
+        } else {
+          this.mensajeProceso = `Anexo 9.3 generado. Correo enviado a ${notificados} sinodal(es).`;
+        }
         this.refrescarDetalle();
       },
       error: (err) => {
@@ -1427,96 +1410,30 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * El backend ya manda `estado_plazo`/`fecha_limite_plazo` calculados (ver
+   * PlazoTitulacionCalculator.kt) — ya no hay que distinguir CENEVAL/residencia/no
+   * residencia aquí, el backend ya resolvió esa rama.
+   */
   private mapearItem(e: EgresadoItem): SeguimientoItem {
-    const hoy = new Date();
     const modalidad = e.modalidad?.trim() || '—';
-
     const isoUltimo = this.isoUltimoMovimiento(e);
     const ultimoMovimiento = isoUltimo ? this.formatoFecha(new Date(isoUltimo)) : '—';
-
-    const esRes = this.catalogoService.esResidencia(modalidad.trim());
-    const esCeneval = this.catalogoService.esCeneval(modalidad.trim());
-    if (e.fecha_confirmacion_documentacion_escaneada_recibida) {
-      return {
-        id: e.id,
-        alumno: e.nombre || '—',
-        noControl: e.numero_control || '—',
-        modalidad,
-        carrera: e.carrera || '—',
-        estado: 'concluido',
-        documentoFaltante: 'Proceso concluido',
-        ultimoMovimiento,
-        ultimoMovimientoIso: isoUltimo,
-        fechaLimite: 'Finalizado',
-      };
-    }
-
-    if (esCeneval) {
-      return {
-        id: e.id,
-        alumno: e.nombre || '—',
-        noControl: e.numero_control || '—',
-        modalidad,
-        carrera: e.carrera || '—',
-        estado: 'en_tiempo',
-        documentoFaltante: 'En curso',
-        ultimoMovimiento,
-        ultimoMovimientoIso: isoUltimo,
-        fechaLimite: '—',
-      };
-    }
-
-    if (!esRes) {
-      const plazos = calcularVistaPlazosNoResidencia(
-        {
-          modalidad,
-          fecha_creacion: e.fecha_creacion,
-          fecha_envio_solicitud_registro_anteproyecto_depto_academico:
-            e.fecha_envio_solicitud_registro_anteproyecto_depto_academico,
-          fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii:
-            e.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii,
-          fecha_solicitud_registro_liberacion_depto_academico:
-            e.fecha_solicitud_registro_liberacion_depto_academico,
-          fecha_enviado_departamento_academico: e.fecha_enviado_departamento_academico,
-          fecha_confirmacion_recibidos_anexo_xxxi_xxxii: e.fecha_confirmacion_recibidos_anexo_xxxi_xxxii,
-          fecha_confirmacion_documentacion_escaneada_recibida: e.fecha_confirmacion_documentacion_escaneada_recibida,
-        },
-        hoy,
-      );
-      const estado = plazos.estadoGlobal;
-      const fechaLimite = plazos.fechaLimiteMasCercana
-        ? this.formatoFecha(plazos.fechaLimiteMasCercana)
-        : '—';
-      const documentoFaltante =
-        estado === 'vencido' ? 'Plazo vencido' : estado === 'rezagado' ? 'En curso (cerca del límite)' : 'En curso';
-      return {
-        id: e.id,
-        alumno: e.nombre || '—',
-        noControl: e.numero_control || '—',
-        modalidad,
-        carrera: e.carrera || '—',
-        estado,
-        documentoFaltante,
-        ultimoMovimiento,
-        ultimoMovimientoIso: isoUltimo,
-        fechaLimite,
-      };
-    }
-
-    const plazos = calcularVistaPlazosResidencia(
-      {
-        fecha_registro_anexo_xxxi: e.fecha_registro_anexo_xxxi,
-        fecha_creacion: e.fecha_creacion,
-        fecha_confirmacion_documentacion_escaneada_recibida: e.fecha_confirmacion_documentacion_escaneada_recibida,
-      },
-      hoy,
-    );
-    const estado = plazos.estadoGlobal;
-    const fechaLimite = plazos.fechaLimiteMasCercana
-      ? this.formatoFecha(plazos.fechaLimiteMasCercana)
-      : '—';
+    const estado = e.estado_plazo as SeguimientoItem['estado'];
     const documentoFaltante =
-      estado === 'vencido' ? 'Plazo vencido' : estado === 'rezagado' ? 'En curso (cerca del límite)' : 'En curso';
+      estado === 'concluido'
+        ? 'Proceso concluido'
+        : estado === 'vencido'
+          ? 'Plazo vencido'
+          : estado === 'rezagado'
+            ? 'En curso (cerca del límite)'
+            : 'En curso';
+    const fechaLimite =
+      estado === 'concluido'
+        ? 'Finalizado'
+        : e.fecha_limite_plazo
+          ? this.formatoFecha(new Date(e.fecha_limite_plazo))
+          : '—';
     return {
       id: e.id,
       alumno: e.nombre || '—',
