@@ -56,19 +56,30 @@ class EgresadoController(
 ) {
     private val log = LoggerFactory.getLogger(EgresadoController::class.java)
 
-    /** Diagnóstico: base de datos, colección y cantidad de documentos. */
+    /** Diagnóstico de BD: solo Administrador (no exponer infraestructura a otros roles). */
     @GetMapping("/diagnostico")
-    fun diagnostico(): ResponseEntity<Map<String, Any>> {
-        val dbName = env.getProperty("spring.data.mongodb.database") ?: env.getProperty("spring.data.mongodb.uri")?.substringAfterLast("/")?.substringBefore("?") ?: "test"
+    fun diagnostico(
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (principal == null || principal.getRol() != Rol.ADMINISTRADOR) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to "No autorizado."))
+        }
+        val dbName = env.getProperty("spring.data.mongodb.database")
+            ?: env.getProperty("spring.data.mongodb.uri")
+                ?.substringAfterLast("/")
+                ?.substringBefore("?")
+            ?: "test"
         val collectionName = "registro"
         val count = egresadoRepository.count()
-        return ResponseEntity.ok(mapOf(
-            "mensaje" to "Configuración actual del backend",
-            "base_de_datos" to dbName,
-            "coleccion" to collectionName,
-            "documentos_en_coleccion" to count,
-            "donde_ver_en_compass" to "En Compass: 77.37.74.122:27017 → base '$dbName' → colección '$collectionName'",
-        ))
+        return ResponseEntity.ok(
+            mapOf(
+                "mensaje" to "Configuración actual del backend",
+                "base_de_datos" to dbName,
+                "coleccion" to collectionName,
+                "documentos_en_coleccion" to count,
+            ),
+        )
     }
 
     @GetMapping
@@ -79,7 +90,11 @@ class EgresadoController(
         @RequestParam(required = false) tipo_filtro: String?,
         @RequestParam(required = false, defaultValue = "true") aplicar_scope_departamento: Boolean,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
-    ): ResponseEntity<List<EgresadoListItemDto>> {
+    ): ResponseEntity<*> {
+        if (principal == null || !puedeConsultarDetalleStaff(principal.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to "No autorizado para listar egresados."))
+        }
         val desde = parseFechaParam(fecha_desde)
         val hasta = parseFechaParam(fecha_hasta, endOfDay = true)
         val tipo = when (tipo_filtro?.trim()?.lowercase()) {
@@ -88,7 +103,7 @@ class EgresadoController(
             else -> null
         }
         val scopeUsername =
-            if (aplicar_scope_departamento && principal != null && puedeVerBandejaDepartamento(principal.getRol())) {
+            if (aplicar_scope_departamento && puedeVerBandejaDepartamento(principal.getRol())) {
                 principal.username
             } else {
                 null
@@ -155,12 +170,31 @@ class EgresadoController(
 
     /** Respaldo: obtener por número de control (evita 404 si el id en lista era de otra base). */
     @GetMapping("/por-numero/{numeroControl}")
-    fun obtenerPorNumeroControl(@PathVariable numeroControl: String): ResponseEntity<*> {
+    fun obtenerPorNumeroControl(
+        @PathVariable numeroControl: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        }
+        val rol = principal.getRol()
+        if (rol == Rol.EGRESADO) {
+            if (!numeroControl.trim().equals(principal.username.trim(), ignoreCase = true)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(mapOf("error" to "No autorizado para este egresado."))
+            }
+        } else if (!puedeConsultarDetalleStaff(rol)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to "No autorizado para este egresado."))
+        }
         log.info("detalle-egresado: buscando por numero_control={}", numeroControl)
         val detalle = egresadoService.obtenerPorNumeroControl(numeroControl)
-        log.info("detalle-egresado: resultado por numero_control={} encontrado={}", numeroControl, detalle != null)
-        return if (detalle != null) ResponseEntity.ok(detalle)
-        else ResponseEntity.notFound().build<Void>()
+            ?: return ResponseEntity.notFound().build<Void>()
+        if (rol != Rol.EGRESADO && !rol.esAlgunoDe(Rol.ADMINISTRADOR, Rol.DEP)) {
+            respuestaSiNoAccesoEgresadoBandeja(detalle.id, principal)?.let { return it }
+        }
+        log.info("detalle-egresado: resultado por numero_control={} encontrado={}", numeroControl, true)
+        return ResponseEntity.ok(detalle)
     }
 
     /** Seguimiento del egresado: devuelve su propio registro (por egresadoId o por número de control). */
@@ -199,17 +233,10 @@ class EgresadoController(
         @RequestParam(required = false, defaultValue = "true") aplicar_scope_departamento: Boolean,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal != null) {
-            val esAcademico = principal.getRol() == Rol.ACADEMICO
-            // Administrador / DEP acceden sin restricción de carrera
-            if (!principal.getRol().esAlgunoDe(Rol.ADMINISTRADOR, Rol.DEP)) {
-                when {
-                    esAcademico -> respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
-                    puedeVerBandejaDepartamento(principal.getRol()) ->
-                        respuestaSiNoAccesoEgresadoBandeja(id, principal)?.let { return it }
-                }
-            }
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
         }
+        respuestaSiNoPuedeVerDetalleEgresado(id, principal)?.let { return it }
         log.info("detalle-egresado: buscando por id={}", id)
         val detalle = egresadoService.obtenerPorId(id)
         log.info("detalle-egresado: resultado por id={} encontrado={}", id, detalle != null)
@@ -332,7 +359,12 @@ class EgresadoController(
     fun crear(
         @Valid @RequestPart("datos") datos: EgresadoRequestDto,
         @RequestPart(value = "archivo", required = false) archivo: MultipartFile? = null,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
+        if (!puedeAltaOEditarEgresado(principal?.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to "No autorizado para dar de alta egresados."))
+        }
         val errorControl = egresadoService.validarNuevaAltaNumeroControl(datos)
         if (errorControl != null) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(
@@ -340,10 +372,13 @@ class EgresadoController(
             )
         }
         val dupCtrl = egresadoService.verificarDisponibilidadNumeroControlParaAlta(datos.numero_control, null, datos.modalidad)
-        if (dupCtrl.estado == "BLOQUEADO") {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(
-                mapOf("error" to mensajeConflictoNumeroControlAlta(dupCtrl.expedienteEstado)),
-            )
+        if (dupCtrl.estado == "BLOQUEADO" || dupCtrl.estado == "RETOMAR") {
+            val msg = if (dupCtrl.estado == "RETOMAR") {
+                "Este número de control ya tiene un expediente vencido. Usa «Registrar nuevo proceso» sobre ese expediente."
+            } else {
+                mensajeConflictoNumeroControlAlta(dupCtrl.expedienteEstado)
+            }
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(mapOf("error" to msg))
         }
         if (!usuarioService.puedeReutilizarUsernameParaEgresado(datos.numero_control)) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(
@@ -355,11 +390,16 @@ class EgresadoController(
         }
         val origResultado = originalidadService.verificar(datos.nombreProyecto ?: "", datos.modalidad)
         if (origResultado.estado == "BLOQUEADO" || origResultado.estado == "ADVERTENCIA") {
+            val cupoMod = originalidadService.cupoMaximoPara(datos.modalidad)
             val aviso = when {
+                origResultado.motivo == "titulo_vencido" ->
+                    "El título «${datos.nombreProyecto}» ya se usó en un proceso vencido. Debes registrar un título distinto."
+                origResultado.motivo == "titulo_concluido" ->
+                    "Este título ya está registrado. Debes registrar un título distinto."
                 origResultado.motivo == "cupo_pareja_residencia" ->
-                    "Ya hay ${OriginalidadService.MAX_CUPO_RESIDENCIA_PAREJA} egresados con el título «${datos.nombreProyecto}» en Residencia Profesional (proyecto en pareja). No se puede registrar un tercero con el mismo nombre."
+                    "Ya hay ${OriginalidadService.MAX_CUPO_PAREJA} egresados con el título «${datos.nombreProyecto}» en Residencia Profesional (proyecto en pareja). No se puede registrar un tercero con el mismo nombre."
                 origResultado.motivo == "cupo_modalidad" ->
-                    "Ya hay ${OriginalidadService.MAX_CUPO_MISMA_MODALIDAD} egresados con el título «${datos.nombreProyecto}» en la modalidad «${datos.modalidad}». No se puede registrar otro con el mismo nombre."
+                    "Ya hay $cupoMod egresados con el título «${datos.nombreProyecto}» en la modalidad «${datos.modalidad}». No se puede registrar otro con el mismo nombre."
                 origResultado.estado == "BLOQUEADO" ->
                     "El título «${datos.nombreProyecto}» ya está registrado en otra modalidad y no puede usarse."
                 else ->
@@ -445,7 +485,32 @@ class EgresadoController(
         @PathVariable id: String,
         @Valid @RequestPart("datos") datos: EgresadoRequestDto,
         @RequestPart(value = "archivo", required = false) archivo: MultipartFile? = null,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
+        if (!puedeAltaOEditarEgresado(principal?.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to "No autorizado para editar egresados."))
+        }
+        val origResultado = originalidadService.verificar(datos.nombreProyecto ?: "", datos.modalidad, id)
+        if (origResultado.estado == "BLOQUEADO" || origResultado.estado == "ADVERTENCIA") {
+            val cupoMod = originalidadService.cupoMaximoPara(datos.modalidad)
+            val aviso = when (origResultado.motivo) {
+                "titulo_vencido" ->
+                    "El título «${datos.nombreProyecto}» ya se usó en un proceso vencido. Debes usar un título distinto."
+                "titulo_concluido" ->
+                    "Este título ya está registrado. Debes registrar un título distinto."
+                "cupo_pareja_residencia" ->
+                    "Ya hay ${OriginalidadService.MAX_CUPO_PAREJA} egresados con el título «${datos.nombreProyecto}» en Residencia Profesional. No se puede usar."
+                "cupo_modalidad" ->
+                    "Ya hay $cupoMod egresados con el título «${datos.nombreProyecto}» en «${datos.modalidad}». Usa otro nombre."
+                else ->
+                    if (origResultado.estado == "BLOQUEADO")
+                        "El título «${datos.nombreProyecto}» ya está registrado en otra modalidad y no puede usarse."
+                    else
+                        "El título «${datos.nombreProyecto}» es demasiado similar a uno existente; usa un título distinto."
+            }
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(mapOf("error" to aviso))
+        }
         return if (egresadoService.actualizar(id, datos, archivo)) {
             ResponseEntity.ok().build<Void>()
         } else {
@@ -454,7 +519,14 @@ class EgresadoController(
     }
 
     @PostMapping("/eliminar/{id}")
-    fun eliminar(@PathVariable id: String): ResponseEntity<*> {
+    fun eliminar(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (!puedeEliminarEgresado(principal?.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to "No autorizado para eliminar egresados."))
+        }
         return if (egresadoService.eliminar(id)) {
             ResponseEntity.noContent().build<Void>()
         } else {
@@ -464,14 +536,38 @@ class EgresadoController(
 
     /**
      * Abre un nuevo proceso de titulación para un egresado cuyo proceso anterior venció o se tituló.
-     * El proceso anterior queda en el historial. Solo el coordinador puede invocar esto.
+     * El proceso anterior queda en el historial. Solo Administrador o DEP.
      */
     @PostMapping("/{id}/nuevo-proceso", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun activarNuevoProceso(
         @PathVariable id: String,
         @Valid @RequestPart("datos") datos: EgresadoRequestDto,
         @RequestPart(value = "archivo", required = false) archivo: MultipartFile? = null,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
+        if (!puedeAltaOEditarEgresado(principal?.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to "No autorizado para abrir un nuevo proceso de titulación."))
+        }
+        val origResultado = originalidadService.verificar(datos.nombreProyecto ?: "", datos.modalidad)
+        if (origResultado.estado == "BLOQUEADO" || origResultado.estado == "ADVERTENCIA") {
+            val aviso = when (origResultado.motivo) {
+                "titulo_vencido" ->
+                    "El título «${datos.nombreProyecto}» ya se usó en un proceso vencido. Debes registrar un título distinto."
+                "titulo_concluido" ->
+                    "Este título ya está registrado. Debes registrar un título distinto."
+                "cupo_pareja_residencia" ->
+                    "Ya hay ${OriginalidadService.MAX_CUPO_PAREJA} egresados con el título «${datos.nombreProyecto}» en Residencia Profesional. No se puede registrar un tercero."
+                "cupo_modalidad" ->
+                    "Ya hay ${originalidadService.cupoMaximoPara(datos.modalidad)} egresados con el título «${datos.nombreProyecto}» en «${datos.modalidad}». Usa otro nombre."
+                else ->
+                    if (origResultado.estado == "BLOQUEADO")
+                        "El título «${datos.nombreProyecto}» ya está registrado en otra modalidad y no puede usarse."
+                    else
+                        "El título «${datos.nombreProyecto}» es demasiado similar a uno existente; usa un título distinto."
+            }
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(mapOf("error" to aviso))
+        }
         val error = egresadoService.activarNuevoProceso(id, datos, archivo)
         return if (error == null) {
             ResponseEntity.ok().build<Void>()
@@ -1123,6 +1219,10 @@ class EgresadoController(
 
     private fun esRolEgresado(principal: UsuarioPrincipal): Boolean = principal.getRol() == Rol.EGRESADO
 
+    /** Staff que puede consultar listados/detalle de egresados (con scope según rol). */
+    private fun puedeConsultarDetalleStaff(rol: Rol?): Boolean =
+        rol?.esAlgunoDe(Rol.ADMINISTRADOR, Rol.DEP, Rol.ACADEMICO, Rol.APOYO_TITULACION) ?: false
+
     /**
      * Misma idea que el front `AuthService.isCoordinador()` + académicos:
      * pueden ver la bandeja de revisión / coordinación y listados de departamento.
@@ -1133,6 +1233,14 @@ class EgresadoController(
     /** Revertir pasos de bandeja departamento: solo Administrador (DEP no tiene esta pantalla). */
     private fun puedeRevertirPasoDepartamento(rol: Rol?): Boolean =
         rol?.esAlgunoDe(Rol.ADMINISTRADOR) ?: false
+
+    /** Alta, edición y nuevo proceso: Administrador o DEP (alineado con `/home/alta`). */
+    private fun puedeAltaOEditarEgresado(rol: Rol?): Boolean =
+        rol?.esAlgunoDe(Rol.ADMINISTRADOR, Rol.DEP) ?: false
+
+    /** Eliminar expediente: solo Administrador. */
+    private fun puedeEliminarEgresado(rol: Rol?): Boolean =
+        rol == Rol.ADMINISTRADOR
 
     /** Académico con carreras asignadas no puede abrir expedientes de otras carreras. */
     private fun respuestaSiAcademicoSinCarrera(id: String, principal: UsuarioPrincipal?): ResponseEntity<*>? {
@@ -1207,6 +1315,44 @@ class EgresadoController(
         } else {
             null
         }
+
+    /**
+     * Anti-IDOR: egresado solo su expediente; staff según carrera/bandeja;
+     * otros roles (p. ej. servicios escolares) no usan este detalle.
+     */
+    private fun respuestaSiNoPuedeVerDetalleEgresado(id: String, principal: UsuarioPrincipal): ResponseEntity<*>? {
+        val rol = principal.getRol()
+        if (rol == Rol.EGRESADO) {
+            return respuestaSiEgresadoNoEsDueno(id, principal)
+        }
+        if (!puedeConsultarDetalleStaff(rol)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to "No autorizado para este egresado."))
+        }
+        if (rol.esAlgunoDe(Rol.ADMINISTRADOR, Rol.DEP)) {
+            return null
+        }
+        return respuestaSiNoAccesoEgresadoBandeja(id, principal)
+    }
+
+    /** Egresado autenticado: solo el expediente vinculado (egresadoId) o su número de control. */
+    private fun respuestaSiEgresadoNoEsDueno(id: String, principal: UsuarioPrincipal): ResponseEntity<*>? {
+        val propioId = principal.getEgresadoId()?.toHexString()
+        if (propioId != null) {
+            if (propioId != id) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(mapOf("error" to "No autorizado para este egresado."))
+            }
+            return null
+        }
+        val nc = egresadoService.obtenerNumeroControl(id)?.trim()
+        val username = principal.username.trim()
+        if (nc.isNullOrBlank() || !nc.equals(username, ignoreCase = true)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to "No autorizado para este egresado."))
+        }
+        return null
+    }
 
     /** Obtiene el id de egresado para el usuario logueado en seguimiento (vínculo o número de control). */
     private fun resolverEgresadoIdParaMiSeguimiento(principal: UsuarioPrincipal): String? {

@@ -29,5 +29,7 @@ data class Revision(
     @Field("fecha_envio_siguiente") val fechaEnvioSiguiente: Instant? = null,
     @Field("enviado_al_egresado") val enviadoAlEgresado: Boolean = false,
     @Field("fecha_envio_egresado") val fechaEnvioEgresado: Instant? = null,
+    /** Cuando el egresado sube el expediente corregido en respuesta a esta revisión. */
+    @Field("fecha_correccion_egresado") val fechaCorreccionEgresado: Instant? = null,
     @Field("documento_adjunto") val documentoAdjunto: RevisionDocumentoAdjunto? = null,
 )

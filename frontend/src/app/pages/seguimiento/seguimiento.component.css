@@ -5,11 +5,13 @@
   --sitvo-fondo: #f3f6fa;
   --sitvo-card-borde: #c8d8ec;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--sitvo-fondo);
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
 .seguimiento-main {
-  padding: 1.5rem 1.5rem 2rem;
+  padding: 1.5rem 1.5rem 3.5rem;
   max-width: 1120px;
   margin: 0 auto;
 }
@@ -360,8 +362,16 @@
   gap: 1rem;
   align-self: flex-start;
   order: 1;
+  /* Si el aside es más alto que la pantalla, debe poder desplazarse (no quedar cortado). */
   position: sticky;
   top: 1rem;
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-bottom: 0.25rem;
 }
 
 .seguimiento-card {
@@ -389,9 +399,10 @@
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  max-height: 300px;
-  overflow-y: auto;
-  padding-right: 0.2rem;
+  /* Sin max-height fijo: el scroll lo maneja el aside / la página, no un recorte a medias. */
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
 }
 
 .seguimiento-revision-item {
@@ -402,11 +413,20 @@
   border-radius: 8px;
 }
 
+.seguimiento-revision-item--enviada {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
 .seguimiento-revision-titulo {
   margin: 0 0 0.25rem;
   font-size: 0.8rem;
   font-weight: 700;
   color: #1d4ed8;
+}
+
+.seguimiento-revision-titulo--enviada {
+  color: #15803d;
 }
 
 .seguimiento-revision-obs {
@@ -983,30 +1003,66 @@
   margin: 0;
 }
 
-.timeline-doc-escaneada-input {
-  display: block;
+.seg-file-picker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
   max-width: 100%;
   margin-bottom: 0.75rem;
-  font-size: 0.88rem;
-}
-
-.seg-file-input {
   padding: 0.75rem 1rem;
   border: 1px dashed #c5d9ed;
   border-radius: 8px;
   background: #fafcfe;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
+  box-sizing: border-box;
 }
-
-.seg-file-input:hover:not(:disabled) {
+.seg-file-picker:hover:not(.seg-file-picker--disabled) {
   border-color: #a8c4e0;
   background: #f0f6fc;
 }
-
-.seg-file-input:disabled {
+.seg-file-picker--ok {
+  border-color: #86b7a0;
+  background: #f3faf6;
+}
+.seg-file-picker--disabled {
   opacity: 0.55;
+  cursor: not-allowed;
+}
+.seg-file-picker__btn {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #c5d9ed;
+  background: #fff;
+  color: #244370;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.seg-file-picker__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.86rem;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.seg-file-picker__name--ok {
+  color: #1e4d3a;
+  font-weight: 600;
+}
+.seg-file-picker__input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+.seg-file-picker--disabled .seg-file-picker__input {
   cursor: not-allowed;
 }
 
@@ -1498,6 +1554,28 @@
   line-height: 1.45;
 }
 
+.timeline-correccion-enviada {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+}
+
+.timeline-correccion-enviada__tit {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #15803d;
+}
+
+.timeline-correccion-enviada__txt {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #166534;
+  line-height: 1.4;
+}
+
 @media (max-width: 900px) {
   .seguimiento-main {
     padding: 1rem 0.75rem 1.5rem;
@@ -1517,7 +1595,12 @@
     width: 100%;
     max-width: 100%;
     align-self: stretch;
+    /* En móvil el scroll es de la página completa; sticky + max-height cortaba Revisiones. */
     position: static;
+    max-height: none;
+    overflow: visible;
+    -webkit-overflow-scrolling: auto;
+    overscroll-behavior: auto;
   }
 
   .seguimiento-timeline-card {
@@ -1553,7 +1636,7 @@
 
 @media (max-width: 480px) {
   .seguimiento-main {
-    padding: 0.75rem 0.5rem 1rem;
+    padding: 0.75rem 0.5rem 2.75rem;
   }
 
   .timeline-content {

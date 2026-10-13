@@ -247,6 +247,8 @@ export interface RevisionApi {
   observaciones?: string;
   enviado_al_egresado?: boolean;
   fecha_envio_egresado?: string;
+  /** ISO: el egresado ya respondió con expediente corregido. */
+  fecha_correccion_egresado?: string | null;
   tiene_documento_adjunto?: boolean;
   documento_nombre?: string;
   documento_content_type?: string;

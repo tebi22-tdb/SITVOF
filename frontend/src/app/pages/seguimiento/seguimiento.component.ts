@@ -115,8 +115,19 @@ export class SeguimientoComponent implements OnInit {
   enviandoCorreccionExpediente = false;
   mensajeCorreccionExpediente = '';
 
+  /** Revisiones con observaciones enviadas (incluye ya respondidas). */
   get revisionesParaCorregir(): RevisionApi[] {
     return this.revisionesEnviadas.filter((r) => r.resultado === 'observaciones');
+  }
+
+  /** Aún sin corrección del egresado → hay que atender. */
+  get revisionesPendientesAtender(): RevisionApi[] {
+    return this.revisionesParaCorregir.filter((r) => !r.fecha_correccion_egresado?.trim());
+  }
+
+  /** Ya envió corrección; espera nueva revisión. */
+  get revisionesCorreccionEnviada(): RevisionApi[] {
+    return this.revisionesParaCorregir.filter((r) => !!r.fecha_correccion_egresado?.trim());
   }
 
   /** Documento liberado / aprobado por Coordinación de Apoyo a la Titulación (o residencia). */
@@ -130,11 +141,15 @@ export class SeguimientoComponent implements OnInit {
 
   get totalRevisionesPendientes(): number {
     if (this.expedienteAprobadoPorCoordinacion) return 0;
-    return this.revisionesParaCorregir.length;
+    return this.revisionesPendientesAtender.length;
   }
 
   get tieneRevisionesPendientes(): boolean {
     return this.totalRevisionesPendientes > 0;
+  }
+
+  get tieneCorreccionEnviadaSinPendiente(): boolean {
+    return !this.tieneRevisionesPendientes && this.revisionesCorreccionEnviada.length > 0;
   }
 
   get etapaRevisionesCompletada(): boolean {
@@ -148,9 +163,18 @@ export class SeguimientoComponent implements OnInit {
       return 'Tu expediente fue aprobado por Coordinación de Apoyo a la Titulación.';
     }
     const total = this.totalRevisionesPendientes;
-    if (total <= 0) return 'Sin revisiones pendientes.';
-    if (total === 1) return '1 revisión pendiente de atender.';
-    return `${total} revisiones pendientes de atender.`;
+    if (total > 0) {
+      if (total === 1) return '1 revisión pendiente de atender.';
+      return `${total} revisiones pendientes de atender.`;
+    }
+    if (this.tieneCorreccionEnviadaSinPendiente) return 'Corrección enviada. Esperando nueva revisión.';
+    return 'Sin revisiones pendientes.';
+  }
+
+  tituloRevision(r: RevisionApi): string {
+    return r.fecha_correccion_egresado?.trim()
+      ? 'Corrección enviada'
+      : 'Revisión recibida; favor de corregir a la brevedad.';
   }
 
   get esResidenciaProfesional(): boolean {
@@ -1111,7 +1135,7 @@ export class SeguimientoComponent implements OnInit {
     setTimeout(() => {
       const seccion = document.getElementById('revisiones-apoyo');
       if (!seccion) return;
-      seccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      seccion.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
     }, 0);
   }
 
@@ -1158,7 +1182,7 @@ export class SeguimientoComponent implements OnInit {
       next: () => {
         this.enviandoCorreccionExpediente = false;
         this.archivoCorreccionExpediente = null;
-        this.mensajeCorreccionExpediente = 'Expediente actualizado. Coordinación verá tu archivo corregido.';
+        this.mensajeCorreccionExpediente = 'Corrección enviada. Coordinación verá tu archivo corregido.';
         this.cargarSeguimiento();
         this.cargarRevisionesEnviadas();
       },
@@ -1286,3 +1310,4 @@ export class SeguimientoComponent implements OnInit {
     return `Tienes un plazo de 12 meses calendario para desarrollar tu ${mod}, contado desde el ${ref}. El plazo termina cuando tu departamento académico libere tu ${mod}.`;
   }
 }
+

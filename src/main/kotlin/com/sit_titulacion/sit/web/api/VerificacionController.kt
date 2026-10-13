@@ -31,11 +31,12 @@ class VerificacionController(
                 "vencido"  -> "Vencido"
                 else       -> "En proceso"
             }
+            // Sin numero_control: la verificación pública no necesita ese PII;
+            // basta nombre + carrera + estatus para confirmar autenticidad del documento.
             ResponseEntity.ok(
                 mapOf(
                     "valido" to true,
                     "nombre" to nombre,
-                    "numero_control" to egresado.numero_control,
                     "titulo_proyecto" to (proceso?.datos_proyecto?.nombre_proyecto ?: ""),
                     "modalidad" to (proceso?.datos_proyecto?.modalidad ?: ""),
                     "carrera" to p.carrera,

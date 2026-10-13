@@ -156,6 +156,7 @@ data class RevisionDto(
     val observaciones: String? = null,
     @JsonProperty("enviado_al_egresado") val enviadoAlEgresado: Boolean = false,
     @JsonProperty("fecha_envio_egresado") val fechaEnvioEgresado: String? = null,
+    @JsonProperty("fecha_correccion_egresado") val fechaCorreccionEgresado: String? = null,
     @JsonProperty("tiene_documento_adjunto") val tieneDocumentoAdjunto: Boolean = false,
     @JsonProperty("documento_nombre") val documentoNombre: String? = null,
     @JsonProperty("documento_content_type") val documentoContentType: String? = null,
