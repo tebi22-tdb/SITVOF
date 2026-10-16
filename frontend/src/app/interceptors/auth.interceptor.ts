@@ -15,7 +15,11 @@ function isSitApiRequest(url: string): boolean {
 }
 
 function esRutaLogin(url: string): boolean {
-  return url.includes('/api/auth/login') || url.includes('/api/auth/recuperar-password');
+  return (
+    url.includes('/api/auth/login') ||
+    url.includes('/api/auth/recuperar-password') ||
+    url.includes('/api/auth/restablecer-password')
+  );
 }
 
 /** Añade Bearer por pestaña (sessionStorage); ante 401 limpia sesión y redirige al login. */

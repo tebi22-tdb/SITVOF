@@ -25,6 +25,9 @@ data class Usuario(
     @Field("segmento_academico") val segmentoAcademico: String? = null,
     @Field("carreras_asignadas") val carrerasAsignadas: List<String> = emptyList(),
     val activo: Boolean = true,
+    /** Hash SHA-256 del token de restablecimiento (solo mientras el enlace es válido). */
+    @Field("password_reset_token_hash") val passwordResetTokenHash: String? = null,
+    @Field("password_reset_expira") val passwordResetExpira: Instant? = null,
     val fechaCreacion: Instant = Instant.now(),
     val fechaActualizacion: Instant = Instant.now(),
 )

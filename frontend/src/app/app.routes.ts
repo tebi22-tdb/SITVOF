@@ -7,6 +7,7 @@ import {
   noApoyoTitulacionGuard,
   noApoyoTitulacionPeroDepGuard,
   noDepGuard,
+  reportesGuard,
   serviciosEscolaresGuard,
   staffAdminGuard,
 } from './guards/auth.guard';
@@ -21,6 +22,7 @@ import {
  *   en esas dos rutas, `noApoyoTitulacionGuard` en el resto de /home/**).
  * - Apoyo a titulación: aterriza directo en `/home/revisiones` — solo revisa
  *   expedientes, sin dashboard ni acceso a alta/seguimiento.
+ * - Subdirección académica: solo Reportes y analítica (`/home/reportes`).
  * - Académico: departamento y revisión de expedientes no residencia.
  * - Egresado: seguimiento de su propio trámite.
  */
@@ -30,6 +32,13 @@ export const routes: Routes = [
     path: 'login',
     loadComponent: () => import('./pages/login/login.component').then((m) => m.LoginComponent),
     canActivate: [loginGuard],
+  },
+  {
+    path: 'restablecer-password',
+    loadComponent: () =>
+      import('./pages/restablecer-password/restablecer-password.component').then(
+        (m) => m.RestablecerPasswordComponent,
+      ),
   },
   {
     path: 'home',
@@ -58,7 +67,7 @@ export const routes: Routes = [
     path: 'home/reportes',
     loadComponent: () =>
       import('./pages/reportes/reportes.component').then((m) => m.ReportesComponent),
-    canActivate: [coordinadorGuard, noApoyoTitulacionGuard],
+    canActivate: [reportesGuard],
   },
   {
     path: 'home/seguimiento-proceso',
@@ -114,6 +123,12 @@ export const routes: Routes = [
     path: 'home/gestion-cuentas',
     loadComponent: () =>
       import('./pages/gestion-cuentas/gestion-cuentas.component').then((m) => m.GestionCuentasComponent),
+    canActivate: [staffAdminGuard],
+  },
+  {
+    path: 'home/agregar-usuario',
+    loadComponent: () =>
+      import('./pages/agregar-usuario/agregar-usuario.component').then((m) => m.AgregarUsuarioComponent),
     canActivate: [staffAdminGuard],
   },
   {

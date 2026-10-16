@@ -3,7 +3,8 @@
 
 server {
     listen 80;
-    server_name sitvo.net www.sitvo.net 77.37.74.122;
+    # Sustituir por tu dominio (y opcionalmente IP) al desplegar; no commitear IPs reales.
+    server_name ejemplo.tudominio.tld www.ejemplo.tudominio.tld;
     return 301 https://sitvo.net$request_uri;
 }
 
@@ -20,6 +21,13 @@ server {
     root /var/www/sit;
     index index.html;
 
+    # Archivos estáticos reales (logos, pdfjs…). Sin fallback a index.html.
+    location /assets/ {
+        try_files $uri =404;
+        expires 7d;
+        add_header Cache-Control "public";
+    }
+
     location / {
         try_files $uri $uri/ /index.html;
     }
@@ -30,5 +38,9 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        # Crear usuario espera hasta 60s el SMTP antes de devolver temporales.
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 90s;
+        proxy_read_timeout 90s;
     }
 }

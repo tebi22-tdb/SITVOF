@@ -103,6 +103,18 @@ export class AuthService {
     );
   }
 
+  restablecerPassword(
+    token: string,
+    password: string,
+    passwordConfirm: string,
+  ): Observable<{ ok: boolean; message: string }> {
+    return this.http.post<{ ok: boolean; message: string }>(`${AUTH}/restablecer-password`, {
+      token: token.trim(),
+      password,
+      passwordConfirm,
+    });
+  }
+
   logout(): Observable<unknown> {
     return this.http.post(AUTH + '/logout', {}).pipe(
       tap(() => {
@@ -163,6 +175,11 @@ export class AuthService {
 
   /** El repositorio ya es público (sin guard); esto solo controla si se muestra su link en algún menú de staff. */
   puedeAccederRepositorio(): boolean {
+    return this.usuario?.rol === 'administrador';
+  }
+
+  /** Reportes y analítica: administrador pleno o Subdirección académica. */
+  puedeAccederReportes(): boolean {
     return this.usuario?.rol === 'administrador' || this.usuario?.rol === 'subdireccion_academica';
   }
 
@@ -189,6 +206,8 @@ export class AuthService {
     error?: string;
     correo_enviado?: boolean;
     detalle_correo?: string;
+    username?: string;
+    password_temporal?: string;
   }> {
     return this.http.post<{
       ok: boolean;
@@ -196,6 +215,8 @@ export class AuthService {
       error?: string;
       correo_enviado?: boolean;
       detalle_correo?: string;
+      username?: string;
+      password_temporal?: string;
     }>(API + '/usuarios', body);
   }
 

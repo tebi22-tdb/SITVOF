@@ -1,0 +1,99 @@
+<div class="au-wrap">
+  <app-header
+    [showNuevoButton]="false"
+    [showAgregarUsuarioButton]="false"
+    [showVolverInicioButton]="true"
+    (volverInicioClick)="volver()"
+  ></app-header>
+
+  <div class="au-contenido">
+    <div class="au-hero">
+      <div class="au-hero-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <line x1="19" y1="8" x2="19" y2="14"/>
+          <line x1="22" y1="11" x2="16" y2="11"/>
+        </svg>
+      </div>
+      <h1 class="au-titulo">Agregar usuario</h1>
+      <p class="au-subtitulo">
+        Da de alta personal del plantel. Se enviará la contraseña temporal al correo indicado.
+      </p>
+    </div>
+
+    <form class="au-card" (ngSubmit)="guardar()">
+      <div class="au-campo">
+        <label for="au-nombre">Nombre completo <span class="au-req">*</span></label>
+        <input
+          id="au-nombre"
+          type="text"
+          class="au-input"
+          [(ngModel)]="form.nombre"
+          name="nombre"
+          placeholder="Ej. María López García"
+          autocomplete="name"
+          required
+        />
+      </div>
+
+      <div class="au-campo">
+        <label for="au-perfil">Departamento / división</label>
+        <select
+          id="au-perfil"
+          class="au-input"
+          [(ngModel)]="form.perfil"
+          name="perfil"
+          (ngModelChange)="onCambioPerfil()"
+        >
+          <option *ngFor="let p of perfilesDisponibles" [value]="p.id">{{ p.etiqueta }}</option>
+        </select>
+      </div>
+
+      <div class="au-campo" *ngIf="muestraCarreras">
+        <label for="au-carreras">Carreras que atenderá</label>
+        <textarea id="au-carreras" class="au-input au-textarea" [value]="carrerasTexto" rows="3" readonly></textarea>
+        <p class="au-ayuda">Se asignan automáticamente según el departamento elegido.</p>
+      </div>
+
+      <div class="au-campo">
+        <label for="au-correo">Correo electrónico <span class="au-req">*</span></label>
+        <input
+          id="au-correo"
+          type="email"
+          class="au-input"
+          [(ngModel)]="form.correo_electronico"
+          name="correo"
+          placeholder="correo@ejemplo.com"
+          autocomplete="email"
+          required
+        />
+        <p class="au-ayuda">También será su usuario de acceso al sistema.</p>
+      </div>
+
+      <p *ngIf="mensajeError" class="au-msg au-msg-error">{{ mensajeError }}</p>
+      <p *ngIf="mensajeOk" class="au-msg au-msg-ok">{{ mensajeOk }}</p>
+
+      <div *ngIf="credenciales" class="au-creds">
+        <p class="au-creds-titulo">Credenciales temporales (entrégalas en persona)</p>
+        <div class="au-creds-fila">
+          <span class="au-creds-label">Usuario</span>
+          <code class="au-creds-valor">{{ credenciales.username }}</code>
+        </div>
+        <div class="au-creds-fila">
+          <span class="au-creds-label">Contraseña</span>
+          <code class="au-creds-valor">{{ credenciales.password }}</code>
+        </div>
+      </div>
+
+      <div class="au-acciones">
+        <button type="button" class="au-btn au-btn-sec" (click)="limpiar()" [disabled]="guardando">
+          Limpiar
+        </button>
+        <button type="submit" class="au-btn au-btn-pri" [disabled]="guardando">
+          {{ guardando ? 'Guardando…' : 'Crear usuario' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

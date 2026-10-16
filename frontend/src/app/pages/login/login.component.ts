@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { InactivityService } from '../../services/inactivity.service';
+import { LOGO_ITVO, LOGO_TECNM } from '../../core/logos';
 
 @Component({
   selector: 'app-login',
@@ -13,6 +14,8 @@ import { InactivityService } from '../../services/inactivity.service';
   styleUrl: './login.component.css',
 })
 export class LoginComponent implements OnInit {
+  readonly logoTecnm = LOGO_TECNM;
+  readonly logoItvo = LOGO_ITVO;
   username = '';
   password = '';
   error = '';

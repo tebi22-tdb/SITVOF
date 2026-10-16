@@ -6,7 +6,7 @@ export interface PerfilCreacionUsuarioItem {
 
 /** Perfiles estáticos (no dependen del catálogo de departamentos). */
 export const PERFILES_ESTATICOS: PerfilCreacionUsuarioItem[] = [
-  { id: 'apoyo_titulacion',            etiqueta: 'División de Estudios Profesionales — Apoyo a Titulación' },
+  { id: 'administrador',               etiqueta: 'Administrador (acceso completo)' },
   { id: 'dep',                         etiqueta: 'División de Estudios Profesionales (DEP)' },
   { id: 'academico_general',           etiqueta: 'Coordinacion de apoyo a la titulacion' },
   { id: 'servicios_escolares',         etiqueta: 'Departamento de Servicios Escolares' },
@@ -38,6 +38,8 @@ export interface DatosRolDesdePerfil {
  */
 export function datosRolDesdePerfil(perfil: string): DatosRolDesdePerfil {
   switch (perfil) {
+    case 'administrador':
+      return { rol: 'administrador', segmento_academico: '', carreras_asignadas: [] };
     case 'apoyo_titulacion':
       return { rol: 'apoyo_titulacion', segmento_academico: '', carreras_asignadas: [] };
     case 'dep':

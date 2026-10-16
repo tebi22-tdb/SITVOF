@@ -5,6 +5,7 @@ import com.sit_titulacion.sit.repository.EgresadoRepository
 import com.sit_titulacion.sit.repository.UsuarioRepository
 import com.sit_titulacion.sit.security.JwtService
 import com.sit_titulacion.sit.service.EmailService
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Profile
 import org.springframework.http.ResponseEntity
 import org.springframework.security.authentication.AuthenticationManager
@@ -18,7 +19,11 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import java.security.MessageDigest
+import java.security.SecureRandom
 import java.time.Instant
+import java.time.temporal.ChronoUnit
+import java.util.Base64
 
 data class UsuarioActualDto(
     val username: String,
@@ -31,6 +36,11 @@ data class HashRequest(val password: String? = null)
 data class HashResponse(val hash: String)
 data class LoginRequest(val username: String = "", val password: String = "")
 data class RecuperarPasswordRequest(val numeroControl: String = "")
+data class RestablecerPasswordRequest(
+    val token: String = "",
+    val password: String = "",
+    val passwordConfirm: String = "",
+)
 
 @RestController
 @RequestMapping("/api/auth")
@@ -41,7 +51,14 @@ class AuthController(
     private val usuarioRepository: UsuarioRepository,
     private val egresadoRepository: EgresadoRepository,
     private val emailService: EmailService,
+    @Value("\${sit.cert.base-url:https://sitvo.net}") private val publicBaseUrl: String,
 ) {
+    private val secureRandom = SecureRandom()
+
+    companion object {
+        private const val RESET_TOKEN_MINUTOS = 30L
+        private const val PASSWORD_MIN_LEN = 8
+    }
 
     /**
      * Login JSON: devuelve JWT para sessionStorage (cada pestaña tiene su propio token).
@@ -90,13 +107,9 @@ class AuthController(
     }
 
     /**
-     * Recuperación de contraseña por correo electrónico.
-     * Siempre devuelve el mismo mensaje para no revelar si el correo existe en el sistema.
-     */
-    /**
-     * Recuperación de contraseña: el usuario ingresa su número de control (username).
-     * Si la cuenta existe y tiene correo registrado, se genera nueva contraseña y se envía ahí.
-     * Siempre devuelve el mismo mensaje para no revelar si la cuenta existe.
+     * Solicitud de recuperación: no cambia la contraseña.
+     * Si la cuenta existe y tiene correo, guarda un token de un solo uso (30 min) y envía el enlace.
+     * Siempre responde el mismo mensaje para no revelar si la cuenta existe.
      */
     @PostMapping("/recuperar-password")
     fun recuperarPassword(@RequestBody body: RecuperarPasswordRequest): ResponseEntity<Any> {
@@ -106,26 +119,94 @@ class AuthController(
         }
         val respuestaGenerica = mapOf(
             "ok" to true,
-            "message" to "Si el número de control está registrado y tiene correo asociado, recibirás una nueva contraseña en breve.",
+            "message" to "Si el número de control está registrado y tiene correo asociado, recibirás un enlace para restablecer tu contraseña. Revisa tu bandeja (y spam).",
         )
         val usuario = usuarioRepository.findByUsername(numeroControl)
-        // Para egresados el correo vive en Egresado.datos_personales; para staff en Usuario.correoElectronico.
         val correoDestino = usuario?.correoElectronico
             ?: usuario?.egresadoId?.let { eid ->
                 egresadoRepository.findById(eid).orElse(null)?.datos_personales?.correo_electronico
             }
         if (usuario != null && usuario.activo && !correoDestino.isNullOrBlank()) {
-            val nuevaPassword = generarPasswordAleatoria()
-            @Suppress("USELESS_CAST")
-            val hash = passwordEncoder.encode(nuevaPassword) as String
-            usuarioRepository.save(usuario.copy(passwordHash = hash, fechaActualizacion = Instant.now()))
-            try {
-                emailService.enviarRecuperacionPassword(correoDestino, usuario.username, nuevaPassword)
+            val tokenPlano = generarTokenReset()
+            val ahora = Instant.now()
+            usuarioRepository.save(
+                usuario.copy(
+                    passwordResetTokenHash = hashTokenReset(tokenPlano),
+                    passwordResetExpira = ahora.plus(RESET_TOKEN_MINUTOS, ChronoUnit.MINUTES),
+                    fechaActualizacion = ahora,
+                ),
+            )
+            val base = publicBaseUrl.trim().trimEnd('/')
+            val enlace = "$base/#/restablecer-password?token=${java.net.URLEncoder.encode(tokenPlano, Charsets.UTF_8)}"
+            val enviado = try {
+                emailService.enviarEnlaceRestablecerPassword(correoDestino, usuario.username, enlace, RESET_TOKEN_MINUTOS.toInt())
             } catch (_: Exception) {
-                // El correo falló pero la contraseña ya se actualizó — el EmailService ya logea el error
+                false
+            }
+            if (!enviado) {
+                // No dejar token huérfano ni cambiar la contraseña si el correo no salió.
+                usuarioRepository.save(
+                    usuario.copy(
+                        passwordResetTokenHash = null,
+                        passwordResetExpira = null,
+                        fechaActualizacion = Instant.now(),
+                    ),
+                )
             }
         }
         return ResponseEntity.ok(respuestaGenerica)
+    }
+
+    /**
+     * Confirma el restablecimiento con el token del correo y la nueva contraseña.
+     * Solo aquí se actualiza el hash de la cuenta.
+     */
+    @PostMapping("/restablecer-password")
+    fun restablecerPassword(@RequestBody body: RestablecerPasswordRequest): ResponseEntity<Any> {
+        val token = body.token.trim()
+        val password = body.password
+        val confirm = body.passwordConfirm
+        if (token.isBlank()) {
+            return ResponseEntity.badRequest().body(mapOf("error" to "El enlace no es válido."))
+        }
+        if (password.length < PASSWORD_MIN_LEN) {
+            return ResponseEntity.badRequest().body(mapOf("error" to "La contraseña debe tener al menos $PASSWORD_MIN_LEN caracteres."))
+        }
+        if (password != confirm) {
+            return ResponseEntity.badRequest().body(mapOf("error" to "Las contraseñas no coinciden."))
+        }
+        val usuario = usuarioRepository.findByPasswordResetTokenHash(hashTokenReset(token))
+            ?: return ResponseEntity.status(400).body(mapOf("error" to "El enlace no es válido o ya fue utilizado."))
+        val expira = usuario.passwordResetExpira
+        if (expira == null || Instant.now().isAfter(expira)) {
+            usuarioRepository.save(
+                usuario.copy(
+                    passwordResetTokenHash = null,
+                    passwordResetExpira = null,
+                    fechaActualizacion = Instant.now(),
+                ),
+            )
+            return ResponseEntity.status(400).body(mapOf("error" to "El enlace ha caducado. Solicita uno nuevo."))
+        }
+        if (!usuario.activo) {
+            return ResponseEntity.status(400).body(mapOf("error" to "La cuenta no está activa."))
+        }
+        @Suppress("USELESS_CAST")
+        val nuevoHash = passwordEncoder.encode(password) as String
+        usuarioRepository.save(
+            usuario.copy(
+                passwordHash = nuevoHash,
+                passwordResetTokenHash = null,
+                passwordResetExpira = null,
+                fechaActualizacion = Instant.now(),
+            ),
+        )
+        return ResponseEntity.ok(
+            mapOf(
+                "ok" to true,
+                "message" to "Contraseña actualizada. Ya puedes iniciar sesión.",
+            ),
+        )
     }
 
     @GetMapping("/me")
@@ -143,9 +224,14 @@ class AuthController(
         ))
     }
 
-    private fun generarPasswordAleatoria(longitud: Int = 10): String {
-        // Sin caracteres ambiguos (0/O, 1/l/I) para facilitar la lectura en el correo
-        val chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
-        return (1..longitud).map { chars.random() }.joinToString("")
+    private fun generarTokenReset(): String {
+        val bytes = ByteArray(32)
+        secureRandom.nextBytes(bytes)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+    }
+
+    private fun hashTokenReset(token: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(token.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }
     }
 }
