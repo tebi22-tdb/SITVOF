@@ -129,6 +129,20 @@ class RevisionService(
         return toDto(enviada)
     }
 
+    /**
+     * Marca como respondidas las revisiones con observaciones ya enviadas al egresado
+     * (sin corrección previa) del proceso activo. Así la UI pasa a "Corrección enviada"
+     * hasta que llegue una revisión nueva.
+     */
+    fun marcarCorreccionEgresado(egresadoId: ObjectId, procesoId: ObjectId, momento: Instant = Instant.now()): Int {
+        val pendientes = revisionRepository.findEnviadasAlEgresadoPorProceso(egresadoId, procesoId)
+            .filter { it.resultado == "observaciones" && it.fechaCorreccionEgresado == null }
+        for (rev in pendientes) {
+            revisionRepository.save(rev.copy(fechaCorreccionEgresado = momento))
+        }
+        return pendientes.size
+    }
+
     fun ultimaRevision(egresadoId: ObjectId, procesoId: ObjectId): Revision? =
         revisionRepository.findByEgresadoIdAndProcesoIdOrderByNumeroRevisionDesc(egresadoId, procesoId).firstOrNull()
 
@@ -221,6 +235,7 @@ class RevisionService(
         observaciones = r.observaciones,
         enviadoAlEgresado = r.enviadoAlEgresado,
         fechaEnvioEgresado = r.fechaEnvioEgresado?.let { formatter.format(it) },
+        fechaCorreccionEgresado = r.fechaCorreccionEgresado?.let { formatter.format(it) },
         tieneDocumentoAdjunto = r.documentoAdjunto != null,
         documentoNombre = r.documentoAdjunto?.nombreOriginal,
         documentoContentType = r.documentoAdjunto?.contentType,

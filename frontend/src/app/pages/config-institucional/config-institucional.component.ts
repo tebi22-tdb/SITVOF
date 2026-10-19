@@ -46,7 +46,11 @@ import {
             <div class="campo">
               <label class="lbl">Iniciales (pie de página)</label>
               <input class="inp" type="text" [(ngModel)]="global!.jefeDivisionIniciales" name="jefeDivisionIniciales"
-                placeholder="Ej. MFR/xyz"/>
+                placeholder="Ej. ACAC/lmr"/>
+              <p class="campo-hint" style="margin:6px 0 0;font-size:12px;color:#6b7280;line-height:1.4;">
+                La parte antes de la barra se toma del nombre del Jefe(a) (ej. Alida Corey Arango Cruz → ACAC).
+                Después de la barra va quien elaboró el documento (ej. /lmr). Al cambiar el nombre, el prefijo se actualiza solo.
+              </p>
             </div>
             <div class="campo">
               <label class="lbl">Correo (pie de página de anexos)</label>

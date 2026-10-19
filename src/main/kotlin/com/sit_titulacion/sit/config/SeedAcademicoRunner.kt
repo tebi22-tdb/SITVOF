@@ -4,6 +4,7 @@ import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.domain.Usuario
 import com.sit_titulacion.sit.repository.UsuarioRepository
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -13,22 +14,23 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Component
 
 /**
- * Al arrancar, crea el usuario departamento académico por defecto (academico / 12345)
- * en la colección usuarios si aún no existe.
+ * Usuario académico de prueba (`academico`). Contraseña solo desde
+ * `sit.seed.users.academico.password` / `SIT_SEED_ACADEMICO_PASSWORD`.
+ * En producción el seed de usuarios va desactivado.
  */
 @Component
 @Order(2)
-@ConditionalOnProperty(name = ["sit.seed.enabled"], havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = ["sit.seed.users.enabled"], havingValue = "true", matchIfMissing = false)
 class SeedAcademicoRunner(
     private val usuarioRepository: UsuarioRepository,
     private val passwordEncoder: PasswordEncoder,
+    @Value("\${sit.seed.users.academico.password:}") private val passwordAcademico: String,
 ) : ApplicationRunner {
 
     private val log = LoggerFactory.getLogger(SeedAcademicoRunner::class.java)
 
     companion object {
         const val USERNAME_ACADEMICO = "academico"
-        const val PASSWORD_ACADEMICO = "12345"
         val ROL_ACADEMICO = Rol.ACADEMICO
     }
 
@@ -37,8 +39,16 @@ class SeedAcademicoRunner(
             log.debug("Usuario academico ya existe, no se crea.")
             return
         }
+        val password = passwordAcademico.trim()
+        if (password.isEmpty()) {
+            log.warn(
+                "Seed de usuarios activo pero falta sit.seed.users.academico.password " +
+                    "(o SIT_SEED_ACADEMICO_PASSWORD). No se crea «$USERNAME_ACADEMICO».",
+            )
+            return
+        }
         @Suppress("USELESS_CAST")
-        val passwordHash = passwordEncoder.encode(PASSWORD_ACADEMICO) as String
+        val passwordHash = passwordEncoder.encode(password) as String
         val usuario = Usuario(
             username = USERNAME_ACADEMICO,
             passwordHash = passwordHash,

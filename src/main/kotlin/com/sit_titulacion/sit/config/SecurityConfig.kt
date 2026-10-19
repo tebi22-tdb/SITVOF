@@ -53,6 +53,7 @@ class SecurityConfig(
                 auth
                     .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/auth/recuperar-password").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/auth/restablecer-password").permitAll()
                     .requestMatchers("/api/verificar/**").permitAll()
                     .requestMatchers("/api/repositorio/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/catalogos/carreras").permitAll()

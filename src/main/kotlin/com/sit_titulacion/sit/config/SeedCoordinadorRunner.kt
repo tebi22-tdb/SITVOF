@@ -4,33 +4,34 @@ import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.domain.Usuario
 import com.sit_titulacion.sit.repository.UsuarioRepository
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.core.annotation.Order
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.security.crypto.password.PasswordEncoder
-import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 
 /**
- * Al arrancar la aplicación, crea el usuario administrador por defecto
- * (username "coordinador" / 12345 — el username de login no cambió, solo el
- * rol que se le asigna) en la colección usuarios si aún no existe. Es
- * temporal hasta definir cómo se gestionan usuarios.
+ * Crea el usuario administrador de prueba (`coordinador`) solo si
+ * `sit.seed.users.enabled=true` y hay contraseña en
+ * `sit.seed.users.coordinador.password` / `SIT_SEED_COORDINADOR_PASSWORD`.
+ * En producción el seed de usuarios va desactivado.
  */
 @Component
 @Order(1)
-@ConditionalOnProperty(name = ["sit.seed.enabled"], havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = ["sit.seed.users.enabled"], havingValue = "true", matchIfMissing = false)
 class SeedCoordinadorRunner(
     private val usuarioRepository: UsuarioRepository,
     private val passwordEncoder: PasswordEncoder,
+    @Value("\${sit.seed.users.coordinador.password:}") private val passwordCoordinador: String,
 ) : ApplicationRunner {
 
     private val log = LoggerFactory.getLogger(SeedCoordinadorRunner::class.java)
 
     companion object {
         const val USERNAME_COORDINADOR = "coordinador"
-        const val PASSWORD_COORDINADOR = "12345"
         val ROL_COORDINADOR = Rol.ADMINISTRADOR
     }
 
@@ -39,8 +40,16 @@ class SeedCoordinadorRunner(
             log.debug("Usuario coordinador ya existe, no se crea.")
             return
         }
+        val password = passwordCoordinador.trim()
+        if (password.isEmpty()) {
+            log.warn(
+                "Seed de usuarios activo pero falta sit.seed.users.coordinador.password " +
+                    "(o SIT_SEED_COORDINADOR_PASSWORD). No se crea «$USERNAME_COORDINADOR».",
+            )
+            return
+        }
         @Suppress("USELESS_CAST")
-        val passwordHash = passwordEncoder.encode(PASSWORD_COORDINADOR) as String
+        val passwordHash = passwordEncoder.encode(password) as String
         val usuario = Usuario(
             username = USERNAME_COORDINADOR,
             passwordHash = passwordHash,

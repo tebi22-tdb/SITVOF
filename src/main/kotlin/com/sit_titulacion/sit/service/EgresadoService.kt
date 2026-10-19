@@ -723,22 +723,34 @@ class EgresadoService(
         val concluso = expedientes.firstOrNull { esExpedienteConclusoDefinitivo(it) }
         if (concluso != null) return VerificacionDuplicadoAlta("BLOQUEADO", "titulado", concluso.id?.toString())
 
+        val egresadoId = expedientes.firstOrNull()?.id?.toString()
         val modalidadNueva = normalizarModalidadAlta(modalidad)
         if (modalidadNueva.isBlank()) {
-            val primero = expedientes.firstOrNull()
-            return VerificacionDuplicadoAlta("BLOQUEADO", "vencido", primero?.id?.toString())
+            return VerificacionDuplicadoAlta("BLOQUEADO", "vencido", egresadoId)
         }
 
-        val repetida = expedientes.firstOrNull {
-            normalizarModalidadAlta(it.procesoActivoOrNull()?.datos_proyecto?.modalidad) == modalidadNueva
+        val modalidadesCerradas = expedientes
+            .flatMap { it.procesos }
+            .filter { p ->
+                val est = p.estado_general.trim().lowercase()
+                est == "vencido" || est == "titulado"
+            }
+            .map { normalizarModalidadAlta(it.datos_proyecto.modalidad) }
+            .filter { it.isNotBlank() }
+            .toSet()
+        if (modalidadNueva in modalidadesCerradas) {
+            return VerificacionDuplicadoAlta("BLOQUEADO", "vencido", egresadoId)
         }
-        if (repetida != null) return VerificacionDuplicadoAlta("BLOQUEADO", "vencido", repetida.id?.toString())
 
-        return VerificacionDuplicadoAlta("LIBRE", null)
+        // Modalidad distinta permitida: retomar el mismo expediente (nuevo proceso), nunca alta duplicada.
+        return VerificacionDuplicadoAlta("RETOMAR", "vencido", egresadoId)
     }
 
     fun validarNuevaAltaNumeroControl(datos: EgresadoRequestDto): String? {
         val verificacion = verificarDisponibilidadNumeroControlParaAlta(numero = datos.numero_control, excluirId = null, modalidad = datos.modalidad)
+        if (verificacion.estado == "RETOMAR") {
+            return "Este número de control ya tiene un expediente vencido. Debes registrar un nuevo proceso sobre ese expediente (elige otra modalidad), no un alta nueva."
+        }
         if (verificacion.estado != "BLOQUEADO") return null
         return when (verificacion.expedienteEstado?.trim()) {
             "en_proceso" -> "Este número de control ya tiene un expediente en proceso."
@@ -856,6 +868,9 @@ class EgresadoService(
         if (ultima.resultado != "observaciones") {
             return "Solo puedes subir corrección cuando la última revisión indica observaciones."
         }
+        if (ultima.fechaCorreccionEgresado != null) {
+            return "Ya enviaste la corrección de esta revisión. Espera una nueva revisión de Coordinación."
+        }
         val ahora = Instant.now()
         val gridFsIdAnterior = p.documento_adjunto.gridfs_id
         return try {
@@ -878,6 +893,7 @@ class EgresadoService(
                     ),
                 ),
             )
+            revisionService.marcarCorreccionEgresado(eid, p.id, ahora)
             if (gridFsIdAnterior != null) {
                 try {
                     gridFsTemplate.delete(Query.query(Criteria.where("_id").`is`(gridFsIdAnterior)))
@@ -1480,7 +1496,13 @@ class EgresadoService(
         val valores = construirValoresPlantillaHtml(e, listOf(
             "MODALIDAD" to p.datos_proyecto.modalidad,
             "FECHA_CARTA" to fechaCartaEspanolaCapitalizada(ahora),
-            "TEXTO_OPCION_TI" to textoOpcionTitulacionIntegral(p.datos_proyecto.modalidad),
+            // Tipo oración; solo el paréntesis va en negrita en la plantilla HTML.
+            "TEXTO_OPCION_TI" to textoOpcionTitulacionIntegralTipoOracion(p.datos_proyecto.modalidad),
+            // Título profesional (Ingeniero informático…), no el nombre de la carrera.
+            "TITULO_PROFESIONAL" to tituloProfesionalDesdeCarrera(
+                e.datos_personales.carrera,
+                generoDocumentoEgresado(e),
+            ),
             "DESTINATARIO_SERVICIOS_ESCOLARES" to serviciosEscolares.jefeNombre.uppercase(Locale.forLanguageTag("es-MX")),
             "CARGO_SERVICIOS_ESCOLARES" to serviciosEscolares.jefeCargo.uppercase(Locale.forLanguageTag("es-MX")),
             "QR_CODE" to qrDataUri,
@@ -2485,6 +2507,77 @@ class EgresadoService(
             m.contains("ceneval") -> "EXAMEN CENEVAL"
             else -> modalidad.uppercase(Locale.forLanguageTag("es-MX"))
         }
+    }
+
+    /** Opción entre paréntesis del Anexo 9.1: tipo oración (Tesina, Tesis, …). */
+    private fun textoOpcionTitulacionIntegralTipoOracion(modalidad: String): String {
+        val m = modalidad.trim().lowercase(Locale.ROOT)
+        return when {
+            m.contains("residencia") -> "Reporte final de residencia profesional"
+            m.contains("tesina") -> "Tesina"
+            m.contains("ceneval") -> "Examen CENEVAL"
+            m.contains("tesis") -> "Tesis"
+            m.contains("monograf") -> "Monografía"
+            m.contains("investigacion") || m.contains("investigación") -> "Proyecto de investigación"
+            else -> aTipoOracion(modalidad)
+        }
+    }
+
+    /** Primera letra mayúscula, resto minúsculas (tipo oración). */
+    private fun aTipoOracion(s: String): String {
+        val t = s.trim().lowercase(Locale.forLanguageTag("es-MX"))
+        if (t.isEmpty()) return s
+        return t.replaceFirstChar { it.uppercase(Locale.forLanguageTag("es-MX")) }
+    }
+
+    /**
+     * Título profesional para «obtener mi Título Profesional de …» en Anexo 9.1.
+     * Ej.: Ingeniería Informática → Ingeniero/a informático/a (no el nombre de la carrera).
+     */
+    private fun tituloProfesionalDesdeCarrera(carrera: String, genero: GeneroDocumento): String {
+        val k = NormalizacionTexto.normalizarClave(carrera)
+        val f = genero == GeneroDocumento.FEMENINO
+        val texto = when {
+            k.contains("informatica") && !k.contains("tecnologia") ->
+                if (f) "Ingeniera informática" else "Ingeniero informático"
+            k.contains("forestal") ->
+                if (f) "Ingeniera forestal" else "Ingeniero forestal"
+            k.contains("agronom") ->
+                if (f) "Ingeniera en agronomía" else "Ingeniero en agronomía"
+            k.contains("tecnologia de la informacion") ||
+                (k.contains("tecnologia") && k.contains("comunicacion")) ->
+                if (f) "Ingeniera en tecnología de la información y comunicación"
+                else "Ingeniero en tecnología de la información y comunicación"
+            k.contains("ciencia de datos") ->
+                if (f) "Ingeniera en ciencia de datos" else "Ingeniero en ciencia de datos"
+            k.contains("sistemas computacionales") ->
+                if (f) "Ingeniera en sistemas computacionales" else "Ingeniero en sistemas computacionales"
+            k.contains("ambiental") ->
+                if (f) "Ingeniera ambiental" else "Ingeniero ambiental"
+            k.contains("gestion empresarial") ->
+                if (f) "Ingeniera en gestión empresarial" else "Ingeniero en gestión empresarial"
+            k.contains("biologia") ->
+                if (f) "Licenciada en biología" else "Licenciado en biología"
+            k.startsWith("licenciatura en ") -> {
+                val resto = aTipoOracion(carrera.replace(Regex("(?i)^\\s*licenciatura\\s+en\\s+"), ""))
+                if (f) "Licenciada en ${resto.replaceFirstChar { it.lowercase(Locale.forLanguageTag("es-MX")) }}"
+                else "Licenciado en ${resto.replaceFirstChar { it.lowercase(Locale.forLanguageTag("es-MX")) }}"
+            }
+            k.startsWith("ingenieria en ") || k.startsWith("ingeniería en ") -> {
+                val resto = aTipoOracion(carrera.replace(Regex("(?i)^\\s*ingenier[ií]a\\s+en\\s+"), ""))
+                    .replaceFirstChar { it.lowercase(Locale.forLanguageTag("es-MX")) }
+                if (f) "Ingeniera en $resto" else "Ingeniero en $resto"
+            }
+            k.startsWith("ingenieria ") || k.startsWith("ingeniería ") -> {
+                val resto = aTipoOracion(carrera.replace(Regex("(?i)^\\s*ingenier[ií]a\\s+"), ""))
+                    .replaceFirstChar { it.lowercase(Locale.forLanguageTag("es-MX")) }
+                if (f) "Ingeniera $resto" else "Ingeniero $resto"
+            }
+            else -> toTitleCaseCarrera(carrera)
+        }
+        // En el PDF del 9.1 el span sigue en mayúsculas (val-mayus); devolvemos el texto
+        // ya en tipo oración por si se quita esa clase; el CSS lo pondrá en mayúsculas.
+        return texto
     }
 
     /** CENEVAL: texto fijo en documentos; demás modalidades: nombre del proyecto. */

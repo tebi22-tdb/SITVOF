@@ -10,7 +10,7 @@ function redirigirInicioPorRol(auth: AuthService, router: Router): void {
   } else if (auth.isAcademico()) {
     router.navigate(['/departamento-academico']);
   } else if (auth.isSubdireccionAcademica()) {
-    router.navigate(['/repositorio']);
+    router.navigate(['/home/reportes']);
   } else if (auth.isApoyoTitulacion()) {
     // Antes de isAdministrador(): isAdministrador() incluye a apoyo_titulacion, así
     // que esta rama debe ganar primero — su única pantalla es Revisiones.
@@ -87,7 +87,8 @@ export const coordinadorGuard: CanActivateFn = (route, state) => {
         return false;
       }
       if (auth.isSubdireccionAcademica()) {
-        router.navigate(['/repositorio']);
+        // Solo Reportes: otras rutas /home/** se redirigen ahí.
+        router.navigate(['/home/reportes']);
         return false;
       }
       if (auth.isAcademico()) {
@@ -106,6 +107,35 @@ export const coordinadorGuard: CanActivateFn = (route, state) => {
       router.navigate(['/login']);
       return of(false);
     })
+  );
+};
+
+/**
+ * Reportes y analítica: administrador pleno (no apoyo) y Subdirección académica.
+ * Es la única pantalla de /home a la que entra Subdirección.
+ */
+export const reportesGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  return auth.me().pipe(
+    map(() => {
+      if (auth.isSubdireccionAcademica()) return true;
+      if (auth.isAdministrador() && !auth.isApoyoTitulacion()) return true;
+      if (auth.isApoyoTitulacion()) {
+        router.navigate(['/home/revisiones']);
+        return false;
+      }
+      if (auth.isDep()) {
+        router.navigate(['/home/seguimiento-proceso']);
+        return false;
+      }
+      redirigirInicioPorRol(auth, router);
+      return false;
+    }),
+    catchError(() => {
+      router.navigate(['/login']);
+      return of(false);
+    }),
   );
 };
 
@@ -209,6 +239,10 @@ export const academicoGuard: CanActivateFn = (route, state) => {
         router.navigate(['/servicios-escolares']);
         return false;
       }
+      if (auth.isSubdireccionAcademica()) {
+        router.navigate(['/home/reportes']);
+        return false;
+      }
       if (auth.isAdministrador()) {
         router.navigate(['/home']);
         return false;
@@ -263,6 +297,10 @@ export const egresadoGuard: CanActivateFn = (route, state) => {
       }
       if (auth.isAcademico()) {
         router.navigate(['/departamento-academico']);
+        return false;
+      }
+      if (auth.isSubdireccionAcademica()) {
+        router.navigate(['/home/reportes']);
         return false;
       }
       if (auth.isAdministrador()) {

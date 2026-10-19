@@ -46,16 +46,16 @@ class RolMigrationRunner(
             val valorLegado = doc.getString("rol") ?: return@forEach
             if (esCanonico(valorLegado)) return@forEach
 
-            val rol = tokensRolLegado(valorLegado).firstNotNullOfOrNull { Rol.desdeBd(it) }
-            if (rol == null) {
+            val nombreEnum = tokensRolLegado(valorLegado).firstNotNullOfOrNull { resolverNombreEnum(it) }
+            if (nombreEnum == null) {
                 sinResolver++
                 log.warn("usuarios/{}: no se pudo resolver rol legado '{}'; se deja sin migrar.", doc.getObjectId("_id"), valorLegado)
                 return@forEach
             }
 
-            col.updateOne(Document("_id", doc.getObjectId("_id")), Document("\$set", Document("rol", rol.name)))
+            col.updateOne(Document("_id", doc.getObjectId("_id")), Document("\$set", Document("rol", nombreEnum)))
             migrados++
-            log.info("usuarios/{}: rol '{}' -> '{}'.", doc.getObjectId("_id"), valorLegado, rol.name)
+            log.info("usuarios/{}: rol '{}' -> '{}'.", doc.getObjectId("_id"), valorLegado, nombreEnum)
         }
 
         when {
@@ -64,7 +64,18 @@ class RolMigrationRunner(
         }
     }
 
-    private fun esCanonico(valor: String): Boolean = Rol.entries.any { it.name == valor }
+    private fun esCanonico(valor: String): Boolean =
+        Rol.entries.any { it.name == valor } || valor in NOMBRES_INTERMEDIOS_CONSOLIDACION
+
+    /**
+     * Resuelve un token legado al nombre de enum (o al nombre intermedio que
+     * [RolConsolidacionRunner] espera: COORDINADOR / DIVISION_ESTUDIOS_PROF_ADMIN).
+     */
+    private fun resolverNombreEnum(token: String): String? {
+        val t = token.trim().lowercase()
+        ALIASES_LEGADOS[t]?.let { return it }
+        return Rol.desdeBd(t)?.name
+    }
 
     /**
      * Partes de un valor de rol legado, tolerando compuestos ("Coordinador - Administrador")
@@ -98,5 +109,17 @@ class RolMigrationRunner(
         val GUIONES_TIPOGRAFICOS = setOf('‐', '‑', '‒', '–', '—', '−', '⁃')
         val separadoresCompuestos = Regex("""\s*-\s*|\s*,\s*|\s*/\s*""")
         val separadoresAgresivos = Regex("""[\s/,\-_.]+""")
+        /** Nombres que aún no son [Rol] pero sí inputs de [RolConsolidacionRunner]. */
+        val NOMBRES_INTERMEDIOS_CONSOLIDACION = setOf("COORDINADOR", "DIVISION_ESTUDIOS_PROF_ADMIN")
+        /**
+         * Aliases en minúsculas (valorBd legado) → nombre a persistir.
+         * `coordinador` / `division_estudios_prof_admin` ya no existen en [Rol];
+         * se escriben como intermedios para que [RolConsolidacionRunner] los pase
+         * a ADMINISTRADOR / DEP (o, si esa migración ya corrió, se corrigen abajo).
+         */
+        val ALIASES_LEGADOS = mapOf(
+            "coordinador" to "COORDINADOR",
+            "division_estudios_prof_admin" to "DIVISION_ESTUDIOS_PROF_ADMIN",
+        )
     }
 }

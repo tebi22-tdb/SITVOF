@@ -2,8 +2,8 @@
   <div class="login-wrap">
     <aside class="login-brand">
       <div class="login-logos">
-        <img src="assets/images/logo-tecnm.png" alt="TecNM" class="login-logo" />
-        <img src="assets/images/logo-itvo.png" alt="ITVO" class="login-logo" />
+        <img [src]="logoTecnm" alt="TecNM" class="login-logo" />
+        <img [src]="logoItvo" alt="ITVO" class="login-logo" />
       </div>
       <p class="login-kicker">Acceso institucional</p>
       <h1 class="login-titulo">SITVO</h1>
@@ -45,9 +45,9 @@
       <form *ngIf="vistaRecuperar" (ngSubmit)="onSubmitRecuperar()" class="login-form">
         <h2 class="login-form-titulo">Recuperar contraseña</h2>
         <p class="login-recuperar-info">
-          Ingresa tu número de control. Si está registrado y tiene correo asociado, recibirás una nueva contraseña. Tu número de control seguirá siendo el mismo usuario.
+          Ingresa tu número de control o usuario. Si está registrado y tiene correo asociado, te enviaremos un enlace para elegir una nueva contraseña. Tu contraseña actual no cambia hasta que completes ese paso.
         </p>
-        <label for="nc-recuperar">Número de control</label>
+        <label for="nc-recuperar">Número de control / usuario</label>
         <input
           id="nc-recuperar"
           type="text"
@@ -59,7 +59,7 @@
         <p *ngIf="errorRecuperar" class="error">{{ errorRecuperar }}</p>
         <p *ngIf="mensajeRecuperar" class="login-recuperar-ok">{{ mensajeRecuperar }}</p>
         <button type="submit" class="btn-login" [disabled]="enviandoRecuperar || !!mensajeRecuperar">
-          {{ enviandoRecuperar ? 'Enviando...' : 'Enviar nueva contraseña' }}
+          {{ enviandoRecuperar ? 'Enviando...' : 'Enviar enlace' }}
         </button>
         <button type="button" class="login-ayuda-btn" (click)="volverLogin()">
           ← Volver al inicio de sesión

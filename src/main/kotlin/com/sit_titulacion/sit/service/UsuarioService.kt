@@ -209,6 +209,26 @@ class UsuarioService(
             .filter { it.rol != Rol.EGRESADO }
             .sortedByDescending { it.fechaCreacion }
 
+    /**
+     * Elimina la cuenta de acceso (colección usuarios).
+     * No borra el expediente de egresado; solo el login.
+     * @return mensaje de error o null si fue exitoso.
+     */
+    fun eliminarCuenta(username: String, actorUsername: String): String? {
+        val target = username.trim()
+        val actor = actorUsername.trim()
+        if (target.isBlank()) return "El usuario es obligatorio."
+        if (target.equals(actor, ignoreCase = true)) {
+            return "No puedes eliminar tu propia cuenta."
+        }
+        val usuario = usuarioRepository.findByUsername(target)
+            ?: return "No se encontró ningún usuario con ese nombre de usuario."
+        val id = usuario.id ?: return "No se pudo eliminar la cuenta (sin id)."
+        usuarioRepository.deleteById(id)
+        log.info("Cuenta eliminada: username={} (por {})", target, actor)
+        return null
+    }
+
     private fun generarUsernameStaffUnico(baseUsername: String): String {
         if (!usuarioRepository.existsByUsername(baseUsername)) return baseUsername
         var intento = 2

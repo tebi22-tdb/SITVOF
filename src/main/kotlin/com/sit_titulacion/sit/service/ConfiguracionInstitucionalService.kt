@@ -41,7 +41,8 @@ class ConfiguracionInstitucionalService(
             ?: env.getProperty("sit.config.jefe-division-nombre", "MANUEL FABIAN ROJAS").trim()
         val titulo = doc?.jefeDivisionTitulo
             ?: env.getProperty("sit.config.jefe-division-titulo", "JEFE").trim()
-        val iniciales = doc?.jefeDivisionIniciales?.trim().orEmpty()
+        // Prefijo siempre del nombre actual (ACAC…); se conserva el sufijo /elaboró si existe.
+        val iniciales = inicialesFirmaDivision(nombre, doc?.jefeDivisionIniciales)
         val correo = doc?.jefeDivisionCorreo?.trim().orEmpty()
         return ConfigGlobalResponseDto(
             jefeDivisionNombre = nombre,
@@ -53,10 +54,11 @@ class ConfiguracionInstitucionalService(
 
     fun actualizarGlobal(dto: ConfigGlobalDto): ConfigGlobalResponseDto {
         val existing = repo.findFirstByTipo("global")
+        val nombre = dto.jefeDivisionNombre.trim().uppercase()
         val updated = (existing ?: ConfiguracionInstitucional(tipo = "global")).copy(
-            jefeDivisionNombre = dto.jefeDivisionNombre.trim().uppercase(),
+            jefeDivisionNombre = nombre,
             jefeDivisionTitulo = dto.jefeDivisionTitulo.trim().uppercase(),
-            jefeDivisionIniciales = dto.jefeDivisionIniciales.trim(),
+            jefeDivisionIniciales = inicialesFirmaDivision(nombre, dto.jefeDivisionIniciales),
             jefeDivisionCorreo = dto.jefeDivisionCorreo.trim(),
             fechaActualizacion = Instant.now(),
         )
@@ -267,7 +269,38 @@ class ConfiguracionInstitucionalService(
 
     fun obtenerJefeDivisionIniciales(): String {
         val doc = repo.findFirstByTipo("global")
-        return doc?.jefeDivisionIniciales?.trim().orEmpty()
+        val nombre = doc?.jefeDivisionNombre?.takeIf { it.isNotBlank() }
+            ?: env.getProperty("sit.config.jefe-division-nombre", "MANUEL FABIAN ROJAS").trim()
+        return inicialesFirmaDivision(nombre, doc?.jefeDivisionIniciales)
+    }
+
+    /**
+     * Pie de oficios/anexos: iniciales del Jefe(a) de División + sufijo de quien elaboró.
+     * Ej. nombre «ALIDA COREY ARANGO CRUZ» + guardado «MFR/lmr» → «ACAC/lmr».
+     * Si cambia el jefe/jefa, el prefijo se recalcula solo; el «/lmr» se conserva.
+     */
+    fun inicialesFirmaDivision(nombreJefe: String, inicialesGuardadas: String?): String {
+        val prefijo = inicialesDesdeNombreCompleto(nombreJefe)
+        val guardado = inicialesGuardadas?.trim().orEmpty()
+        val slash = guardado.indexOf('/')
+        val sufijo = if (slash >= 0) guardado.substring(slash) else ""
+        return when {
+            prefijo.isNotBlank() && sufijo.isNotEmpty() -> "$prefijo$sufijo"
+            prefijo.isNotBlank() -> prefijo
+            else -> guardado
+        }
+    }
+
+    /** Primera letra de cada palabra significativa (omite de/del/la/los/las/y). */
+    fun inicialesDesdeNombreCompleto(nombre: String): String {
+        val omitir = setOf("DE", "DEL", "LA", "LAS", "LOS", "Y", "E")
+        return nombre.trim()
+            .split(Regex("\\s+"))
+            .filter { it.isNotBlank() && it.uppercase(java.util.Locale.ROOT) !in omitir }
+            .mapNotNull { w ->
+                w.firstOrNull { it.isLetter() }?.uppercaseChar()
+            }
+            .joinToString("")
     }
 
     fun obtenerJefeDivisionCorreo(): String {

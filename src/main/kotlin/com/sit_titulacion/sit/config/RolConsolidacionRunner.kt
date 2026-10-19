@@ -36,23 +36,33 @@ class RolConsolidacionRunner(
 
     override fun run(args: ApplicationArguments) {
         val marcadores = mongoTemplate.getCollection("_migraciones")
-        if (marcadores.find(Document("_id", MARCADOR_ID)).first() != null) {
-            log.debug("RolConsolidacionRunner: ya se ejecutó antes, no se toca 'usuarios'.")
-            return
+        val col = mongoTemplate.getCollection("usuarios")
+        val yaEjecutada = marcadores.find(Document("_id", MARCADOR_ID)).first() != null
+
+        if (!yaEjecutada) {
+            // Orden estricto: primero vaciar el nombre "ADMINISTRADOR" hacia DEP,
+            // y solo después reocuparlo con los ex-coordinador.
+            val viejoAdminADep = col.updateMany(Document("rol", "ADMINISTRADOR"), Document("\$set", Document("rol", "DEP"))).modifiedCount
+            val divisionADep = col.updateMany(Document("rol", "DIVISION_ESTUDIOS_PROF_ADMIN"), Document("\$set", Document("rol", "DEP"))).modifiedCount
+            val coordinadorAAdmin = col.updateMany(Document("rol", "COORDINADOR"), Document("\$set", Document("rol", "ADMINISTRADOR"))).modifiedCount
+
+            marcadores.insertOne(Document("_id", MARCADOR_ID).append("ejecutada", java.time.Instant.now().toString()))
+            log.info(
+                "RolConsolidacionRunner: {} administrador(viejo)->dep, {} division_estudios_prof_admin->dep, {} coordinador->administrador.",
+                viejoAdminADep, divisionADep, coordinadorAAdmin,
+            )
+        } else {
+            log.debug("RolConsolidacionRunner: consolidación principal ya marcada; solo se limpian rezagos.")
         }
 
-        val col = mongoTemplate.getCollection("usuarios")
-        // Orden estricto: primero vaciar el nombre "ADMINISTRADOR" hacia DEP,
-        // y solo después reocuparlo con los ex-coordinador.
-        val viejoAdminADep = col.updateMany(Document("rol", "ADMINISTRADOR"), Document("\$set", Document("rol", "DEP"))).modifiedCount
-        val divisionADep = col.updateMany(Document("rol", "DIVISION_ESTUDIOS_PROF_ADMIN"), Document("\$set", Document("rol", "DEP"))).modifiedCount
-        val coordinadorAAdmin = col.updateMany(Document("rol", "COORDINADOR"), Document("\$set", Document("rol", "ADMINISTRADOR"))).modifiedCount
-
-        marcadores.insertOne(Document("_id", MARCADOR_ID).append("ejecutada", java.time.Instant.now().toString()))
-        log.info(
-            "RolConsolidacionRunner: {} administrador(viejo)->dep, {} division_estudios_prof_admin->dep, {} coordinador->administrador.",
-            viejoAdminADep, divisionADep, coordinadorAAdmin,
-        )
+        // Rezagos en minúsculas o intermedios que quedaron si la 1ª migración falló a medias.
+        val rezagoCoord = col.updateMany(Document("rol", "coordinador"), Document("\$set", Document("rol", "ADMINISTRADOR"))).modifiedCount +
+            col.updateMany(Document("rol", "COORDINADOR"), Document("\$set", Document("rol", "ADMINISTRADOR"))).modifiedCount
+        val rezagoDiv = col.updateMany(Document("rol", "division_estudios_prof_admin"), Document("\$set", Document("rol", "DEP"))).modifiedCount +
+            col.updateMany(Document("rol", "DIVISION_ESTUDIOS_PROF_ADMIN"), Document("\$set", Document("rol", "DEP"))).modifiedCount
+        if (rezagoCoord > 0 || rezagoDiv > 0) {
+            log.info("RolConsolidacionRunner: rezagos corregidos — coordinador->admin={}, division->dep={}.", rezagoCoord, rezagoDiv)
+        }
     }
 
     private companion object {

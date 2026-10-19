@@ -4,6 +4,7 @@ import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.domain.Usuario
 import com.sit_titulacion.sit.repository.UsuarioRepository
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -15,39 +16,44 @@ import org.springframework.stereotype.Component
 import java.time.Instant
 
 /**
- * Usuario alternativo de coordinación: admin / sitvo2026 (misma interfaz que coordinador).
- * Solo se crea si no existe; no sobrescribe contraseña de un admin ya registrado.
+ * Usuario DEP de prueba (`admin`). Contraseña solo desde
+ * `sit.seed.users.admin.password` / `SIT_SEED_ADMIN_PASSWORD`.
+ * En producción el seed de usuarios va desactivado.
  */
 @Component
 @Order(2)
-@ConditionalOnProperty(name = ["sit.seed.enabled"], havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = ["sit.seed.users.enabled"], havingValue = "true", matchIfMissing = false)
 class SeedAdminRunner(
     private val usuarioRepository: UsuarioRepository,
     private val passwordEncoder: PasswordEncoder,
     private val env: Environment,
+    @Value("\${sit.seed.users.admin.password:}") private val passwordAdmin: String,
 ) : ApplicationRunner {
 
     private val log = LoggerFactory.getLogger(SeedAdminRunner::class.java)
 
     companion object {
         const val USERNAME_ADMIN = "admin"
-        const val PASSWORD_ADMIN = "sitvo2026"
-        /** DEP: Inicio del proceso y Seguimiento del proceso (antes: división administrativa). */
+        /** DEP: Inicio del proceso y Seguimiento del proceso. */
         val ROL_ADMIN = Rol.DEP
     }
 
     override fun run(args: ApplicationArguments) {
-        val sync = env.getProperty("sit.seed.sync-admin-credentials", "true").toBoolean()
+        val password = passwordAdmin.trim()
+        if (password.isEmpty()) {
+            log.warn(
+                "Seed de usuarios activo pero falta sit.seed.users.admin.password " +
+                    "(o SIT_SEED_ADMIN_PASSWORD). No se crea/sincroniza «$USERNAME_ADMIN».",
+            )
+            return
+        }
+
+        val sync = env.getProperty("sit.seed.sync-admin-credentials", "false").toBoolean()
         val existing = usuarioRepository.findByUsername(USERNAME_ADMIN)
         @Suppress("USELESS_CAST")
-        val passwordHash = passwordEncoder.encode(PASSWORD_ADMIN) as String
+        val passwordHash = passwordEncoder.encode(password) as String
         if (existing != null) {
-            // El rol de esta cuenta se re-sincroniza SIEMPRE (independiente de `sync`,
-            // que solo gobierna la contraseña): "admin" es la cuenta de respaldo para no
-            // quedar fuera del sistema, así que su identidad (qué rol tiene) no debe poder
-            // desviarse por una edición manual — a diferencia de la contraseña, que si ya
-            // la cambiaron a mano se respeta.
-            val passwordDesincronizada = sync && !passwordEncoder.matches(PASSWORD_ADMIN, existing.passwordHash)
+            val passwordDesincronizada = sync && !passwordEncoder.matches(password, existing.passwordHash)
             val rolDesincronizado = existing.rol != ROL_ADMIN
             if (passwordDesincronizada || rolDesincronizado) {
                 usuarioRepository.save(
