@@ -76,6 +76,6 @@ Thumbs.db
 *.xls
 /*.docx
 
-### Claude Code: config y hooks locales de esta máquina (rutas personales) ###
+### Configuración local del editor (no versionar) ###
 .claude/
 CLAUDE.md

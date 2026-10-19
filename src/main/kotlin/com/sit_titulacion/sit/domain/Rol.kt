@@ -1,7 +1,7 @@
 package com.sit_titulacion.sit.domain
 
 /**
- * Roles de acceso reales del sistema (ver CLAUDE.md).
+ * Roles de acceso reales del sistema.
  *
  * Reemplaza el `String` libre que tenía `Usuario.rol` — antes cualquier texto
  * se guardaba tal cual, sin que el compilador avisara de un typo ni existiera

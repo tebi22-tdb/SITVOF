@@ -6,7 +6,7 @@ import { environment } from '../../environments/environment';
 export const SIT_ACCESS_TOKEN_KEY = 'sit_access_token';
 
 /**
- * Roles reales del sistema (ver Rol.kt en backend y CLAUDE.md). Un solo rol por usuario.
+ * Roles reales del sistema (ver Rol.kt en backend). Un solo rol por usuario.
  * Consolidación sep-2026: 'coordinador' se renombró a 'administrador' (mismo
  * acceso pleno), y el viejo 'administrador' (restringido) + 'division_estudios_prof_admin'
  * se fusionaron en 'dep' (Inicio del proceso + Seguimiento del proceso).
