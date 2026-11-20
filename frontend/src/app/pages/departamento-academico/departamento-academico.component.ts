@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { validarArchivoPdf } from '../../core/archivo-pdf';
 import { mensajeErrorApiConBlob } from '../../core/http-blob-error';
+import { textoErrorUsuario } from '../../core/mensaje-conexion';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -22,6 +23,15 @@ type TabEstado =
   | 'todos'
   | 'anteproyecto'
   | 'liberacion_producto';
+
+/** Secciones con badge de pendientes que pueden “recibir” un expediente nuevo. */
+type SeccionAlerta =
+  | 'pendientes'
+  | 'en_correccion'
+  | 'anteproyecto'
+  | 'liberacion_producto'
+  | 'sinodales';
+
 @Component({
   selector: 'app-departamento-academico',
   standalone: true,
@@ -30,8 +40,9 @@ type TabEstado =
   styleUrl: './departamento-academico.component.css',
 })
 export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
-  tabActivo: TabEstado = 'pendientes';
-  tituloDepartamento = 'Coordinacion de apoyo a la titulacion';
+  tabActivo: string = 'pendientes';
+  pestanasPropias: { nombre: string; total: number }[] = [];
+  tituloDepartamento = 'Departamento académico';
   esModoRevision = false;
   /** Filtro por slug de departamento (solo coordinación; query `?segmento=`). */
   segmentoCoordinacion: string | null = null;
@@ -39,6 +50,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     pendientes: 0,
     en_correccion: 0,
     aprobados: 0,
+    total_residencia: 0,
     todos: 0,
     sinodales_por_asignar: 0,
     anteproyecto: 0,
@@ -50,6 +62,21 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   lista: DepartamentoListItem[] = [];
   cargando = true;
   error = '';
+
+  /** Pestañas cuyo badge debe parpadear (llegó algo a esa sección). */
+  tabsConNovedad = new Set<SeccionAlerta>();
+  /** Filas nuevas en la lista de la pestaña actual. */
+  idsFilaNueva = new Set<string>();
+
+  private snapshotCountsPendientes: Partial<Record<SeccionAlerta, number>> = {};
+  private baselineCountsListo = false;
+  private idsVistosPorTab = new Map<string, Set<string>>();
+  private flashTabTimers = new Map<SeccionAlerta, ReturnType<typeof setTimeout>>();
+  private flashFilaTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private ultimoSegmentoPoll: string | null | undefined = undefined;
+  private static readonly DURACION_FLASH_MS = 3600;
+  private static readonly POLL_MS = 30_000;
   /** ID del egresado mientras se descarga el Anexo XXXII. */
   descargando32Id: string | null = null;
   /** ID del egresado mientras se descarga el Anexo XXXIII. */
@@ -82,6 +109,15 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   sinodalesError = '';
   descargandoOficioSinodalesId: string | null = null;
   docentesLista: DocenteItem[] = [];
+  xxxiiModalItem: DepartamentoListItem | null = null;
+  xxxiiObservaciones = '';
+  xxxiiError = '';
+  xxxiiiModalItem: DepartamentoListItem | null = null;
+  xxxiiiAsesor = '';
+  xxxiiiRevisor1 = '';
+  xxxiiiRevisor2 = '';
+  xxxiiiCargando = false;
+  xxxiiiError = '';
   vocalDropdownAbierto = false;
   vocalSuplenteDropdownAbierto = false;
 
@@ -100,6 +136,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   documentoViewerKey = 0;
   private docSub: Subscription | null = null;
   private querySub: Subscription | null = null;
+  private catalogoSub: Subscription | null = null;
 
   constructor(
     private egresadoService: EgresadoService,
@@ -112,9 +149,23 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnDestroy(): void {
+    this.catalogoSub?.unsubscribe();
     this.querySub?.unsubscribe();
     this.revocarDocumentoUrl();
     this.docSub?.unsubscribe();
+    if (this.pollTimer) clearInterval(this.pollTimer);
+    this.flashTabTimers.forEach((t) => clearTimeout(t));
+    this.flashFilaTimers.forEach((t) => clearTimeout(t));
+    this.flashTabTimers.clear();
+    this.flashFilaTimers.clear();
+  }
+
+  seccionConNovedad(seccion: SeccionAlerta): boolean {
+    return this.tabsConNovedad.has(seccion);
+  }
+
+  esItemNuevo(id: string): boolean {
+    return this.idsFilaNueva.has(id);
   }
 
   get esDocumentoPdf(): boolean {
@@ -150,6 +201,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
 
   /** Selecciona egresado y carga el PDF/documento en el panel derecho. */
   seleccionarFila(item: DepartamentoListItem): void {
+    this.quitarFlashFila(item.id);
     this.seleccionado = item;
     this.cargarDocumentoSeleccionado();
   }
@@ -220,6 +272,21 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     return this.catalogoService.esResidencia(modalidad);
   }
 
+  /** Tesis, tesina, proyecto de investigación y monografía firman con director. */
+  esModalidadDirector(modalidad: string): boolean {
+    const m = (modalidad || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+    return m.includes('tesis') || m.includes('tesina') || m.includes('monograf') || m.includes('investigacion');
+  }
+
+  etiquetaMentorXxxiii(modalidad: string): string {
+    if (this.esResidencia(modalidad)) return 'Asesor interno';
+    if (this.esModalidadDirector(modalidad)) return 'Director';
+    return 'Asesor';
+  }
+
   /** Marca el anteproyecto como registrado en la bandeja del departamento. No repercute en el flujo de seguimiento. */
   marcarRegistrado(item: DepartamentoListItem, ev?: Event): void {
     ev?.stopPropagation();
@@ -233,15 +300,14 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
       },
       error: (err: { error?: { error?: string }; message?: string }) => {
         this.confirmandoXxxiiId = null;
-        const msg = err?.error?.error ?? err?.message;
-        this.error = msg ? `No se pudo marcar: ${msg}` : 'No se pudo marcar como registrado.';
+        this.error = textoErrorUsuario(err, 'No se pudo marcar como registrado.');
       },
     });
   }
 
-  /** Abre Revisión de documento (solo para modalidades que no son residencia). */
+  /** Abre Revisión de documento. En la pestaña Residencia del departamento no se revisa. */
   irARevision(item: DepartamentoListItem): void {
-    if (this.catalogoService.esResidencia(item.modalidad)) return;
+    if (!this.muestraRevisionExpediente(item)) return;
     if (this.authService.isAcademico()) {
       this.router.navigate(['/departamento-academico/revision', item.id]);
     } else {
@@ -249,14 +315,63 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Lista a mostrar: en "Todos" y "Sinodales" filtrada por número de control si hay búsqueda. */
+  /**
+   * Tesis, tesina y el resto sí se revisan en Coordinación (Pendientes, En corrección, Aprobados).
+   * La pestaña Residencia del departamento solo libera; no abre observaciones ni aprobar.
+   */
+  muestraRevisionExpediente(item: DepartamentoListItem): boolean {
+    if (this.esResidencia(item.modalidad) || item.estado_revision === 'aprobado') return false;
+    if (
+      this.tabActivo === 'todos' ||
+      this.tabActivo === 'anteproyecto' ||
+      this.tabActivo === 'liberacion_producto' ||
+      this.tabActivo === 'sinodales'
+    ) {
+      return false;
+    }
+    if (!this.mostrarTabsRevisionCoordinacion && this.tabActivo === 'pendientes') return false;
+    return true;
+  }
+
+  /** Lista a mostrar: en "Todos" y "Sinodales" filtrada por número de control si hay búsqueda. El movimiento más reciente va arriba. */
   get listaVisible(): DepartamentoListItem[] {
     const tabConBusqueda = this.tabActivo === 'todos' || this.tabActivo === 'sinodales';
-    if (!tabConBusqueda || !this.filtroNumeroControl.trim()) {
-      return this.lista;
+    const base =
+      !tabConBusqueda || !this.filtroNumeroControl.trim()
+        ? this.lista
+        : this.lista.filter((item) =>
+            item.numero_control.toLowerCase().includes(this.filtroNumeroControl.trim().toLowerCase()),
+          );
+    return [...base].sort((a, b) => this.cmpMovimientoReciente(a, b));
+  }
+
+  /** Más reciente primero. Sin fecha, al final. */
+  private cmpMovimientoReciente(a: DepartamentoListItem, b: DepartamentoListItem): number {
+    const ta = this.msUltimoMovimiento(a);
+    const tb = this.msUltimoMovimiento(b);
+    if (ta !== tb) return tb - ta;
+    return (a.nombre || a.numero_control).localeCompare(b.nombre || b.numero_control, 'es');
+  }
+
+  private msUltimoMovimiento(item: DepartamentoListItem): number {
+    const fechas = [
+      item.fecha_actualizacion,
+      item.fecha_enviado_departamento_academico,
+      item.fecha_envio_anteproyecto_depto,
+      item.fecha_registrado_departamento,
+      item.fecha_liberacion_producto,
+      item.fecha_solicitud_sinodales,
+      item.fecha_generacion_anexos_xxxii_xxxiii,
+      item.fecha_generacion_hoja_32,
+      item.fecha_generacion_hoja_33,
+    ];
+    let max = 0;
+    for (const iso of fechas) {
+      if (!iso) continue;
+      const t = Date.parse(iso);
+      if (!Number.isNaN(t) && t > max) max = t;
     }
-    const term = this.filtroNumeroControl.trim().toLowerCase();
-    return this.lista.filter((item) => item.numero_control.toLowerCase().includes(term));
+    return max;
   }
 
   get mensajeListaVacia(): string {
@@ -289,9 +404,8 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     const usuario = this.authService.getUsuario();
     const segSlug = usuario?.segmento_academico?.trim() ?? '';
     this.esModoRevision = !segSlug && !(usuario?.carreras_asignadas?.length ?? 0);
-    this.tituloDepartamento = this.esModoRevision
-      ? 'Coordinacion de apoyo a la titulacion'
-      : (this.catalogoService.nombreDepartamentoPorSlug(segSlug) ?? 'Coordinacion de apoyo a la titulacion');
+    this.actualizarTitulo();
+    this.catalogoSub = this.catalogoService.departamentos$.subscribe(() => this.actualizarTitulo());
 
     this.querySub = this.route.queryParamMap.subscribe((q) => {
       const s = q.get('segmento')?.trim() || null;
@@ -312,27 +426,65 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
       if (this.segmentoCoordinacion && (this.tabActivo === 'en_correccion' || this.tabActivo === 'aprobados')) {
         this.tabActivo = 'pendientes';
       }
-      if (this.esModoRevision) {
-        if (this.segmentoCoordinacion) {
-          this.tituloDepartamento = this.catalogoService.nombreDepartamentoPorSlug(this.segmentoCoordinacion) ?? 'Coordinación de apoyo a la titulación';
-        } else {
-          this.tituloDepartamento = 'Coordinación de apoyo a la titulación';
-        }
+      this.actualizarTitulo();
+      if (this.ultimoSegmentoPoll !== this.segmentoCoordinacion) {
+        this.ultimoSegmentoPoll = this.segmentoCoordinacion;
+        this.reiniciarDeteccionNovedades();
       }
       this.cargarBandeja();
+      if (!this.pollTimer) {
+        this.pollTimer = setInterval(
+          () => this.cargarBandeja(true),
+          DepartamentoAcademicoComponent.POLL_MS,
+        );
+      }
     });
   }
 
+  /** Coordinación solo si el usuario no pertenece a un departamento. El resto muestra su departamento. */
+  private actualizarTitulo(): void {
+    if (this.esModoRevision) {
+      const slug = this.segmentoCoordinacion;
+      this.tituloDepartamento = slug
+        ? (this.catalogoService.nombreDepartamentoPorSlug(slug) ?? 'Coordinación de apoyo a la titulación')
+        : 'Coordinación de apoyo a la titulación';
+      return;
+    }
+    const usuario = this.authService.getUsuario();
+    const slug = usuario?.segmento_academico?.trim() ?? '';
+    const porSlug = slug ? this.catalogoService.nombreDepartamentoPorSlug(slug) : null;
+    const porCarreras = this.catalogoService.inferirNombreDepartamentoPorCarreras(
+      usuario?.carreras_asignadas ?? [],
+    );
+    this.tituloDepartamento = porSlug ?? porCarreras ?? 'Departamento académico';
+  }
+
+  private reiniciarDeteccionNovedades(): void {
+    this.baselineCountsListo = false;
+    this.snapshotCountsPendientes = {};
+    this.idsVistosPorTab.clear();
+    this.tabsConNovedad = new Set();
+    this.idsFilaNueva = new Set();
+    this.flashTabTimers.forEach((t) => clearTimeout(t));
+    this.flashFilaTimers.forEach((t) => clearTimeout(t));
+    this.flashTabTimers.clear();
+    this.flashFilaTimers.clear();
+  }
+
   /** Carga conteos y lista en una sola petición (evita doble findAll en backend). */
-  cargarBandeja(): void {
-    this.error = '';
-    this.cargando = true;
+  cargarBandeja(silencioso = false): void {
+    if (!silencioso) {
+      this.error = '';
+      this.cargando = true;
+    }
     this.egresadoService.getDepartamentoBandeja(this.tabActivo, this.segmentoCoordinacion).subscribe({
-      next: ({ counts, items }) => {
-        this.counts = {
+      next: ({ counts, items, pestanas }) => {
+        this.pestanasPropias = pestanas ?? [];
+        const nextCounts: DepartamentoCounts = {
           pendientes: counts.pendientes ?? 0,
           en_correccion: counts.en_correccion ?? 0,
           aprobados: counts.aprobados ?? 0,
+          total_residencia: counts.total_residencia ?? 0,
           todos: counts.todos ?? 0,
           sinodales_por_asignar: counts.sinodales_por_asignar ?? 0,
           anteproyecto: counts.anteproyecto ?? 0,
@@ -341,8 +493,11 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
           total_liberacion_producto: counts.total_liberacion_producto ?? 0,
           total_sinodales: counts.total_sinodales ?? 0,
         };
+        this.detectarNovedadesPorSeccion(nextCounts);
+        this.counts = nextCounts;
+        this.detectarFilasNuevas(items);
         this.lista = items;
-        this.cargando = false;
+        if (!silencioso) this.cargando = false;
         if (this.seleccionado) {
           const u = items.find((x) => x.id === this.seleccionado!.id);
           if (u) this.seleccionado = u;
@@ -350,23 +505,11 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
         }
       },
       error: (err: HttpErrorResponse) => {
-        const st = err.status;
-        const detalle =
-          (typeof err.error === 'object' && err.error && 'error' in err.error
-            ? String((err.error as { error?: string }).error)
-            : '') || err.message;
-        if (st === 403) {
-          this.error =
-            'No tienes permiso para ver esta lista. Si acabas de actualizar el sistema, cierra sesión, vuelve a entrar y asegúrate de que el backend esté en la versión nueva.';
-        } else if (st === 0 || st === 504) {
-          this.error =
-            'No hay conexión con el backend (¿corre Spring Boot en el puerto 8081 con `npm start` y el proxy?).';
-        } else {
-          this.error =
-            st > 0
-              ? `No se pudo cargar la lista (${st}).${detalle ? ` ${detalle}` : ''}`
-              : 'No se pudo cargar la lista.';
-        }
+        if (silencioso) return;
+        this.error =
+          err.status === 403
+            ? 'No tienes permiso para ver esta lista. Cierra sesión y vuelve a entrar.'
+            : textoErrorUsuario(err, 'No se pudo cargar la lista.');
         this.cargando = false;
       },
     });
@@ -375,10 +518,11 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
   cargarCounts(): void {
     this.egresadoService.getDepartamentoCounts(this.segmentoCoordinacion).subscribe({
       next: (c) => {
-        this.counts = {
+        const nextCounts: DepartamentoCounts = {
           pendientes: c.pendientes ?? 0,
           en_correccion: c.en_correccion ?? 0,
           aprobados: c.aprobados ?? 0,
+          total_residencia: c.total_residencia ?? 0,
           todos: c.todos ?? 0,
           sinodales_por_asignar: c.sinodales_por_asignar ?? 0,
           anteproyecto: c.anteproyecto ?? 0,
@@ -387,6 +531,8 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
           total_liberacion_producto: c.total_liberacion_producto ?? 0,
           total_sinodales: c.total_sinodales ?? 0,
         };
+        this.detectarNovedadesPorSeccion(nextCounts);
+        this.counts = nextCounts;
       },
       error: () => {},
     });
@@ -406,36 +552,141 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
         }
       },
       error: (err: HttpErrorResponse) => {
-        const st = err.status;
-        const detalle =
-          (typeof err.error === 'object' && err.error && 'error' in err.error
-            ? String((err.error as { error?: string }).error)
-            : '') || err.message;
-        if (st === 403) {
-          this.error =
-            'No tienes permiso para ver esta lista. Si acabas de actualizar el sistema, cierra sesión, vuelve a entrar y asegúrate de que el backend esté en la versión nueva.';
-        } else if (st === 0 || st === 504) {
-          this.error =
-            'No hay conexión con el backend (¿corre Spring Boot en el puerto 8081 con `npm start` y el proxy?).';
-        } else {
-          this.error =
-            st > 0
-              ? `No se pudo cargar la lista (${st}).${detalle ? ` ${detalle}` : ''}`
-              : 'No se pudo cargar la lista.';
-        }
+        this.error =
+          err.status === 403
+            ? 'No tienes permiso para ver esta lista. Cierra sesión y vuelve a entrar.'
+            : textoErrorUsuario(err, 'No se pudo cargar la lista.');
         this.cargando = false;
       },
     });
   }
 
-  cambiarTab(tab: TabEstado): void {
+  cambiarTab(tab: string): void {
     if (this.mostrarTabsRevisionCoordinacion && tab === 'sinodales') return;
     this.tabActivo = tab;
     this.filtroNumeroControl = '';
     this.archivoTesisLiberacion = null;
     this.mensajeLiberacionProducto = '';
     this.limpiarSeleccionDocumento();
+    const seccion = this.tabASeccionAlerta(tab);
+    if (seccion) this.quitarFlashTab(seccion);
     this.cargarBandeja();
+  }
+
+  private tabASeccionAlerta(tab: string): SeccionAlerta | null {
+    if (
+      tab === 'pendientes' ||
+      tab === 'en_correccion' ||
+      tab === 'anteproyecto' ||
+      tab === 'liberacion_producto' ||
+      tab === 'sinodales'
+    ) {
+      return tab;
+    }
+    return null;
+  }
+
+  private conteoPendienteSeccion(c: DepartamentoCounts, seccion: SeccionAlerta): number {
+    switch (seccion) {
+      case 'pendientes':
+        return c.pendientes ?? 0;
+      case 'en_correccion':
+        return c.en_correccion ?? 0;
+      case 'anteproyecto':
+        return c.anteproyecto ?? 0;
+      case 'liberacion_producto':
+        return c.liberacion_producto ?? 0;
+      case 'sinodales':
+        return c.sinodales_por_asignar ?? 0;
+    }
+  }
+
+  /** Si el conteo pendiente de una sección sube → esa pestaña parpadea. */
+  private detectarNovedadesPorSeccion(next: DepartamentoCounts): void {
+    const secciones: SeccionAlerta[] = [
+      'pendientes',
+      'en_correccion',
+      'anteproyecto',
+      'liberacion_producto',
+      'sinodales',
+    ];
+    if (!this.baselineCountsListo) {
+      for (const s of secciones) {
+        this.snapshotCountsPendientes[s] = this.conteoPendienteSeccion(next, s);
+      }
+      this.baselineCountsListo = true;
+      return;
+    }
+    for (const s of secciones) {
+      const actual = this.conteoPendienteSeccion(next, s);
+      const prev = this.snapshotCountsPendientes[s] ?? 0;
+      this.snapshotCountsPendientes[s] = actual;
+      if (actual > prev) this.activarFlashTab(s);
+    }
+  }
+
+  private detectarFilasNuevas(items: DepartamentoListItem[]): void {
+    const tab = this.tabActivo;
+    const ids = items.map((i) => i.id);
+    const vistos = this.idsVistosPorTab.get(tab);
+    if (!vistos) {
+      this.idsVistosPorTab.set(tab, new Set(ids));
+      return;
+    }
+    for (const id of ids) {
+      if (!vistos.has(id)) this.activarFlashFila(id);
+      vistos.add(id);
+    }
+  }
+
+  private activarFlashTab(seccion: SeccionAlerta): void {
+    this.tabsConNovedad = new Set(this.tabsConNovedad).add(seccion);
+    const prev = this.flashTabTimers.get(seccion);
+    if (prev) clearTimeout(prev);
+    this.flashTabTimers.set(
+      seccion,
+      setTimeout(
+        () => this.quitarFlashTab(seccion),
+        DepartamentoAcademicoComponent.DURACION_FLASH_MS,
+      ),
+    );
+  }
+
+  private quitarFlashTab(seccion: SeccionAlerta): void {
+    const timer = this.flashTabTimers.get(seccion);
+    if (timer) {
+      clearTimeout(timer);
+      this.flashTabTimers.delete(seccion);
+    }
+    if (!this.tabsConNovedad.has(seccion)) return;
+    const next = new Set(this.tabsConNovedad);
+    next.delete(seccion);
+    this.tabsConNovedad = next;
+  }
+
+  private activarFlashFila(id: string): void {
+    this.idsFilaNueva = new Set(this.idsFilaNueva).add(id);
+    const prev = this.flashFilaTimers.get(id);
+    if (prev) clearTimeout(prev);
+    this.flashFilaTimers.set(
+      id,
+      setTimeout(
+        () => this.quitarFlashFila(id),
+        DepartamentoAcademicoComponent.DURACION_FLASH_MS,
+      ),
+    );
+  }
+
+  private quitarFlashFila(id: string): void {
+    const timer = this.flashFilaTimers.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      this.flashFilaTimers.delete(id);
+    }
+    if (!this.idsFilaNueva.has(id)) return;
+    const next = new Set(this.idsFilaNueva);
+    next.delete(id);
+    this.idsFilaNueva = next;
   }
 
   onTesisLiberacionSelected(event: Event): void {
@@ -476,7 +727,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
       },
       error: (err: { error?: { error?: string } }) => {
         this.liberandoProductoId = null;
-        this.mensajeLiberacionProducto = err?.error?.error ?? `No se pudo liberar ${modalidad}.`;
+        this.mensajeLiberacionProducto = textoErrorUsuario(err, `No se pudo liberar ${modalidad}.`);
       },
     });
   }
@@ -485,47 +736,127 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     this.router.navigate(['/home']);
   }
 
-  /** Descarga el Anexo XXXII y marca primera generación en el item local. */
+  /** El Anexo XXXII solo pide observaciones. Los asesores salen del expediente. */
   descargarAnexo32(id: string, ev?: Event): void {
     ev?.stopPropagation();
-    if (this.descargando32Id === id) return;
-    this.descargando32Id = id;
-    this.egresadoService.descargarHoja32(id).subscribe({
+    const item = this.lista.find((i) => i.id === id) ?? (this.seleccionado?.id === id ? this.seleccionado : null);
+    if (!item || this.descargando32Id === id) return;
+    this.xxxiiModalItem = item;
+    this.xxxiiObservaciones = item.observaciones_anexo32?.trim() ?? '';
+    this.xxxiiError = '';
+  }
+
+  private slugDepartamentoActual(): string {
+    return this.segmentoCoordinacion?.trim()
+      || this.authService.getUsuario()?.segmento_academico?.trim()
+      || '';
+  }
+
+  nombresAsesoresXxxii(item: DepartamentoListItem): string {
+    const partes = this.esResidencia(item.modalidad)
+      ? [item.asesor_interno, item.asesor_externo]
+      : this.esModalidadDirector(item.modalidad)
+        ? [item.asesor_firma, item.revisor_1, item.revisor_2]
+        : [item.asesor_interno, item.asesor_externo, item.asesor_firma];
+    const nombres = partes.map((n) => n?.trim() ?? '').filter((n) => n.length > 0);
+    return nombres.length > 0 ? `Asesores: ${nombres.join(', ')}` : 'No hay asesores guardados en el expediente.';
+  }
+
+  cerrarModalXxxii(): void {
+    if (this.descargando32Id) return;
+    this.xxxiiModalItem = null;
+    this.xxxiiError = '';
+  }
+
+  confirmarDescargaXxxii(): void {
+    const item = this.xxxiiModalItem;
+    if (!item || this.descargando32Id) return;
+    const observaciones = this.xxxiiObservaciones.trim();
+    this.xxxiiError = '';
+    this.descargando32Id = item.id;
+    this.egresadoService.descargarHoja32(item.id, observaciones, this.slugDepartamentoActual()).subscribe({
       next: ({ blob, fileName }) => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; a.download = fileName; a.click();
         URL.revokeObjectURL(url);
         this.descargando32Id = null;
-        const item = this.lista.find(i => i.id === id);
-        if (item && !item.fecha_generacion_hoja_32) {
-          item.fecha_generacion_hoja_32 = new Date().toISOString();
-          if (this.seleccionado?.id === id) this.seleccionado = { ...item };
+        const actual = this.lista.find((i) => i.id === item.id);
+        if (actual) {
+          actual.observaciones_anexo32 = observaciones;
+          if (!actual.fecha_generacion_hoja_32) actual.fecha_generacion_hoja_32 = new Date().toISOString();
+          if (this.seleccionado?.id === item.id) this.seleccionado = { ...actual };
         }
+        this.xxxiiModalItem = null;
       },
-      error: () => { this.descargando32Id = null; },
+      error: () => {
+        this.descargando32Id = null;
+        this.xxxiiError = 'No se pudo generar el anexo.';
+      },
     });
   }
 
-  /** Descarga el Anexo XXXIII y marca primera generación en el item local. */
+  /** Abre el selector de asesor y revisores antes de generar el Anexo XXXIII. */
   descargarAnexo33(id: string, ev?: Event): void {
     ev?.stopPropagation();
-    if (this.descargando33Id === id) return;
-    this.descargando33Id = id;
-    this.egresadoService.descargarHoja33(id).subscribe({
+    const item = this.lista.find((i) => i.id === id) ?? (this.seleccionado?.id === id ? this.seleccionado : null);
+    if (!item || this.descargando33Id === id) return;
+    this.xxxiiiModalItem = item;
+    const residencia = this.esResidencia(item.modalidad);
+    this.xxxiiiAsesor = residencia ? '' : (item.asesor_firma?.trim() ?? '');
+    this.xxxiiiRevisor1 = residencia ? '' : (item.revisor_1?.trim() ?? '');
+    this.xxxiiiRevisor2 = residencia ? '' : (item.revisor_2?.trim() ?? '');
+    this.xxxiiiError = '';
+    if (residencia || this.docentesLista.length > 0) return;
+    this.xxxiiiCargando = true;
+    this.docenteService.listar().subscribe({
+      next: (docentes) => {
+        this.docentesLista = docentes;
+        this.xxxiiiCargando = false;
+      },
+      error: (err) => {
+        this.xxxiiiCargando = false;
+        this.xxxiiiError = textoErrorUsuario(err, 'No se pudo cargar la lista de docentes.');
+      },
+    });
+  }
+
+  cerrarModalXxxiii(): void {
+    if (this.descargando33Id) return;
+    this.xxxiiiModalItem = null;
+    this.xxxiiiError = '';
+  }
+
+  confirmarDescargaXxxiii(): void {
+    const item = this.xxxiiiModalItem;
+    if (!item || this.descargando33Id) return;
+    const residencia = this.esResidencia(item.modalidad);
+    const asesor = residencia ? (item.asesor_interno?.trim() ?? '') : this.xxxiiiAsesor.trim();
+    const revisor1 = residencia ? '' : this.xxxiiiRevisor1.trim();
+    const revisor2 = residencia ? '' : this.xxxiiiRevisor2.trim();
+    this.xxxiiiError = '';
+    this.descargando33Id = item.id;
+    this.egresadoService.descargarHoja33(item.id, { asesor, revisor1, revisor2 }, this.slugDepartamentoActual()).subscribe({
       next: ({ blob, fileName }) => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; a.download = fileName; a.click();
         URL.revokeObjectURL(url);
         this.descargando33Id = null;
-        const item = this.lista.find(i => i.id === id);
-        if (item && !item.fecha_generacion_hoja_33) {
-          item.fecha_generacion_hoja_33 = new Date().toISOString();
-          if (this.seleccionado?.id === id) this.seleccionado = { ...item };
+        const actual = this.lista.find((i) => i.id === item.id);
+        if (actual) {
+          actual.asesor_firma = asesor;
+          actual.revisor_1 = revisor1;
+          actual.revisor_2 = revisor2;
+          if (!actual.fecha_generacion_hoja_33) actual.fecha_generacion_hoja_33 = new Date().toISOString();
+          if (this.seleccionado?.id === item.id) this.seleccionado = { ...actual };
         }
+        this.xxxiiiModalItem = null;
       },
-      error: () => { this.descargando33Id = null; },
+      error: () => {
+        this.descargando33Id = null;
+        this.xxxiiiError = 'No se pudo generar el anexo.';
+      },
     });
   }
 
@@ -541,8 +872,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
         this.cargarBandeja();
       },
       error: (err: { error?: { error?: string; message?: string }; message?: string }) => {
-        const msg = err?.error?.error ?? err?.error?.message ?? err?.message;
-        this.error = msg || 'No se pudo liberar.';
+        this.error = textoErrorUsuario(err, 'No se pudo liberar.');
         this.liberandoResidenciaId = null;
       },
     });
@@ -562,7 +892,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
       },
       error: (err: { error?: { error?: string } }) => {
         this.revirtiendoId = null;
-        this.error = err?.error?.error ?? 'No se pudo revertir la liberación.';
+        this.error = textoErrorUsuario(err, 'No se pudo revertir la liberación.');
       },
     });
   }
@@ -581,7 +911,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
       },
       error: (err: { error?: { error?: string } }) => {
         this.revirtiendoId = null;
-        this.error = err?.error?.error ?? 'No se pudo revertir el registro.';
+        this.error = textoErrorUsuario(err, 'No se pudo revertir el registro.');
       },
     });
   }
@@ -602,7 +932,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
       },
       error: (err: { error?: { error?: string } }) => {
         this.revirtiendoId = null;
-        this.mensajeLiberacionProducto = err?.error?.error ?? 'No se pudo revertir la liberación.';
+        this.mensajeLiberacionProducto = textoErrorUsuario(err, 'No se pudo revertir la liberación.');
       },
     });
   }
@@ -621,7 +951,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
       },
       error: (err: { error?: { error?: string } }) => {
         this.revirtiendoId = null;
-        this.error = err?.error?.error ?? 'No se pudo revertir la aprobación.';
+        this.error = textoErrorUsuario(err, 'No se pudo revertir la aprobación.');
       },
     });
   }
@@ -723,6 +1053,14 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
     setTimeout(() => { this.vocalSuplenteDropdownAbierto = false; }, 150);
   }
 
+  sinodalesConcluidos(item: DepartamentoListItem): boolean {
+    return !!item.fecha_confirmacion_entrega_anexo_9_3;
+  }
+
+  get sinodalesSoloLectura(): boolean {
+    return !!this.sinodalesModalItem && this.sinodalesConcluidos(this.sinodalesModalItem);
+  }
+
   abrirModalSinodales(item: DepartamentoListItem, ev?: Event): void {
     ev?.stopPropagation();
     this.sinodalesModalItem = item;
@@ -748,9 +1086,9 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
         this.sinodalesNumeroOficio = sinodales.numero_oficio?.trim() ?? '';
         this.sinodalesCargando = false;
       },
-      error: () => {
+      error: (err) => {
         this.sinodalesCargando = false;
-        this.sinodalesError = 'No se pudieron cargar los datos. Intenta de nuevo.';
+        this.sinodalesError = textoErrorUsuario(err, 'No se pudieron cargar los datos. Intenta de nuevo.');
       },
     });
   }
@@ -766,7 +1104,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
 
   guardarSinodales(): void {
     const item = this.sinodalesModalItem;
-    if (!item) return;
+    if (!item || this.sinodalesSoloLectura) return;
     const numeroOficio = this.sinodalesNumeroOficio.trim();
     if (!numeroOficio) {
       this.sinodalesError = 'Indica el número de oficio.';
@@ -790,8 +1128,7 @@ export class DepartamentoAcademicoComponent implements OnInit, OnDestroy {
         },
         error: (err: { error?: { error?: string }; message?: string }) => {
           this.sinodalesGuardando = false;
-          const msg = err?.error?.error ?? err?.message;
-          this.sinodalesError = msg ? String(msg) : 'No se pudo guardar.';
+          this.sinodalesError = textoErrorUsuario(err, 'No se pudo guardar.');
         },
       });
   }

@@ -166,8 +166,8 @@ table.ftr { width: 100%; border-collapse: collapse; }
     <td class="meta">Nombre del documento: Formato de Aviso de Realizaci&#243;n del Acto de Recepci&#243;n Profesional</td>
     <td class="meta-cod">
       <table class="meta-cod-inner">
-        <tr><td>C&#243;digo: ITVO-AC-PR-05-04</td></tr>
-        <tr><td>Revisi&#243;n: 2</td></tr>
+        <tr><td>C&#243;digo: {{CODIGO_DOCUMENTO}}</td></tr>
+        <tr><td>Revisi&#243;n: {{REVISION_DOCUMENTO}}</td></tr>
       </table>
     </td>
   </tr>
@@ -182,9 +182,9 @@ table.ftr { width: 100%; border-collapse: collapse; }
 <div class="ftr-fixed">
 <table class="ftr" role="presentation">
   <tr>
-    <td class="ftr-l">ITVO-AC-PR-05-04</td>
+    <td class="ftr-l">{{CODIGO_DOCUMENTO}}</td>
     <td class="ftr-c">Toda copia en PAPEL es un &quot;Documento No Controlado&quot; a excepci&#243;n del original.</td>
-    <td class="ftr-r">Rev. 2</td>
+    <td class="ftr-r">Rev. {{REVISION_DOCUMENTO}}</td>
   </tr>
 </table>
 </div>
@@ -192,27 +192,27 @@ table.ftr { width: 100%; border-collapse: collapse; }
 <!-- CUERPO -->
 <div class="doc-body">
 
-<p class="tit">Anexo 9.3 Formato de Aviso de Realizaci&#243;n del Acto Protocolario de Titulaci&#243;n Integral</p>
-<p class="fecha-doc">Fecha: {{FECHA_CARTA}}.</p>
+<p class="tit" data-texto="93-titulo">Anexo 9.3 Formato de Aviso de Realizaci&#243;n del Acto Protocolario de Titulaci&#243;n Integral</p>
+<p class="fecha-doc" data-texto="93-fecha">Fecha: {{FECHA_CARTA}}.</p>
 
-<p class="sec-jurado">C. INTEGRANTES DEL COMIT&#201;:</p>
-<p class="jurado-linea">{{ETIQUETA_PRESIDENTE}}: {{PRESIDENTE}}</p>
-<p class="jurado-linea">{{ETIQUETA_SECRETARIO}}: {{SECRETARIO}}</p>
-<p class="jurado-linea">VOCAL: {{VOCAL}}</p>
-<p class="jurado-linea">VOCAL SUPLENTE: {{VOCAL_SUPLENTE}}</p>
+<p class="sec-jurado" data-texto="93-comite">C. INTEGRANTES DEL COMIT&#201;:</p>
+<p class="jurado-linea" data-texto="93-presidente">{{ETIQUETA_PRESIDENTE}}: {{PRESIDENTE}}</p>
+<p class="jurado-linea" data-texto="93-secretario">{{ETIQUETA_SECRETARIO}}: {{SECRETARIO}}</p>
+<p class="jurado-linea" data-texto="93-vocal">VOCAL: {{VOCAL}}</p>
+<p class="jurado-linea" data-texto="93-suplente">VOCAL SUPLENTE: {{VOCAL_SUPLENTE}}</p>
 <p class="presente-espaciado">&#160;</p>
 
-<p class="just para-principal">
+<p class="just para-principal" data-texto="93-parrafo">
   Por este medio le informo que el Acto de Recepci&#243;n Profesional del
   <span class="b">{{PREFIJO_EGRESADO}} {{NOMBRE}}</span>, con No. de control
   <span class="b">{{NUMERO_CONTROL}}</span>, egresado del Instituto Tecnol&#243;gico del Valle de Oaxaca,
   de la carrera de <span class="b">{{CARRERA}}</span>, con la opci&#243;n
-  <span class="b">TITULACI&#211;N INTEGRAL ({{TEXTO_OPCION_TI}})</span>, {{FRASE_PROYECTO_93_ETIQUETA}} <span class="b">&quot;{{PROYECTO_93_VALOR}}&quot;</span>,
+  Titulaci&#243;n integral <span class="b">({{TEXTO_OPCION_TI}})</span>{{FRASE_PROYECTO_93}}
   que se realizar&#225; el d&#237;a <span class="b">{{ACTO_DIA}}</span> de <span class="b">{{ACTO_MES}}</span> del
   <span class="b">{{ACTO_ANIO}}</span> a las <span class="b">{{ACTO_HORA}}</span> horas, en la sala de Titulaci&#243;n del Instituto.
 </p>
 
-<p class="just para-segundo">
+<p class="just para-segundo" data-texto="93-parrafo-2">
   Por lo anterior, se les solicita su puntual asistencia en el lugar citado, por lo menos con 15 minutos antes de la hora indicada y para darle mayor realce a este acto,
   <span class="b">ES IMPORTANTE QUE ASISTAN CON VESTIMENTA FORMAL.</span>
 </p>
@@ -223,24 +223,24 @@ table.ftr { width: 100%; border-collapse: collapse; }
 </div>
 
 <div class="cierre">
-  <p class="atentamente">ATENTAMENTE</p>
+  <p class="atentamente" data-texto="93-atentamente">ATENTAMENTE</p>
   <div>
-    <p class="firma-nombre">{{JEFE_DIVISION_NOMBRE}}</p>
-    <p class="firma-cargo">{{JEFE_DIVISION_CARGO}}</p>
+    <p class="firma-nombre" data-texto="93-firma-nombre">{{JEFE_DIVISION_NOMBRE}}</p>
+    <p class="firma-cargo" data-texto="93-firma-cargo">{{JEFE_DIVISION_CARGO}}</p>
   </div>
 </div>
 
-<p class="ccp">{{JEFE_DEPTO_INICIALES}}</p>
-<p class="ccp ccp-cursiva">c.c.p. Depto. de Servicios Escolares</p>
-<p class="ccp ccp-cursiva">c.c.p. Exp. Alumno</p>
+<p class="ccp" data-texto="93-iniciales">{{JEFE_DEPTO_INICIALES}}</p>
+<p class="ccp ccp-cursiva" data-texto="93-ccp-1">c.c.p. Depto. de Servicios Escolares</p>
+<p class="ccp ccp-cursiva" data-texto="93-ccp-2">c.c.p. Exp. Alumno</p>
 
 <div class="aviso-bloque">
-  <p><span class="etiq">AVISO IMPORTANTE:</span>
+  <p data-texto="93-aviso"><span class="etiq">AVISO IMPORTANTE:</span>
     Se les recuerda que de acuerdo al Lineamiento para la Titulaci&#243;n vigente de los Institutos Tecnol&#243;gicos, en apartado 14.4.9, y de acuerdo a la gu&#237;a para la realizaci&#243;n a distancia del acto protocolario de titulaci&#243;n integral. Las funciones de los sinodales en el acto de recepci&#243;n profesional son:</p>
-  <p>a) Preside la instalaci&#243;n, desarrollo, toma de protestas, lectura del juramento de &#233;tica y clausura del acto de recepci&#243;n profesional.</p>
-  <p>b) <span class="u">Es la responsabilidad del secretario verificar el correcto llenado del acta de examen, requisitado por el Departamento de Servicios Escolares.</span></p>
-  <p>c) Avalar con su firma en el libro de actas, el acto de recepci&#243;n profesional.</p>
-  <p>d) En caso de ausencia del presidente, ser&#225; sustituido en el acto protocolario de la Titulaci&#243;n Integral, por el secretario, y este &#250;ltimo, por su ausencia ser&#225; sustituido por el vocal suplente.</p>
+  <p data-texto="93-aviso-a">a) Preside la instalaci&#243;n, desarrollo, toma de protestas, lectura del juramento de &#233;tica y clausura del acto de recepci&#243;n profesional.</p>
+  <p data-texto="93-aviso-b">b) <span class="u">Es la responsabilidad del secretario verificar el correcto llenado del acta de examen, requisitado por el Departamento de Servicios Escolares.</span></p>
+  <p data-texto="93-aviso-c">c) Avalar con su firma en el libro de actas, el acto de recepci&#243;n profesional.</p>
+  <p data-texto="93-aviso-d">d) En caso de ausencia del presidente, ser&#225; sustituido en el acto protocolario de la Titulaci&#243;n Integral, por el secretario, y este &#250;ltimo, por su ausencia ser&#225; sustituido por el vocal suplente.</p>
 </div>
 
 <div class="clearfix"></div>

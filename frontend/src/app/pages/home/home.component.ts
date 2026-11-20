@@ -10,6 +10,8 @@ import { EgresadoService, EgresadoItem, EgresadoDetail, EgresadoCrearResponse } 
 import { AuthService, CrearUsuarioBody, UsuarioStaffItem } from '../../services/auth.service';
 import { PERFILES_ESTATICOS, PerfilCreacionUsuarioItem, perfilesDesdeDepartamentos, datosRolDesdePerfil } from '../../core/perfiles-usuario-staff';
 import { CatalogoService } from '../../services/catalogo.service';
+import { LOGO_ITVO } from '../../core/logos';
+import { textoErrorUsuario } from '../../core/mensaje-conexion';
 
 interface CrearUsuarioStaffForm extends CrearUsuarioBody {
   /** Clave del desplegable (departamento / división). */
@@ -32,6 +34,7 @@ interface CrearUsuarioStaffForm extends CrearUsuarioBody {
   styleUrl: './home.component.css',
 })
 export class HomeComponent implements OnInit {
+  readonly logoItvo = LOGO_ITVO;
   mostrarFormulario = false;
   editando = false;
   guardando = false;
@@ -75,9 +78,7 @@ export class HomeComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    if (this.tabLista === 'usuarios' && !this.authService.puedeAdministrarUsuariosStaff()) {
-      this.tabLista = 'egresados';
-    }
+    this.tabLista = 'egresados';
     this.catalogoService.departamentos$.subscribe(depts => {
       this.perfilesCreacionUsuario = [...PERFILES_ESTATICOS, ...perfilesDesdeDepartamentos(depts)];
     });
@@ -105,20 +106,16 @@ export class HomeComponent implements OnInit {
         this.lista = lista;
         this.cargandoLista = false;
       },
-      error: () => {
+      error: (err) => {
         this.lista = [];
         this.cargandoLista = false;
-        this.errorLista = 'No se pudo cargar la lista. ¿Está el backend en ejecución?';
+        this.errorLista = textoErrorUsuario(err, 'No se pudo cargar la lista.');
       },
     });
   }
 
   onBuscar(): void {
-    if (this.tabLista === 'usuarios') {
-      this.cargarListaUsuarios();
-    } else {
-      this.cargarLista();
-    }
+    this.cargarLista();
   }
 
   onSeleccionar(item: EgresadoItem): void {
@@ -146,7 +143,9 @@ export class HomeComponent implements OnInit {
         } else {
           this.detalle = null;
           this.cargandoDetalle = false;
-          this.mensaje = err?.status === 404 ? 'Egresado no encontrado.' : 'No se pudo cargar el egresado.';
+          this.mensaje = err?.status === 404
+            ? 'Egresado no encontrado.'
+            : textoErrorUsuario(err, 'No se pudo abrir el expediente.');
         }
       },
     });
@@ -191,6 +190,24 @@ export class HomeComponent implements OnInit {
 
   esResidencia(modalidad: string): boolean {
     return this.catalogoService.esResidencia(modalidad);
+  }
+
+  /** CENEVAL no lleva director, asesores, proyecto ni Anexo XXXI. */
+  esCeneval(modalidad: string | undefined): boolean {
+    return this.catalogoService.esCeneval(modalidad ?? '');
+  }
+
+  /** El curso de titulación no aplica en residencia ni en CENEVAL. */
+  muestraCursoTitulacion(modalidad: string | undefined): boolean {
+    const m = modalidad ?? '';
+    return !!m && !this.esResidencia(m) && !this.esCeneval(m);
+  }
+
+  etiquetaGenero(codigo: string | undefined): string {
+    const g = (codigo || '').trim().toUpperCase();
+    if (g === 'M') return 'Masculino';
+    if (g === 'F') return 'Femenino';
+    return '—';
   }
 
   // ── Nuevo proceso para egresado vencido ──────────────────────────────────
@@ -272,17 +289,28 @@ export class HomeComponent implements OnInit {
     this.guardandoNuevoProceso = true;
     this.errorNuevoProceso = '';
     this.egresadoService.activarNuevoProceso(this.detalle.id, datos, this.archivoNuevoProceso).subscribe({
-      next: () => {
+      next: (res) => {
         this.guardandoNuevoProceso = false;
         this.mostrarFormNuevoProceso = false;
+        this.mensaje = this.mensajeCredencialesNuevoProceso(res);
         this.cargarLista();
         this.egresadoService.obtenerPorId(this.detalle!.id).subscribe(d => this.detalle = d);
       },
       error: (err) => {
         this.guardandoNuevoProceso = false;
-        this.errorNuevoProceso = err?.error?.error || 'No se pudo activar el nuevo proceso.';
+        this.errorNuevoProceso = textoErrorUsuario(err, 'No se pudo activar el nuevo proceso.');
       },
     });
+  }
+
+  private mensajeCredencialesNuevoProceso(res: { credenciales_enviadas_correo?: boolean | null; aviso_credenciales?: string | null }): string {
+    if (res.credenciales_enviadas_correo === true) {
+      return 'Nuevo proceso registrado. Se enviaron credenciales nuevas al correo del egresado. La contraseña anterior ya no sirve.';
+    }
+    if (res.aviso_credenciales) {
+      return res.aviso_credenciales;
+    }
+    return 'Nuevo proceso de titulación registrado correctamente.';
   }
 
   /** DEP no tiene /home: su "Volver" va directo a su otra pantalla (Seguimiento del proceso). */
@@ -307,18 +335,16 @@ export class HomeComponent implements OnInit {
         if (res.credenciales_enviadas_correo === true) {
           this.mensaje = 'Egresado registrado. Se enviaron usuario y contraseña al correo del egresado.';
         } else if (res.aviso_credenciales) {
-          this.mensaje = `Egresado registrado. ${res.aviso_credenciales}`;
+          this.mensaje = res.aviso_credenciales;
         } else {
           this.mensaje = 'Egresado registrado correctamente.';
         }
       },
       error: (err) => {
         this.guardandoEgresado = false;
-        const body = err?.error as { error?: string; aviso_credenciales?: string } | undefined;
-        const msg = body?.error ?? body?.aviso_credenciales ?? err?.message ?? err?.statusText;
-        this.mensaje = msg
-          ? `Error al guardar: ${msg}`
-          : 'Error al guardar. Revisa que el backend esté en marcha y MongoDB conectada.';
+        const body = err?.error as { aviso_credenciales?: string } | undefined;
+        const aviso = body?.aviso_credenciales?.trim();
+        this.mensaje = textoErrorUsuario(err, aviso || 'No se pudo guardar.');
       },
     });
   }
@@ -328,16 +354,15 @@ export class HomeComponent implements OnInit {
     this.mensaje = '';
     this.guardandoEgresado = true;
     this.egresadoService.activarNuevoProceso(payload.id, payload.datos, payload.archivo).subscribe({
-      next: () => {
+      next: (res) => {
         this.guardandoEgresado = false;
         this.mostrarFormulario = false;
         this.cargarLista();
-        this.mensaje = 'Nuevo proceso de titulación registrado correctamente.';
+        this.mensaje = this.mensajeCredencialesNuevoProceso(res);
       },
       error: (err) => {
         this.guardandoEgresado = false;
-        const msg = err?.error?.error ?? err?.message ?? err?.statusText;
-        this.mensaje = msg ? `Error al registrar nuevo proceso: ${msg}` : 'Error al registrar el nuevo proceso.';
+        this.mensaje = textoErrorUsuario(err, 'No se pudo registrar el nuevo proceso.');
       },
     });
   }
@@ -360,8 +385,7 @@ export class HomeComponent implements OnInit {
         this.mensaje = 'Registro eliminado correctamente.';
       },
       error: (err) => {
-        const msg = err?.error?.error ?? err?.message ?? err?.statusText;
-        this.mensaje = msg ? `Error al eliminar: ${msg}` : 'Error al eliminar.';
+        this.mensaje = textoErrorUsuario(err, 'No se pudo eliminar.');
       },
     });
   }
@@ -384,10 +408,7 @@ export class HomeComponent implements OnInit {
       },
       error: (err) => {
         this.guardandoEgresado = false;
-        const msg = err?.error?.error ?? err?.message ?? err?.statusText;
-        this.mensaje = msg
-          ? `Error al actualizar: ${msg}`
-          : 'Error al actualizar. Revisa que el backend esté en marcha y MongoDB conectada.';
+        this.mensaje = textoErrorUsuario(err, 'No se pudo actualizar.');
       },
     });
   }
@@ -447,7 +468,7 @@ export class HomeComponent implements OnInit {
         this.guardandoUsuario = false;
         this.mostrarFormularioUsuario = false;
         let m = res?.message ?? 'Usuario creado.';
-        if (res?.correo_enviado === false && res?.detalle_correo) {
+        if (res?.correo_enviado === false && !res?.correo_en_proceso && res?.detalle_correo) {
           m += ` (${res.detalle_correo})`;
         }
         this.mensaje = m;
@@ -455,8 +476,7 @@ export class HomeComponent implements OnInit {
       },
       error: (err) => {
         this.guardandoUsuario = false;
-        const msg = err?.error?.error ?? err?.message ?? err?.statusText;
-        this.mensajeUsuario = msg ?? 'Error al crear el usuario.';
+        this.mensajeUsuario = textoErrorUsuario(err, 'No se pudo crear el usuario.');
       },
     });
   }
@@ -507,10 +527,10 @@ export class HomeComponent implements OnInit {
           : lista;
         this.cargandoLista = false;
       },
-      error: () => {
+      error: (err) => {
         this.listaUsuarios = [];
         this.cargandoLista = false;
-        this.errorLista = 'No se pudo cargar la lista de usuarios.';
+        this.errorLista = textoErrorUsuario(err, 'No se pudo cargar la lista de usuarios.');
       },
     });
   }

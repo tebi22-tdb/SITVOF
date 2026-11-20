@@ -9,6 +9,7 @@ import {
   COORDINACIONES,
   CARRERAS_POR_COORDINACION,
 } from '../../../services/residencia-coordinacion.service';
+import { textoErrorUsuario } from '../../../core/mensaje-conexion';
 
 @Component({
   selector: 'app-formulario-residencia',
@@ -90,8 +91,8 @@ export class FormularioResidenciaComponent implements OnInit {
         this.anexo30Existente = r.tiene_anexo_30;
         this.cargando = false;
       },
-      error: () => {
-        this.error = 'No se pudo cargar el registro.';
+      error: (err) => {
+        this.error = textoErrorUsuario(err, 'No se pudo cargar el registro.');
         this.cargando = false;
       },
     });
@@ -132,7 +133,7 @@ export class FormularioResidenciaComponent implements OnInit {
         this.router.navigate(['/home/residencias']);
       },
       error: (err) => {
-        this.error = err?.error?.error ?? 'Ocurrió un error al guardar. Intenta de nuevo.';
+        this.error = textoErrorUsuario(err, 'Ocurrió un error al guardar. Intenta de nuevo.');
         this.guardando = false;
       },
     });

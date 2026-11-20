@@ -188,13 +188,22 @@ body {
   font-size: 11pt;
   font-weight: normal;
   margin: 0;
+  white-space: pre-wrap;
 }
 .atentamente {
   font-size: 11pt;
   font-weight: bold;
-  text-align: center;
+  text-align: left;
   letter-spacing: 1.5px;
   margin: 6px 0 2px;
+}
+.slogan {
+  font-size: 11pt;
+  font-weight: bold;
+  font-style: italic;
+  text-align: left;
+  margin: 0;
+  line-height: 1.3;
 }
 .firma-linea {
   border-top: 1px solid #000;
@@ -205,15 +214,15 @@ body {
   font-size: 11pt;
   font-weight: bold;
   text-transform: uppercase;
-  text-align: center;
-  margin: 4px 0 0;
+  text-align: left;
+  margin: 3.2em 0 0;
   line-height: 1.3;
 }
 .firmante-cargo {
   font-size: 11pt;
   font-weight: bold;
   text-transform: uppercase;
-  text-align: center;
+  text-align: left;
   margin: 0 0 8px;
   line-height: 1.3;
 }
@@ -229,7 +238,7 @@ body {
   text-align: left;
 }
 .firma-qr-tabla { width: 100%; border-collapse: collapse; margin-top: 0.3cm; }
-.firma-qr-left { width: 80%; vertical-align: top; text-align: center; padding-left: 3cm; }
+.firma-qr-left { width: 80%; vertical-align: top; text-align: left; padding-left: 0; }
 .firma-qr-right { width: 20%; vertical-align: middle; text-align: center; }
 .qr-img-firma { width: 72pt; height: 72pt; display: block; margin: 0 auto; }
 .qr-msg { margin: 3pt 0 0; font-size: 6.5pt; font-family: Arial, Helvetica, sans-serif;
@@ -268,7 +277,7 @@ body {
         <div class="ftr-linea"></div>
         <p class="ftr-direccion">
           Carretera al ITAO S/N C.P. 71233 San Jes&#250;s Nazareno, Santa Cruz Xoxocotl&#225;n, Oaxaca.<br/>
-          Tel. 951 517 07 88&#160; <span class="ftr-correo">{{CORREO_DEPARTAMENTO}}</span>&#160; www.https://voaxaca.tecnm.mx/
+          Tel. 951 517 07 88&#160; <span class="ftr-correo">{{CORREO_DEPARTAMENTO}}</span>&#160; https://voaxaca.tecnm.mx/
         </p>
       </td>
     </tr>
@@ -278,50 +287,50 @@ body {
 <!-- CUERPO -->
 <div class="doc-body">
 
-  <p class="titulo-doc t11">ANEXO XXXII. FORMATO DE REGISTRO DE PROYECTO PARA LA</p>
-  <p class="titulo-doc t11" style="margin-top:0; margin-bottom:6px;">TITULACI&#211;N INTEGRAL</p>
+  <p class="titulo-doc t11" data-texto="32-titulo">ANEXO XXXII</p>
+  <p class="titulo-doc t11" style="margin-top:0; margin-bottom:6px;" data-texto="32-subtitulo">FORMATO DE REGISTRO DE PROYECTO PARA LA TITULACI&#211;N INTEGRAL</p>
   
-  <p class="asunto-line">Asunto: Registro de proyecto para la titulaci&#243;n integral.</p>
+  <p class="asunto-line" data-texto="32-asunto">Asunto: Registro de proyecto para la titulaci&#243;n integral.</p>
 
   <div class="destinatario-bloque">
-    <p>{{JEFE_DIVISION_NOMBRE}}</p>
-    <p>{{JEFE_DIVISION_TITULO}} DE LA DIVISI&#211;N DE ESTUDIOS PROFESIONALES</p>
-    <p style="letter-spacing:1.5px;">PRESENTE</p>
+    <p data-texto="32-jefe">{{JEFE_DIVISION_NOMBRE}}</p>
+    <p data-texto="32-cargo">{{JEFE_DIVISION_TITULO}} DE LA DIVISI&#211;N DE ESTUDIOS PROFESIONALES</p>
+    <p style="letter-spacing:1.5px;" data-texto="32-presente">PRESENTE</p>
   </div>
 
-  <p class="info-line">
+  <p class="info-line" data-texto="32-departamento">
     <span>Departamento de: </span><span class="val">{{DEPARTAMENTO_NOMBRE}}</span>
   </p>
   <table class="lugar-fecha-row">
     <tr>
-      <td>Lugar:&#160;<span style="text-decoration:underline; text-underline-offset:2px;">ExHacienda de Nazareno Xoxocotl&#225;n, Oaxaca</span></td>
-      <td style="text-align:right;">Fecha:&#160;<span style="text-decoration:underline; text-underline-offset:2px;">{{FECHA_CARTA}}</span></td>
+      <td data-texto="32-lugar">Lugar:&#160;<span style="text-decoration:underline; text-underline-offset:2px;">Ex Hacienda de Nazareno Xoxocotl&#225;n, Oaxaca</span></td>
+      <td style="text-align:right;" data-texto="32-fecha">Fecha:&#160;<span style="text-decoration:underline; text-underline-offset:2px;">{{FECHA_CARTA}}</span></td>
     </tr>
   </table>
 
   <table class="tabla-proyecto">
     <tr>
-      <td>Nombre del proyecto:</td>
-      <td>{{NOMBRE_PROYECTO}}</td>
+      <td data-texto="32-lbl-proyecto">Nombre del proyecto:</td>
+      <td style="font-weight:bold;">{{NOMBRE_PROYECTO}}</td>
     </tr>
     <tr>
-      <td>Nombre(s) del (de los) asesor(es):</td>
+      <td data-texto="32-lbl-asesores">Nombre(s) del (de los) asesor(es):</td>
       <td style="white-space:pre-line;">{{NOMBRE_ASESORES}}</td>
     </tr>
     <tr>
-      <td>N&#250;mero de estudiantes:</td>
+      <td data-texto="32-lbl-numero">N&#250;mero de estudiantes:</td>
       <td>{{NUM_ESTUDIANTES}}</td>
     </tr>
   </table>
   <p class="espacio"></p>
-  <p class="seccion-estudiantes">Datos del (de los) estudiante(s):</p>
+  <p class="seccion-estudiantes" data-texto="32-estudiantes">Datos del (de los) estudiante(s):</p>
   <p class="espacio"></p>
   <table class="tabla-estudiantes">
     <thead>
       <tr>
-        <th style="width:42%">Nombre</th>
-        <th style="width:22%">No. de control</th>
-        <th style="width:36%">Carrera</th>
+        <th style="width:42%" data-texto="32-th-nombre">Nombre</th>
+        <th style="width:22%" data-texto="32-th-control">No. de control</th>
+        <th style="width:36%" data-texto="32-th-carrera">Carrera</th>
       </tr>
     </thead>
     <tbody>
@@ -334,15 +343,15 @@ body {
   </table>
 
   <div class="observaciones-box">
-    <p class="observaciones-lbl">Observaciones:</p>
+    <p class="observaciones-lbl" data-texto="32-observaciones">Observaciones: {{OBSERVACIONES}}</p>
   </div>
 
-  <p class="atentamente">ATENTAMENTE</p>
+  <p class="atentamente" data-texto="32-atentamente">ATENTAMENTE</p>
   <table class="firma-qr-tabla">
     <tr>
       <td class="firma-qr-left">
-        <div style="height:0.8cm;"></div>
-        <div class="firma-linea"></div>
+        <p class="slogan" data-texto="32-slogan-1">Excelencia en Educaci&#243;n Tecnol&#243;gica&#174;</p>
+        <p class="slogan" data-texto="32-slogan-2">Ciencia y tecnolog&#237;a para el campo&#174;</p>
         <p class="firmante-nombre">{{JEFE_DEPTO_NOMBRE}}</p>
         <p class="firmante-cargo">{{JEFE_DEPTO_CARGO}}</p>
       </td>
@@ -356,7 +365,8 @@ body {
 </div>
 
 <div class="ccp-fixed">
-  <p class="ccp-line">c.c.p.- Expediente</p>
+  <p class="ccp-line" data-texto="32-ccp-1">c.c.p.- Expediente.</p>
+  <p class="ccp-line" data-texto="32-ccp-2">c.c.p.- Coordinación de carrera.</p>
   <p class="ccp-line">{{JEFE_DEPTO_INICIALES}}</p>
 </div>
 

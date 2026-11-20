@@ -5,6 +5,8 @@ import com.openhtmltopdf.pdfboxout.PdfRendererBuilder
 import org.apache.pdfbox.cos.COSDictionary
 import org.apache.pdfbox.pdmodel.interactive.viewerpreferences.PDViewerPreferences
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.context.annotation.Lazy
 import org.springframework.core.io.ClassPathResource
 import org.springframework.stereotype.Service
 import java.io.ByteArrayOutputStream
@@ -14,6 +16,10 @@ import java.util.Base64
 @Service
 class HtmlAnexoPdfService {
     private val log = LoggerFactory.getLogger(javaClass)
+
+    @Lazy
+    @Autowired(required = false)
+    private var configInstitucionalService: ConfiguracionInstitucionalService? = null
 
     fun generarDesdeClasspath(
         templateClasspath: String,
@@ -26,7 +32,9 @@ class HtmlAnexoPdfService {
                 ClassPathResource(templateClasspath).inputStream.use {
                     String(it.readAllBytes(), StandardCharsets.UTF_8)
                 }
-            val conHtmlCrudo = aplicarPlaceholdersHtml(raw, valoresHtml)
+            val textos = configInstitucionalService?.textosDePlantilla(templateClasspath).orEmpty()
+            val conTextos = TextosPlantilla.aplicar(raw, textos)
+            val conHtmlCrudo = aplicarPlaceholdersHtml(conTextos, valoresHtml)
             val html = embedirImagenesLocales(aplicarPlaceholders(conHtmlCrudo, valores), templateClasspath, imagenesOverride)
             val baseUri = baseUriDirectorioPlantilla(templateClasspath)
             ByteArrayOutputStream().use { os ->
@@ -59,6 +67,9 @@ class HtmlAnexoPdfService {
      * del classpath junto a la plantilla. Evita problemas de resolución de rutas en fat JARs.
      * Omite valores que ya son data URIs (empiezan con "data:").
      */
+    fun embeberImagenes(html: String, templateClasspath: String, imagenesOverride: Map<String, String>): String =
+        embedirImagenesLocales(html, templateClasspath, imagenesOverride)
+
     private fun embedirImagenesLocales(
         html: String,
         templateClasspath: String,
@@ -111,14 +122,14 @@ class HtmlAnexoPdfService {
     private fun aplicarPlaceholders(html: String, valores: Map<String, String>): String {
         var out = html
         valores.forEach { (k, v) ->
-            val safe = if (v.startsWith("data:")) {
-                v
-            } else {
-                escapeHtml(normalizarTextoUtf8(v.ifBlank { "—" }))
+            val safe = when {
+                v.startsWith("data:") -> v
+                v.isBlank() -> ""
+                else -> escapeHtml(normalizarTextoUtf8(v))
             }
             out = out.replace("{{$k}}", safe, ignoreCase = false)
         }
-        return Regex("""\{\{([A-Z0-9_]+)}}""").replace(out) { "—" }
+        return Regex("""\{\{([A-Z0-9_]+)}}""").replace(out) { "" }
     }
 
     /**
@@ -148,6 +159,14 @@ class HtmlAnexoPdfService {
             { ClassPathResource("fonts/LiberationSans-Bold.ttf").inputStream },
             "Arial", 700, BaseRendererBuilder.FontStyle.NORMAL, true,
         )
+        builder.useFont(
+            { ClassPathResource("fonts/LiberationSans-Italic.ttf").inputStream },
+            "Arial", 400, BaseRendererBuilder.FontStyle.ITALIC, true,
+        )
+        builder.useFont(
+            { ClassPathResource("fonts/LiberationSans-BoldItalic.ttf").inputStream },
+            "Arial", 700, BaseRendererBuilder.FontStyle.ITALIC, true,
+        )
         // Mismo caso que Arial: Times New Roman tampoco se puede redistribuir,
         // usamos Liberation Serif (misma familia libre) registrada con ese nombre.
         builder.useFont(
@@ -157,6 +176,32 @@ class HtmlAnexoPdfService {
         builder.useFont(
             { ClassPathResource("fonts/LiberationSerif-Bold.ttf").inputStream },
             "Times New Roman", 700, BaseRendererBuilder.FontStyle.NORMAL, true,
+        )
+        builder.useFont(
+            { ClassPathResource("fonts/LiberationSerif-Italic.ttf").inputStream },
+            "Times New Roman", 400, BaseRendererBuilder.FontStyle.ITALIC, true,
+        )
+        builder.useFont(
+            { ClassPathResource("fonts/LiberationSerif-BoldItalic.ttf").inputStream },
+            "Times New Roman", 700, BaseRendererBuilder.FontStyle.ITALIC, true,
+        )
+        // Letra estrecha: Roboto Condensed (licencia SIL Open Font). El mismo archivo
+        // cubre normal y negrita para que un párrafo en negrita no pierda el ancho.
+        builder.useFont(
+            { ClassPathResource("fonts/RobotoCondensed-Regular.ttf").inputStream },
+            "Estrecha", 400, BaseRendererBuilder.FontStyle.NORMAL, true,
+        )
+        builder.useFont(
+            { ClassPathResource("fonts/RobotoCondensed-Regular.ttf").inputStream },
+            "Estrecha", 700, BaseRendererBuilder.FontStyle.NORMAL, true,
+        )
+        builder.useFont(
+            { ClassPathResource("fonts/RobotoCondensed-Italic.ttf").inputStream },
+            "Estrecha", 400, BaseRendererBuilder.FontStyle.ITALIC, true,
+        )
+        builder.useFont(
+            { ClassPathResource("fonts/RobotoCondensed-Italic.ttf").inputStream },
+            "Estrecha", 700, BaseRendererBuilder.FontStyle.ITALIC, true,
         )
     }
 

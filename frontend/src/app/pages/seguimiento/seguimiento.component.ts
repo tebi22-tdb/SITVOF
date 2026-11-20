@@ -2,8 +2,9 @@ import { Component, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HeaderComponent } from '../../layout/header/header.component';
 import { EgresadoService, EgresadoDetail, PlazoDesarrolloBackend, RevisionApi } from '../../services/egresado.service';
-import { CatalogoService } from '../../services/catalogo.service';
+import { ACCION_CONFIRMAR_AL_AVANZAR, CatalogoService, avancePrevioListo } from '../../services/catalogo.service';
 import { aplicarValidacionPdfInput, validarArchivoPdf } from '../../core/archivo-pdf';
+import { textoErrorUsuario } from '../../core/mensaje-conexion';
 
 /** Paso mostrado al alumno (solo lectura). */
 export interface PasoAlumnoVista {
@@ -19,6 +20,8 @@ export interface PasoAlumnoVista {
   ultimoCompletado?: boolean;
   /** Identifica bloques especiales en la plantilla (revisiones, subida de PDF, etc.). */
   clave?: string;
+  accionFlujo?: string;
+  puedeAccionar?: boolean;
   /** Cuadro de semáforo del plazo de desarrollo (recepción en división, flujo 16) — ya formateado por el backend. */
   plazoRecepcion?: PlazoDesarrolloBackend | null;
 }
@@ -49,6 +52,7 @@ function sumarMesesCalendario(base: Date, meses: number): Date {
 export class SeguimientoComponent implements OnInit {
   datos: EgresadoDetail | null = null;
   cargando = true;
+  avanzandoFlujo = false;
   error = '';
   cargandoRevisionesEnviadas = false;
   revisionesEnviadas: RevisionApi[] = [];
@@ -115,8 +119,19 @@ export class SeguimientoComponent implements OnInit {
   enviandoCorreccionExpediente = false;
   mensajeCorreccionExpediente = '';
 
+  /** Revisiones con observaciones enviadas (incluye ya respondidas). */
   get revisionesParaCorregir(): RevisionApi[] {
     return this.revisionesEnviadas.filter((r) => r.resultado === 'observaciones');
+  }
+
+  /** Aún sin corrección del egresado → hay que atender. */
+  get revisionesPendientesAtender(): RevisionApi[] {
+    return this.revisionesParaCorregir.filter((r) => !r.fecha_correccion_egresado?.trim());
+  }
+
+  /** Ya envió corrección; espera nueva revisión. */
+  get revisionesCorreccionEnviada(): RevisionApi[] {
+    return this.revisionesParaCorregir.filter((r) => !!r.fecha_correccion_egresado?.trim());
   }
 
   /** Documento liberado / aprobado por Coordinación de Apoyo a la Titulación (o residencia). */
@@ -130,11 +145,15 @@ export class SeguimientoComponent implements OnInit {
 
   get totalRevisionesPendientes(): number {
     if (this.expedienteAprobadoPorCoordinacion) return 0;
-    return this.revisionesParaCorregir.length;
+    return this.revisionesPendientesAtender.length;
   }
 
   get tieneRevisionesPendientes(): boolean {
     return this.totalRevisionesPendientes > 0;
+  }
+
+  get tieneCorreccionEnviadaSinPendiente(): boolean {
+    return !this.tieneRevisionesPendientes && this.revisionesCorreccionEnviada.length > 0;
   }
 
   get etapaRevisionesCompletada(): boolean {
@@ -148,9 +167,18 @@ export class SeguimientoComponent implements OnInit {
       return 'Tu expediente fue aprobado por Coordinación de Apoyo a la Titulación.';
     }
     const total = this.totalRevisionesPendientes;
-    if (total <= 0) return 'Sin revisiones pendientes.';
-    if (total === 1) return '1 revisión pendiente de atender.';
-    return `${total} revisiones pendientes de atender.`;
+    if (total > 0) {
+      if (total === 1) return '1 revisión pendiente de atender.';
+      return `${total} revisiones pendientes de atender.`;
+    }
+    if (this.tieneCorreccionEnviadaSinPendiente) return 'Corrección enviada. Esperando nueva revisión.';
+    return 'Sin revisiones pendientes.';
+  }
+
+  tituloRevision(r: RevisionApi): string {
+    return r.fecha_correccion_egresado?.trim()
+      ? 'Corrección enviada'
+      : 'Revisión recibida; favor de corregir a la brevedad.';
   }
 
   get esResidenciaProfesional(): boolean {
@@ -167,6 +195,11 @@ export class SeguimientoComponent implements OnInit {
     const d = this.datosVista;
     if (!d || this.esResidenciaProfesional || this.esCenevalProfesional) return false;
     return !!d.fecha_enviado_departamento_academico && !d.fecha_envio_solicitud_registro_anteproyecto_depto_academico;
+  }
+
+  /** El intento que se está viendo (actual o anterior) ya venció: la línea de tiempo va en gris. */
+  get procesoVistoEstaVencido(): boolean {
+    return this.datosVista?.estado_general === 'vencido';
   }
 
   get procesoBloqueadoPorVencimientoPlazoAlumno(): boolean {
@@ -224,6 +257,8 @@ export class SeguimientoComponent implements OnInit {
   get pasosAlumno(): PasoAlumnoVista[] {
     const d = this.datosVista;
     if (!d) return [];
+    const flujoPropio = this.construirPasosAlumnoFlujoPropio();
+    if (flujoPropio) return flujoPropio;
     if (this.esResidenciaProfesional) return this.construirPasosAlumnoResidencia();
     if (this.esCenevalProfesional) return this.construirPasosAlumnoCeneval();
     if (this.noResidenciaFlujoLegacy) return this.construirPasosAlumnoLegacyNoRes();
@@ -268,6 +303,35 @@ export class SeguimientoComponent implements OnInit {
     return 'Cuando se registre el agendamiento, aquí verás la fecha y horario de tu acto protocolario.';
   }
 
+  /** Misma lista del catálogo que ve coordinación. Los flujos fijos no pasan por aquí. */
+  private construirPasosAlumnoFlujoPropio(): PasoAlumnoVista[] | null {
+    const d = this.datosVista;
+    if (!d) return null;
+    const pasos = this.catalogoService.flujoPropio(d.datos_proyecto?.modalidad ?? '');
+    if (!pasos) return null;
+    const hechos = new Set((d.avances_flujo_propio ?? []).map(a => a.indice));
+    const fechas = new Map((d.avances_flujo_propio ?? []).map(a => [a.indice, a.fecha]));
+    const raw = pasos.map((p, i) => {
+      const loHaceEgresado = (p.hace || '').trim().toLowerCase() === 'egresado';
+      const completado = hechos.has(i);
+      const esperaAvance = (p.accion || '') === ACCION_CONFIRMAR_AL_AVANZAR;
+      const listo = !esperaAvance || avancePrevioListo(pasos[i - 1], d);
+      return {
+        numero: i + 1,
+        titulo: p.nombre,
+        detalle: !completado && esperaAvance && !listo
+          ? `En espera de que avance ${pasos[i - 1]?.recibe || 'el paso anterior'}.`
+          : '',
+        fecha: fechas.get(i) ? this.formatearFechaHora(fechas.get(i)!) : '—',
+        completado,
+        clave: 'flujo-propio',
+        accionFlujo: esperaAvance ? 'Confirmar' : (p.accion && p.accion !== 'Ninguna' ? p.accion : 'Continuar'),
+        puedeAccionar: loHaceEgresado && !completado && listo,
+      };
+    });
+    return this.aplicarActivoPasos(raw);
+  }
+
   private construirPasosAlumnoResidencia(): PasoAlumnoVista[] {
     const d = this.datosVista!;
     const fh = (iso?: string | null): string => (iso ? this.formatearFechaHora(iso) : '—');
@@ -296,7 +360,7 @@ export class SeguimientoComponent implements OnInit {
       },
       {
         numero: 2,
-        titulo: 'Envío de solicitud al departamento académico .',
+        titulo: 'Envío de solicitud al departamento académico.',
         detalle:
           'La DEP envió la solicitud para registro y liberación de tu proyecto de titulación integral por residencia al departamento académico.',
         fecha: fh(d.fecha_enviado_departamento_academico),
@@ -314,7 +378,7 @@ export class SeguimientoComponent implements OnInit {
         numero: 4,
         titulo: 'Recoger y firmar anexo 9.1',
         detalle:
-          'Acude a  la división de estudios profesionales para recoger y firmar tu anexo 9.1 (formato de solicitud de acto de recepción profesional).',
+          'Acude a la división de estudios profesionales para recoger y firmar tu anexo 9.1 (formato de solicitud de acto de recepción profesional).',
         fecha: fh(d.fecha_creacion_anexo_9_1),
         completado: c4,
       },
@@ -322,7 +386,7 @@ export class SeguimientoComponent implements OnInit {
         numero: 5,
         titulo: 'Confirmación de anexo 9.1 firmado',
         detalle:
-          'La DEP te entrego el  anexo 9.1 (formato de solicitud de acto de recepción profesional) .',
+          'La DEP te entregó el anexo 9.1 (formato de solicitud de acto de recepción profesional).',
         fecha: fh(d.fecha_confirmacion_entrega_anexo_9_1),
         completado: c5,
       },
@@ -330,7 +394,7 @@ export class SeguimientoComponent implements OnInit {
         numero: 6,
         titulo: 'Solicitud del anexo 9.2',
         detalle:
-          'Solicita en el Departamento de Servicios Escolares el  anexo 9.2 (constancia de no inconveniencia para acto de recepción profesional) y posteriormente entregarlo en la dep para continuar  con tu tramite .',
+          'Solicita en el Departamento de Servicios Escolares el anexo 9.2 (constancia de no inconveniencia para acto de recepción profesional) y posteriormente entregarlo en la DEP para continuar con tu trámite.',
         fecha: fh(d.fecha_solicitud_anexo_9_2),
         completado: c6,
       },
@@ -396,7 +460,7 @@ export class SeguimientoComponent implements OnInit {
       {
         numero: 13,
         clave: 'doc_escaneada_espera',
-        titulo: 'Tu proceso por esta opción quedó concluida.',
+        titulo: 'Tu proceso por esta opción quedó concluido.',
         detalle: c12r
           ? 'La DEP confirmó la recepción de documentación escaneada.'
           : c12e
@@ -546,7 +610,7 @@ export class SeguimientoComponent implements OnInit {
       {
         numero: 13,
         clave: 'doc_escaneada_espera',
-        titulo: 'Tu proceso por esta opción quedó concluida.',
+        titulo: 'Tu proceso por esta opción quedó concluido.',
         detalle: c11r
           ? 'La DEP confirmó la recepción de documentación escaneada.'
           : c11e
@@ -706,7 +770,7 @@ export class SeguimientoComponent implements OnInit {
       {
         numero: 15,
         clave: 'doc_escaneada_espera',
-        titulo: 'Tu proceso por esta opción quedó concluida.',
+        titulo: 'Tu proceso por esta opción quedó concluido.',
         detalle: c12r
           ? 'La DEP confirmó la recepción de documentación escaneada.'
           : c12e
@@ -932,7 +996,7 @@ export class SeguimientoComponent implements OnInit {
       {
         numero: 20,
         clave: 'doc_escaneada_espera',
-        titulo: 'Tu proceso por esta opción quedó concluida.',
+        titulo: 'Tu proceso por esta opción quedó concluido.',
         detalle: c17r
           ? 'La DEP confirmó la recepción de documentación escaneada.'
           : c17e
@@ -1067,6 +1131,21 @@ export class SeguimientoComponent implements OnInit {
     this.cargarRevisionesEnviadas();
   }
 
+  avanzarFlujoPropio(): void {
+    if (this.avanzandoFlujo) return;
+    this.avanzandoFlujo = true;
+    this.egresadoService.avanzarMiFlujoPropio().subscribe({
+      next: () => {
+        this.avanzandoFlujo = false;
+        this.cargarSeguimiento({ cacheBust: true, silent: true });
+      },
+      error: (err) => {
+        this.avanzandoFlujo = false;
+        this.error = textoErrorUsuario(err, 'No se pudo avanzar el paso.');
+      },
+    });
+  }
+
   onArchivosDocEscaneadaSeleccionados(ev: Event): void {
     const input = ev.target as HTMLInputElement;
     const files = input.files ? Array.from(input.files) : [];
@@ -1100,7 +1179,7 @@ export class SeguimientoComponent implements OnInit {
       },
       error: (err: { error?: { error?: string } }) => {
         this.enviandoDocEscaneada = false;
-        this.mensajeDocEscaneada = err?.error?.error ?? 'No se pudo enviar la documentación. Intenta de nuevo.';
+        this.mensajeDocEscaneada = textoErrorUsuario(err, 'No se pudo enviar la documentación. Intenta de nuevo.');
       },
     });
   }
@@ -1111,7 +1190,7 @@ export class SeguimientoComponent implements OnInit {
     setTimeout(() => {
       const seccion = document.getElementById('revisiones-apoyo');
       if (!seccion) return;
-      seccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      seccion.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
     }, 0);
   }
 
@@ -1158,14 +1237,16 @@ export class SeguimientoComponent implements OnInit {
       next: () => {
         this.enviandoCorreccionExpediente = false;
         this.archivoCorreccionExpediente = null;
-        this.mensajeCorreccionExpediente = 'Expediente actualizado. Coordinación verá tu archivo corregido.';
+        this.mensajeCorreccionExpediente = 'Corrección enviada. Coordinación verá tu archivo corregido.';
         this.cargarSeguimiento();
         this.cargarRevisionesEnviadas();
       },
       error: (err: { error?: { error?: string } }) => {
         this.enviandoCorreccionExpediente = false;
-        this.mensajeCorreccionExpediente =
-          err?.error?.error ?? 'No se pudo subir el archivo. Verifica que sea PDF e intenta de nuevo.';
+        this.mensajeCorreccionExpediente = textoErrorUsuario(
+          err,
+          'No se pudo subir el archivo. Verifica que sea PDF e intenta de nuevo.',
+        );
       },
     });
   }
@@ -1186,10 +1267,7 @@ export class SeguimientoComponent implements OnInit {
         URL.revokeObjectURL(url);
       },
       error: (err) => {
-        const msg = err?.error?.error ?? err?.error?.message ?? err?.message ?? '';
-        this.errorDescargaRevision = msg
-          ? `No se pudo descargar el PDF adjunto: ${msg}`
-          : 'No se pudo descargar el PDF adjunto.';
+        this.errorDescargaRevision = textoErrorUsuario(err, 'No se pudo descargar el archivo.');
       },
     });
   }
@@ -1220,7 +1298,7 @@ export class SeguimientoComponent implements OnInit {
         } else if (err?.status === 403) {
           this.error = 'No tienes permiso para ver el seguimiento.';
         } else {
-          this.error = 'No se pudo cargar el seguimiento. ¿Está el backend en ejecución?';
+          this.error = textoErrorUsuario(err, 'No se pudo cargar el seguimiento.');
         }
       },
     });
@@ -1242,27 +1320,40 @@ export class SeguimientoComponent implements OnInit {
 
   formatearFechaHora(iso?: string): string {
     if (!iso) return '—';
+    const calendario = this.fechaCalendario(iso);
+    if (calendario && /T00:00:00(\.0+)?Z$/.test(iso)) return calendario;
     try {
       const dt = new Date(iso);
       if (isNaN(dt.getTime())) return iso;
-      const dia = dt.getDate().toString().padStart(2, '0');
-      const mes = (dt.getMonth() + 1).toString().padStart(2, '0');
-      const anio = dt.getFullYear();
-      const h = dt.getHours().toString().padStart(2, '0');
-      const min = dt.getMinutes().toString().padStart(2, '0');
-      return `${dia}/${mes}/${anio}, ${h}:${min}`;
+      const partes = new Intl.DateTimeFormat('es-MX', {
+        timeZone: 'America/Mexico_City',
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: false,
+      }).formatToParts(dt);
+      const v = (tipo: string) => partes.find(p => p.type === tipo)?.value ?? '';
+      return `${v('day')}/${v('month')}/${v('year')}, ${v('hour')}:${v('minute')}`;
     } catch {
       return iso;
     }
   }
 
+  /** Día capturado, sin recorrerlo por la zona horaria. */
+  private fechaCalendario(iso: string): string | null {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : null;
+  }
+
   /** Solo fecha local dd/mm/aaaa (misma convención que el cuadro de plazo). */
   private formatearSoloFechaDesdeIso(iso: string): string {
+    if (/T00:00:00(\.0+)?Z$/.test(iso)) return this.fechaCalendario(iso) ?? iso;
     const dt = new Date(iso);
     if (isNaN(dt.getTime())) return iso;
-    const dia = dt.getDate().toString().padStart(2, '0');
-    const mes = (dt.getMonth() + 1).toString().padStart(2, '0');
-    return `${dia}/${mes}/${dt.getFullYear()}`;
+    const partes = new Intl.DateTimeFormat('es-MX', {
+      timeZone: 'America/Mexico_City',
+      day: '2-digit', month: '2-digit', year: 'numeric',
+    }).formatToParts(dt);
+    const v = (tipo: string) => partes.find(p => p.type === tipo)?.value ?? '';
+    return `${v('day')}/${v('month')}/${v('year')}`;
   }
 
   /**
@@ -1286,3 +1377,4 @@ export class SeguimientoComponent implements OnInit {
     return `Tienes un plazo de 12 meses calendario para desarrollar tu ${mod}, contado desde el ${ref}. El plazo termina cuando tu departamento académico libere tu ${mod}.`;
   }
 }
+

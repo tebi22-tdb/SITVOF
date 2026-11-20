@@ -21,7 +21,11 @@
           (click)="cambiarTab('pendientes')"
         >
           Pendientes
-          <span *ngIf="totalPendientes > 0" class="se-tab-badge">{{ totalPendientes }}</span>
+          <span
+            *ngIf="totalPendientes > 0"
+            class="se-tab-badge"
+            [class.se-tab-badge--nuevo]="hayPendientesNuevos"
+          >{{ totalPendientes }}</span>
         </button>
         <button
           type="button"
@@ -66,6 +70,7 @@
             *ngFor="let item of items"
             class="se-lista-item"
             [class.activo]="detalle?.id === item.id"
+            [class.se-lista-item--nuevo]="esNuevo(item.id)"
             (click)="seleccionar(item)"
             role="button"
             tabindex="0"
@@ -74,7 +79,11 @@
             <div class="se-lista-fila-principal">
               <span class="se-lista-control">{{ item.numero_control }}</span>
               <span
-                *ngIf="tabActivo === 'pendientes'"
+                *ngIf="tabActivo === 'pendientes' && esNuevo(item.id)"
+                class="se-lista-badge se-lista-badge--nuevo"
+              >Nuevo</span>
+              <span
+                *ngIf="tabActivo === 'pendientes' && !esNuevo(item.id)"
                 class="se-lista-badge se-lista-badge--pendiente"
               >Pendiente</span>
               <span
@@ -140,7 +149,7 @@
                 <dt>Modalidad de titulación</dt>
                 <dd>{{ detalle.modalidad || '—' }}</dd>
               </div>
-              <div class="se-dato se-dato--proyecto">
+              <div class="se-dato se-dato--proyecto" *ngIf="!esCeneval(detalle.modalidad)">
                 <dt>Nombre del proyecto</dt>
                 <dd>{{ detalle.nombre_proyecto || '—' }}</dd>
               </div>
@@ -155,10 +164,10 @@
             <button
               type="button"
               class="se-btn se-btn--primario"
-              [disabled]="descargando92 || !!detalle.fecha_creacion_anexo_9_2"
+              [disabled]="descargando92"
               (click)="descargarAnexo92()"
             >
-              {{ descargando92 ? 'Generando…' : (detalle.fecha_creacion_anexo_9_2 ? 'Anexo 9.2 generado' : 'Generar Anexo 9.2') }}
+              {{ descargando92 ? 'Generando…' : (detalle.fecha_creacion_anexo_9_2 ? 'Regenerar Anexo 9.2' : 'Generar Anexo 9.2') }}
             </button>
             
             <button type="button" class="se-btn se-btn--aceptar" [disabled]="confirmando || !detalle.fecha_creacion_anexo_9_2" (click)="aceptarPendiente()">

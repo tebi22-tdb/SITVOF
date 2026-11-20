@@ -4,6 +4,7 @@ import com.sit_titulacion.sit.domain.ProcesoTitulacion
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import kotlin.math.ceil
 import kotlin.math.max
@@ -43,6 +44,7 @@ object PlazoTitulacionCalculator {
     const val MESES_PLAZO_TITULACION_NO_RES = 6L
     const val MARGEN_REZAGO_DIAS_NO_RES = 30L
     const val MESES_PLAZO_RESIDENCIA = 6L
+    val ZONA_MEXICO: ZoneId = ZoneId.of("America/Mexico_City")
 
     enum class Estado(val valorApi: String) {
         EN_TIEMPO("en_tiempo"),
@@ -88,13 +90,20 @@ object PlazoTitulacionCalculator {
     fun vista(
         p: ProcesoTitulacion,
         esResidencia: Boolean,
-        hoy: LocalDate = LocalDate.now(),
-        zone: ZoneId = ZoneId.systemDefault(),
-    ): Vista = if (esResidencia) vistaResidencia(p, hoy, zone) else vistaNoResidencia(p, hoy, zone)
+        hoy: LocalDate = LocalDate.now(ZONA_MEXICO),
+        zone: ZoneId = ZONA_MEXICO,
+        mesesProyecto: Long = MESES_PLAZO_PROYECTO_NO_RES,
+        mesesTitulacion: Long = MESES_PLAZO_TITULACION_NO_RES,
+        mesesResidencia: Long = MESES_PLAZO_RESIDENCIA,
+    ): Vista = if (esResidencia) vistaResidencia(p, hoy, zone, mesesResidencia)
+    else vistaNoResidencia(p, hoy, zone, mesesProyecto, mesesTitulacion)
 
     // ── Helpers de fecha/estado (equivalentes a los de ambos archivos TS) ────
 
     private fun Instant.aFechaLocal(zone: ZoneId): LocalDate = this.atZone(zone).toLocalDate()
+
+    /** Día de calendario capturado (medianoche UTC). No se convierte a Oaxaca: eso lo recorrería un día. */
+    private fun Instant.fechaCapturada(): LocalDate = this.atZone(ZoneOffset.UTC).toLocalDate()
 
     private fun diffDias(fin: LocalDate, inicio: LocalDate): Long = ChronoUnit.DAYS.between(inicio, fin)
 
@@ -115,18 +124,19 @@ object PlazoTitulacionCalculator {
 
     // ── Residencia: 6 meses desde Anexo XXXI ──────────────────────────────────
 
-    private fun vistaResidencia(p: ProcesoTitulacion, hoy: LocalDate, zone: ZoneId): Vista {
+    private fun vistaResidencia(p: ProcesoTitulacion, hoy: LocalDate, zone: ZoneId, mesesResidencia: Long): Vista {
         if (p.fechaConfirmacionDocumentacionEscaneadaRecibida != null) {
             return Vista(Estado.EN_TIEMPO, "Residencia: proceso concluido en el sistema.", "", null, null)
         }
         // p.fechaCreacion siempre existe (default Instant.now() en el dominio) — a diferencia
         // del TS, aquí no hay caso real de "sin fecha de inicio para el plazo".
-        val inicio = (p.documentos.anexo_xxxi.fecha_registro ?: p.fechaCreacion).aFechaLocal(zone)
-        val fin = inicio.plusMonths(MESES_PLAZO_RESIDENCIA)
+        val inicio = p.documentos.anexo_xxxi.fecha_registro?.fechaCapturada()
+            ?: p.fechaCreacion.aFechaLocal(zone)
+        val fin = inicio.plusMonths(mesesResidencia)
         val dias = diffDias(fin, hoy)
         return Vista(
             estadoGlobal = estadoDesdeDias(dias),
-            lineaProyecto = "Residencia: ${mesesRestantesTexto(dias, MESES_PLAZO_RESIDENCIA)} (desde Anexo XXXI).",
+            lineaProyecto = "Residencia: ${mesesRestantesTexto(dias, mesesResidencia)} (desde Anexo XXXI).",
             lineaTitulacion = "",
             fechaLimiteMasCercana = fin,
             diasHastaLimiteMasCercano = dias,
@@ -139,15 +149,27 @@ object PlazoTitulacionCalculator {
         p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico != null ||
             p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii != null
 
-    private fun vistaNoResidencia(p: ProcesoTitulacion, hoy: LocalDate, zone: ZoneId): Vista =
-        if (esFlujo7Pasos(p)) vistaFlujo7(p, hoy, zone) else vistaLegacy(p, hoy, zone)
+    private fun vistaNoResidencia(
+        p: ProcesoTitulacion,
+        hoy: LocalDate,
+        zone: ZoneId,
+        mesesProyecto: Long,
+        mesesTitulacion: Long,
+    ): Vista = if (esFlujo7Pasos(p)) vistaFlujo7(p, hoy, zone, mesesProyecto, mesesTitulacion)
+    else vistaLegacy(p, hoy, zone, mesesProyecto, mesesTitulacion)
 
     /**
      * Plazo de desarrollo del flujo de 7 pasos: 12 meses desde confirmación DEP paso 3
      * (o desde expedición de constancia de no inconveniencia si es curso de titulación);
      * al liberar producto o recibir el trabajo en división, cambia a 6 meses (fase post-recepción).
      */
-    private fun plazoDesarrollo(p: ProcesoTitulacion, hoy: LocalDate, zone: ZoneId): PlazoDesarrollo? {
+    private fun plazoDesarrollo(
+        p: ProcesoTitulacion,
+        hoy: LocalDate,
+        zone: ZoneId,
+        mesesProyecto: Long,
+        mesesTitulacion: Long,
+    ): PlazoDesarrollo? {
         val finDesarrolloInstant = p.fechaSolicitudRegistroLiberacionDeptoAcademico
             ?: p.fechaRecepcionTrabajoDivisionEstudiosProf
         val fechaInicio: LocalDate
@@ -155,16 +177,17 @@ object PlazoTitulacionCalculator {
         val fasePostRecepcion: Boolean
         if (finDesarrolloInstant != null) {
             fechaInicio = finDesarrolloInstant.aFechaLocal(zone)
-            mesesTotales = MESES_PLAZO_TITULACION_NO_RES
+            mesesTotales = mesesTitulacion
             fasePostRecepcion = true
         } else {
-            val esCurso = p.datos_proyecto.curso_titulacion.equals("si", ignoreCase = true)
+            val esCurso = p.datos_proyecto.curso_titulacion.equals("si", ignoreCase = true) ||
+                p.datos_proyecto.modalidad.contains("cursos especiales", ignoreCase = true)
             val inicioInstant = (
                 if (esCurso) p.documentos.constancia_no_inconveniencia.fecha_expedicion
                 else p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii
                 ) ?: return null
-            fechaInicio = inicioInstant.aFechaLocal(zone)
-            mesesTotales = MESES_PLAZO_PROYECTO_NO_RES
+            fechaInicio = if (esCurso) inicioInstant.fechaCapturada() else inicioInstant.aFechaLocal(zone)
+            mesesTotales = mesesProyecto
             fasePostRecepcion = false
         }
         val fechaLimite = fechaInicio.plusMonths(mesesTotales)
@@ -198,11 +221,17 @@ object PlazoTitulacionCalculator {
      * [vistaFlujo7]: solo aplica ANTES de la liberación de producto (una vez liberado, deja de
      * mostrarse — la fase post-recepción de 6 meses se ve en la vista general, no en este cuadro).
      */
-    fun cuadroDesarrollo(p: ProcesoTitulacion, hoy: LocalDate = LocalDate.now(), zone: ZoneId = ZoneId.systemDefault()): CuadroDesarrollo? {
+    fun cuadroDesarrollo(
+        p: ProcesoTitulacion,
+        hoy: LocalDate = LocalDate.now(ZONA_MEXICO),
+        zone: ZoneId = ZONA_MEXICO,
+        mesesProyecto: Long = MESES_PLAZO_PROYECTO_NO_RES,
+        mesesTitulacion: Long = MESES_PLAZO_TITULACION_NO_RES,
+    ): CuadroDesarrollo? {
         if (p.fechaSolicitudRegistroLiberacionDeptoAcademico != null) return null
         if (p.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii == null) return null
         if (p.fechaEnvioSolicitudRegistroAnteproyectoDeptoAcademico == null) return null
-        val d = plazoDesarrollo(p, hoy, zone) ?: return null
+        val d = plazoDesarrollo(p, hoy, zone, mesesProyecto, mesesTitulacion) ?: return null
         val claseSemaforo = when (d.estado) {
             Estado.VENCIDO -> "plazo-desarrollo-rec--bad"
             Estado.REZAGADO -> "plazo-desarrollo-rec--warn"
@@ -264,7 +293,13 @@ object PlazoTitulacionCalculator {
         return "Te falta: $tiempo para llegar al límite ($lim)."
     }
 
-    private fun vistaFlujo7(p: ProcesoTitulacion, hoy: LocalDate, zone: ZoneId): Vista {
+    private fun vistaFlujo7(
+        p: ProcesoTitulacion,
+        hoy: LocalDate,
+        zone: ZoneId,
+        mesesProyecto: Long,
+        mesesTitulacion: Long,
+    ): Vista {
         if (p.fechaConfirmacionDocumentacionEscaneadaRecibida != null) {
             return Vista(Estado.EN_TIEMPO, "Proceso concluido en el sistema.", "", null, null)
         }
@@ -282,20 +317,26 @@ object PlazoTitulacionCalculator {
                 "", null, null,
             )
         }
-        val desarrollo = plazoDesarrollo(p, hoy, zone)
+        val desarrollo = plazoDesarrollo(p, hoy, zone, mesesProyecto, mesesTitulacion)
             ?: return Vista(Estado.EN_TIEMPO, "Plazo de desarrollo no aplica en esta etapa.", "", null, null)
         val linea = if (desarrollo.fasePostRecepcion) {
-            "Trámite tras liberación: ${mesesRestantesTexto(desarrollo.diasHastaLimite, MESES_PLAZO_TITULACION_NO_RES)} " +
-                "($MESES_PLAZO_TITULACION_NO_RES meses desde liberación en departamento)."
+            "Trámite tras liberación: ${mesesRestantesTexto(desarrollo.diasHastaLimite, desarrollo.mesesTotales)} " +
+                "(${desarrollo.mesesTotales} meses desde liberación en departamento)."
         } else {
             "Desarrollo de tesis: ${mesesRestantesTexto(desarrollo.diasHastaLimite, desarrollo.mesesTotales)} " +
-                "($MESES_PLAZO_PROYECTO_NO_RES meses desde confirmación DEP paso 3)."
+                "(${desarrollo.mesesTotales} meses desde confirmación DEP paso 3)."
         }
         return Vista(desarrollo.estado, linea, "", desarrollo.fechaLimite, desarrollo.diasHastaLimite)
     }
 
     /** Expedientes antiguos (sin flujo 7): dos sub-plazos independientes, proyecto y titulación. */
-    private fun vistaLegacy(p: ProcesoTitulacion, hoy: LocalDate, zone: ZoneId): Vista {
+    private fun vistaLegacy(
+        p: ProcesoTitulacion,
+        hoy: LocalDate,
+        zone: ZoneId,
+        mesesProyecto: Long,
+        mesesTitulacion: Long,
+    ): Vista {
         val confAnexosInstant = p.fechaConfirmacionRecibidosAnexoXxxiXxxii
         val proyectoConcluido = confAnexosInstant != null
         val titulacionConcluido = p.fechaConfirmacionDocumentacionEscaneadaRecibida != null
@@ -305,14 +346,14 @@ object PlazoTitulacionCalculator {
         var finPro: LocalDate? = null
         var diasPro: Long? = null
         if (proyectoConcluido) {
-            lineaProyecto = "Proyecto: etapa concluida (plazo de $MESES_PLAZO_PROYECTO_NO_RES meses superado)."
+            lineaProyecto = "Proyecto: etapa concluida (plazo de $mesesProyecto meses superado)."
         } else {
             // p.fechaCreacion siempre existe: a diferencia del TS, no hay caso "sin fecha".
             val inicioPro = (p.fechaEnviadoDepartamentoAcademico ?: p.fechaCreacion).aFechaLocal(zone)
-            finPro = inicioPro.plusMonths(MESES_PLAZO_PROYECTO_NO_RES)
+            finPro = inicioPro.plusMonths(mesesProyecto)
             diasPro = diffDias(finPro, hoy)
             estPro = estadoDesdeDias(diasPro)
-            lineaProyecto = "Proyecto: ${mesesRestantesTexto(diasPro, MESES_PLAZO_PROYECTO_NO_RES)}."
+            lineaProyecto = "Proyecto: ${mesesRestantesTexto(diasPro, mesesProyecto)}."
         }
 
         val lineaTitulacion: String
@@ -322,13 +363,13 @@ object PlazoTitulacionCalculator {
         if (titulacionConcluido) {
             lineaTitulacion = "Proceso de titulación: concluido en el sistema."
         } else if (confAnexosInstant == null) {
-            lineaTitulacion = "Titulación: inicia al confirmar anexos XXXII/XXXIII ($MESES_PLAZO_TITULACION_NO_RES meses)."
+            lineaTitulacion = "Titulación: inicia al confirmar anexos XXXII/XXXIII ($mesesTitulacion meses)."
         } else {
             val confAnexos = confAnexosInstant.aFechaLocal(zone)
-            finTit = confAnexos.plusMonths(MESES_PLAZO_TITULACION_NO_RES)
+            finTit = confAnexos.plusMonths(mesesTitulacion)
             diasTit = diffDias(finTit, hoy)
             estTit = estadoDesdeDias(diasTit)
-            lineaTitulacion = "Titulación: ${mesesRestantesTexto(diasTit, MESES_PLAZO_TITULACION_NO_RES)}."
+            lineaTitulacion = "Titulación: ${mesesRestantesTexto(diasTit, mesesTitulacion)}."
         }
 
         val rank = mapOf(Estado.VENCIDO to 0, Estado.REZAGADO to 1, Estado.EN_TIEMPO to 2)

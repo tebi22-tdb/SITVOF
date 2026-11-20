@@ -53,12 +53,14 @@ class SecurityConfig(
                 auth
                     .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/auth/recuperar-password").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/auth/restablecer-password").permitAll()
                     .requestMatchers("/api/verificar/**").permitAll()
                     .requestMatchers("/api/repositorio/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/catalogos/carreras").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/catalogos/niveles").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/catalogos/modalidades").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/catalogos/departamentos").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/catalogos/opciones").permitAll()
                 if (environment.acceptsProfiles(Profiles.of("dev"))) {
                     auth.requestMatchers("/dev/**", "/api/auth/hash").permitAll()
                 } else {
@@ -68,7 +70,9 @@ class SecurityConfig(
                     .requestMatchers("/api/auth/me").authenticated()
                     .requestMatchers("/api/auth/logout").authenticated()
                     .requestMatchers("/api/**").authenticated()
-                    .anyRequest().permitAll()
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                    .requestMatchers("/error").permitAll()
+                    .anyRequest().denyAll()
             }
             .logout { logout ->
                 logout.logoutUrl("/api/auth/logout")
@@ -97,7 +101,12 @@ class SecurityConfig(
             )
             allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
             allowedHeaders = listOf("Content-Type", "Authorization")
-            exposedHeaders = listOf("Authorization", "X-Sinodales-Notificados")
+            exposedHeaders = listOf(
+                "Authorization",
+                "X-Sinodales-Notificados",
+                "X-Sinodales-Intentados",
+                "X-Sinodales-En-Proceso",
+            )
         }
         val source = UrlBasedCorsConfigurationSource()
         source.registerCorsConfiguration("/**", config)

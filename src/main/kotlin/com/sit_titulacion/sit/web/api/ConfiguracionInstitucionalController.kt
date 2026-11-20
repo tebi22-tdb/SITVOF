@@ -4,6 +4,8 @@ import com.sit_titulacion.sit.config.UsuarioPrincipal
 import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.service.ConfiguracionInstitucionalService
 import com.sit_titulacion.sit.service.EmailService
+import com.sit_titulacion.sit.web.api.dto.CodigosAnexosDto
+import com.sit_titulacion.sit.web.api.dto.TextosAnexoDto
 import com.sit_titulacion.sit.web.api.dto.ConfigDepartamentoDto
 import com.sit_titulacion.sit.web.api.dto.ConfigGlobalDto
 import com.sit_titulacion.sit.web.api.dto.ConfigServiciosEscolaresDto
@@ -32,18 +34,35 @@ class ConfiguracionInstitucionalController(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /** Estado del envío de correos (SMTP), para el aviso en el panel de coordinación. */
+    /** Avisos de correos que siguen en reintento, para la pantalla que corresponde. */
     @GetMapping("/estado-correo")
     fun getEstadoCorreo(@AuthenticationPrincipal principal: UsuarioPrincipal?): ResponseEntity<*> {
-        if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        val rol = principal?.getRol() ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        if (!rol.esAlgunoDe(Rol.ADMINISTRADOR, Rol.DEP, Rol.ACADEMICO)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        }
+        val segmento = principal.getSegmentoAcademico()?.trim()?.lowercase()?.ifBlank { null }
+        val avisos = emailService.avisosPendientes().filter { aviso ->
+            when (rol) {
+                Rol.ADMINISTRADOR -> true
+                Rol.DEP -> aviso.modulo == "alta-egresados" || aviso.modulo == "seguimiento"
+                Rol.ACADEMICO -> {
+                    aviso.modulo == "departamento" &&
+                        (segmento == null || aviso.segmento == null || aviso.segmento == segmento)
+                }
+                else -> false
+            }
+        }
         val estado = emailService.estadoActual()
-        return ResponseEntity.ok(
-            mapOf(
-                "ok" to estado.ok,
-                "ultimo_error" to estado.ultimoError,
-                "momento" to estado.momento?.toString(),
-            ),
+        val cuerpo = mutableMapOf<String, Any?>(
+            "ok" to estado.ok,
+            "avisos" to avisos.map { mapOf("modulo" to it.modulo, "segmento" to it.segmento) },
         )
+        if (rol == Rol.ADMINISTRADOR) {
+            cuerpo["ultimo_error"] = estado.ultimoError
+            cuerpo["momento"] = estado.momento?.toString()
+        }
+        return ResponseEntity.ok(cuerpo)
     }
 
     @GetMapping("/global")
@@ -90,17 +109,14 @@ class ConfiguracionInstitucionalController(
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
         if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        if (!imagen.contentType.orEmpty().startsWith("image/")) {
-            return ResponseEntity.badRequest().body(mapOf("error" to "El archivo debe ser una imagen."))
-        }
         return try {
             ResponseEntity.ok(service.actualizarImagenAnexo(clave, imagen))
         } catch (ex: IllegalArgumentException) {
             log.warn(">>> subirImagenAnexo clave='{}': clave inválida: {}", clave, ex.message)
-            ResponseEntity.badRequest().body(mapOf("error" to ex.message))
+            ResponseEntity.badRequest().body(mapOf("error" to "No se pudo usar esa imagen."))
         } catch (ex: Exception) {
             log.error(">>> subirImagenAnexo clave='{}' FALLÓ: {}", clave, ex.message, ex)
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(mapOf("error" to (ex.message ?: ex.javaClass.simpleName)))
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(mapOf("error" to "No se pudo subir la imagen."))
         }
     }
 
@@ -116,10 +132,11 @@ class ConfiguracionInstitucionalController(
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
         if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        if (!imagen.contentType.orEmpty().startsWith("image/")) {
-            return ResponseEntity.badRequest().body(mapOf("error" to "El archivo debe ser una imagen."))
+        return try {
+            ResponseEntity.ok(service.agregarInsigniaAnexo(imagen))
+        } catch (ex: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(mapOf("error" to (ex.message ?: "No se pudo usar esa imagen.")))
         }
-        return ResponseEntity.ok(service.agregarInsigniaAnexo(imagen))
     }
 
     @DeleteMapping("/insignias-anexos/{id}")
@@ -138,6 +155,48 @@ class ConfiguracionInstitucionalController(
     ): ResponseEntity<*> {
         if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
         return ResponseEntity.ok(service.reordenarInsigniasAnexos(dto.idsEnOrden))
+    }
+
+    @GetMapping("/textos-anexos/{anexo}", produces = [MediaType.TEXT_HTML_VALUE])
+    fun getTextosAnexo(
+        @PathVariable anexo: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        return try {
+            ResponseEntity.ok(service.htmlVistaTextos(anexo))
+        } catch (ex: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(ex.message ?: "Este anexo no tiene hoja editable.")
+        }
+    }
+
+    @PutMapping("/textos-anexos/{anexo}", consumes = [MediaType.APPLICATION_JSON_VALUE])
+    fun putTextosAnexo(
+        @PathVariable anexo: String,
+        @RequestBody dto: TextosAnexoDto,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        return try {
+            ResponseEntity.ok(mapOf("bloques" to service.guardarTextosAnexo(anexo, dto.bloques)))
+        } catch (ex: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(mapOf("error" to (ex.message ?: "No se pudieron guardar los textos.")))
+        }
+    }
+
+    @GetMapping("/codigos-anexos")
+    fun getCodigosAnexos(@AuthenticationPrincipal principal: UsuarioPrincipal?): ResponseEntity<*> {
+        if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        return ResponseEntity.ok(service.obtenerCodigosAnexos())
+    }
+
+    @PutMapping("/codigos-anexos", consumes = [MediaType.APPLICATION_JSON_VALUE])
+    fun putCodigosAnexos(
+        @RequestBody dto: CodigosAnexosDto,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (!esAdmin(principal)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        return ResponseEntity.ok(service.actualizarCodigosAnexos(dto))
     }
 
     @GetMapping("/servicios-escolares")

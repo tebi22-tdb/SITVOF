@@ -1,15 +1,16 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
-import { catchError, EMPTY, finalize, throwError, timeout } from 'rxjs';
+import { catchError, EMPTY, finalize, Subscription, throwError, timeout } from 'rxjs';
 import { AgendarActoComponent, ActoAgendadoDto } from './agendar-acto/agendar-acto.component';
 import { HeaderComponent } from '../../layout/header/header.component';
 import { PdfViewerPanelComponent } from '../../shared/pdf-viewer-panel/pdf-viewer-panel.component';
 import { mensajeErrorApiConBlob } from '../../core/http-blob-error';
+import { textoErrorUsuario } from '../../core/mensaje-conexion';
 import { EgresadoService, EgresadoDetail, EgresadoItem, PlazoDesarrolloBackend } from '../../services/egresado.service';
-import { CatalogoService } from '../../services/catalogo.service';
+import { ACCION_CONFIRMAR_AL_AVANZAR, CatalogoService, avancePrevioListo } from '../../services/catalogo.service';
 import { AuthService } from '../../services/auth.service';
 
 type EstadoFiltro = 'todos' | 'en_tiempo' | 'rezagado' | 'vencido' | 'concluido';
@@ -46,6 +47,11 @@ interface PasoProcesoUi {
   estado: EstadoPaso;
   /** Semáforo y fechas del plazo de desarrollo (paso recepción en división, flujo 16 no residencia). */
   plazoDesarrolloRecepcion?: PlazoDesarrolloBackend | null;
+  /** Texto del flujo propio. Los flujos fijos no lo usan. */
+  detalleFlujo?: string;
+  accionFlujo?: string;
+  puedeAccionar?: boolean;
+  enEspera?: boolean;
 }
 
 @Component({
@@ -68,6 +74,8 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
   ordenarPor: OrdenFiltro = 'reciente';
   mostrarMasFiltros = false;
   detalleSeleccionado: EgresadoDetail | null = null;
+  procesoPantallaCompleta = false;
+  @ViewChild('panelProceso') panelProceso?: ElementRef<HTMLElement>;
   cargandoDetalle = false;
   procesandoPaso = false;
   mensajeProceso = '';
@@ -81,6 +89,20 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
   pasosProcesoTitulacionCache: PasoProcesoUi[] = [];
   private detalleRequestSeq = 0;
   private refrescoListaIntervalo: ReturnType<typeof setInterval> | null = null;
+  private subCatalogo?: Subscription;
+
+  /** Flash + resalte de avance de paso (no alta nueva). */
+  private snapshotUltimoMov = new Map<string, string>();
+  private baselineUltimoMovListo = false;
+  private idsFlashPaso = new Set<string>();
+  /** Sigue resaltado en rojo hasta que el usuario abre la fila. */
+  private idsNovedadSinRevisar = new Set<string>();
+  private flashPasoTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private flashInicialHecho = false;
+  private static readonly DURACION_FLASH_PASO_MS = 3600;
+  private static readonly STORAGE_ULTIMO_MOV = 'sit_seg_ultimo_mov';
+  private static readonly STORAGE_NOVEDADES = 'sit_seg_novedades';
+  private static readonly POLL_MS = 15_000;
 
   private readonly pasosRevertiblesSeguimiento = new Set([
     'fecha_confirmacion_entrega_egresado_depto',
@@ -158,7 +180,9 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     } else if (this.ordenarPor === 'control') {
       out = out.sort((a, b) => a.noControl.localeCompare(b.noControl));
     } else if (this.ordenarPor === 'reciente') {
-      out = out.sort((a, b) => b.ultimoMovimientoIso.localeCompare(a.ultimoMovimientoIso));
+      out = this.esDepOAdministrador
+        ? out.sort((a, b) => this.cmpUltimoMovimientoDesc(a, b))
+        : out.sort((a, b) => b.ultimoMovimientoIso.localeCompare(a.ultimoMovimientoIso));
     } else {
       const prioridad = { vencido: 0, rezagado: 1, en_tiempo: 2, concluido: 3 };
       out = out.sort((a, b) => {
@@ -183,16 +207,69 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     if (buscar) this.buscarControl = buscar;
     const carrera = this.route.snapshot.queryParamMap.get('carrera')?.trim();
     if (carrera) this.filtroCarrera = carrera;
+    this.cargarSnapshotDesdeSesion();
     this.cargar();
-    this.refrescoListaIntervalo = setInterval(() => this.cargar(true), 45000);
+    this.subCatalogo = this.catalogoService.modalidades$.subscribe(() => {
+      if (this.detalleSeleccionado) this.actualizarPasosProcesoTitulacion();
+    });
+    this.refrescoListaIntervalo = setInterval(
+      () => this.cargar(true),
+      SeguimientoProcesoComponent.POLL_MS,
+    );
   }
 
   ngOnDestroy(): void {
+    this.subCatalogo?.unsubscribe();
     if (this.refrescoListaIntervalo) {
       clearInterval(this.refrescoListaIntervalo);
       this.refrescoListaIntervalo = null;
     }
+    this.flashPasoTimers.forEach((t) => clearTimeout(t));
+    this.flashPasoTimers.clear();
     this.limpiarVistaDocEscaneada();
+    this.salirPantallaProceso();
+  }
+
+  togglePantallaProceso(): void {
+    if (this.procesoPantallaCompleta || document.fullscreenElement) {
+      this.salirPantallaProceso();
+      return;
+    }
+    this.procesoPantallaCompleta = true;
+    document.body.style.overflow = 'hidden';
+    const panel = this.panelProceso?.nativeElement;
+    panel?.requestFullscreen?.().catch(() => undefined);
+  }
+
+  @HostListener('document:keydown.escape')
+  cerrarPantallaProceso(): void {
+    if (this.procesoPantallaCompleta || document.fullscreenElement) {
+      this.salirPantallaProceso();
+    }
+  }
+
+  @HostListener('document:fullscreenchange')
+  alSalirPantallaNavegador(): void {
+    if (!document.fullscreenElement) {
+      this.procesoPantallaCompleta = false;
+      document.body.style.overflow = '';
+    }
+  }
+
+  private salirPantallaProceso(): void {
+    this.procesoPantallaCompleta = false;
+    document.body.style.overflow = '';
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => undefined);
+    }
+  }
+  esPasoReciente(id: string): boolean {
+    return this.idsFlashPaso.has(id);
+  }
+
+  /** True mientras no se abra la fila tras un avance (resalte tipo pendiente). */
+  tieneNovedad(id: string): boolean {
+    return this.idsNovedadSinRevisar.has(id);
   }
 
   seleccionarEstado(estado: EstadoFiltro): void {
@@ -206,6 +283,21 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
   /** DEP no tiene dashboard (/home): en vez de "Volver" ve acceso directo a su otra pantalla. */
   get esDep(): boolean {
     return this.auth.isDep();
+  }
+
+  /** Solo estas dos cuentas: el más reciente por último movimiento queda arriba. */
+  get esDepOAdministrador(): boolean {
+    return this.auth.isDep() || this.auth.puedeAdministrarUsuariosStaff();
+  }
+
+  private cmpUltimoMovimientoDesc(a: SeguimientoItem, b: SeguimientoItem): number {
+    const ta = Date.parse(a.ultimoMovimientoIso);
+    const tb = Date.parse(b.ultimoMovimientoIso);
+    const aOk = Number.isFinite(ta);
+    const bOk = Number.isFinite(tb);
+    if (aOk && bOk && ta !== tb) return tb - ta;
+    if (aOk !== bOk) return aOk ? -1 : 1;
+    return a.alumno.localeCompare(b.alumno, 'es');
   }
 
   irARegistrarEgresado(): void {
@@ -309,7 +401,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.procesandoPaso = false;
-        this.mensajeProceso = err?.error?.error ?? 'No se pudo revertir el paso.';
+        this.mensajeProceso = textoErrorUsuario(err, 'No se pudo revertir el paso.');
       },
     });
   }
@@ -319,6 +411,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       this.mensajeProceso = 'Espera a que termine la acción en curso (por ejemplo agendar o crear anexo).';
       return;
     }
+    this.marcarNovedadVista(item.id);
     this.mensajeProceso = '';
     this.cargandoDetalle = true;
     this.detalleSeleccionado = null;
@@ -330,7 +423,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     const guard = window.setTimeout(() => {
       if (requestSeq === this.detalleRequestSeq && this.cargandoDetalle) {
         this.cargandoDetalle = false;
-        this.mensajeProceso = 'No se pudo cargar el detalle a tiempo. Intenta de nuevo.';
+        this.mensajeProceso = 'Conexión lenta.';
       }
     }, 22000);
     this.egresadoService
@@ -360,10 +453,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         error: (err) => {
           if (requestSeq !== this.detalleRequestSeq) return;
           this.cargandoDetalle = false;
-          this.mensajeProceso =
-            err?.name === 'TimeoutError'
-              ? 'El servidor tardó demasiado en responder al cargar el detalle.'
-              : err?.error?.error ?? 'No se pudo cargar el detalle del egresado. Intenta de nuevo.';
+          this.mensajeProceso = textoErrorUsuario(err, 'No se pudo cargar el detalle del egresado. Intenta de nuevo.');
         },
       });
   }
@@ -434,6 +524,12 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     const scroll = opciones?.scrollPasoActivo === true;
     if (!this.detalleSeleccionado) {
       this.pasosProcesoTitulacionCache = [];
+      return;
+    }
+    const flujoPropio = this.construirPasosFlujoPropio();
+    if (flujoPropio) {
+      this.pasosProcesoTitulacionCache = flujoPropio;
+      if (scroll) this.programarScrollAlPasoActual();
       return;
     }
     if (this.esResidenciaProfesionalSeguimiento) {
@@ -568,6 +664,83 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       const estado: EstadoPaso = completado ? 'completado' : todosPreviosCompletados ? 'en_curso' : 'pendiente';
       if (!completado) todosPreviosCompletados = false;
       return { numero: i + 1, key: s.key, titulo: s.titulo, descripcion: s.descripcion, fecha, estado };
+    });
+  }
+
+  /** Lista del catálogo. No se usa para tesis, residencia ni CENEVAL. */
+  private construirPasosFlujoPropio(): PasoProcesoUi[] | null {
+    const d = this.detalleSeleccionado;
+    if (!d) return null;
+    const pasos = this.catalogoService.flujoPropio(d.datos_proyecto?.modalidad ?? '');
+    if (!pasos) return null;
+    const hechos = new Set((d.avances_flujo_propio ?? []).map(a => a.indice));
+    const fechas = new Map((d.avances_flujo_propio ?? []).map(a => [a.indice, a.fecha]));
+    let abrio = false;
+    return pasos.map((p, i) => {
+      const completado = hechos.has(i);
+      let estado: EstadoPaso = 'pendiente';
+      if (completado) estado = 'completado';
+      else if (!abrio) {
+        estado = 'en_curso';
+        abrio = true;
+      }
+      const loHaceEgresado = (p.hace || '').trim().toLowerCase() === 'egresado';
+      const esperaAvance = (p.accion || '') === ACCION_CONFIRMAR_AL_AVANZAR;
+      const listo = !esperaAvance || avancePrevioListo(pasos[i - 1], d);
+      const enEspera = estado === 'en_curso' && esperaAvance && !listo;
+      return {
+        numero: i + 1,
+        key: `flujo-propio-${i}`,
+        titulo: p.nombre,
+        descripcion: '',
+        detalleFlujo: enEspera ? `En espera de que avance ${pasos[i - 1]?.recibe || 'el paso anterior'}.` : '',
+        fecha: fechas.get(i),
+        estado,
+        accionFlujo: esperaAvance ? 'Confirmar' : (p.accion && p.accion !== 'Ninguna' ? p.accion : 'Continuar'),
+        puedeAccionar: estado === 'en_curso' && !loHaceEgresado && listo,
+        enEspera,
+      };
+    });
+  }
+
+  avanzarFlujoPropio(): void {
+    if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    const paso = this.pasosProcesoTitulacionCache.find(p => p.puedeAccionar);
+    if (paso?.accionFlujo === 'Agendar') {
+      this.mostrarModalActo93 = true;
+      return;
+    }
+    this.procesandoPaso = true;
+    this.mensajeProceso = '';
+    const id = this.detalleSeleccionado.id;
+    const nc = this.detalleSeleccionado.numero_control;
+    if (paso?.accionFlujo === 'Generar anexo') {
+      this.egresadoService.avanzarFlujoPropioArchivo(id).subscribe({
+        next: (blob) => {
+          this.procesandoPaso = false;
+          this.descargarBlob(blob, `Anexo-${nc}.pdf`);
+          this.mensajeProceso = 'Anexo generado.';
+          this.refrescarDetalle();
+        },
+        error: (err) => {
+          this.procesandoPaso = false;
+          void mensajeErrorApiConBlob(err, 'No se pudo generar el anexo.').then(m => {
+            this.mensajeProceso = m;
+          });
+        },
+      });
+      return;
+    }
+    this.egresadoService.avanzarFlujoPropio(id).subscribe({
+      next: (res) => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = res?.mensaje || 'Paso registrado.';
+        this.refrescarDetalle();
+      },
+      error: (err) => {
+        this.procesandoPaso = false;
+        this.mensajeProceso = textoErrorUsuario(err, 'No se pudo avanzar el paso.');
+      },
     });
   }
 
@@ -863,6 +1036,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
   }
 
   etiquetaEstadoPasoPara(paso: PasoProcesoUi): string {
+    if (paso.enEspera) return 'En espera';
     const d = this.detalleSeleccionado;
     if (
       paso.key === 'fecha_confirmacion_documentacion_escaneada_recibida' &&
@@ -890,15 +1064,14 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
   private refrescarDetalle(): void {
     if (!this.detalleSeleccionado) return;
     const id = this.detalleSeleccionado.id;
+    // Actualiza la tabla para detectar el avance de paso y mostrar el parpadeo.
+    this.cargar(true);
     this.egresadoService
       .obtenerPorId(id, false, true)
       .pipe(
         timeout(25000),
         catchError((err) => {
-          const extra =
-            err?.name === 'TimeoutError'
-              ? 'El servidor tardó al refrescar el detalle.'
-              : 'No se pudo refrescar el detalle.';
+          const extra = textoErrorUsuario(err, 'No se pudo refrescar el detalle.');
           this.mensajeProceso = this.mensajeProceso ? `${this.mensajeProceso} ${extra}` : extra;
           return EMPTY;
         }),
@@ -936,10 +1109,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       .pipe(
         timeout(120000),
         catchError((err) => {
-          this.errorCargaDocEscaneada =
-            err?.name === 'TimeoutError'
-              ? 'El servidor tardó demasiado en enviar el PDF. Revisa la conexión o intenta de nuevo.'
-              : 'No se pudo obtener el PDF. Vuelve a iniciar sesión o verifica que el archivo exista en el servidor.';
+          this.errorCargaDocEscaneada = textoErrorUsuario(err, 'No se pudo mostrar el PDF. Intenta de nuevo.');
           return EMPTY;
         }),
         finalize(() => {
@@ -949,7 +1119,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       .subscribe({
         next: ({ blob }) => {
           if (!blob?.size) {
-            this.errorCargaDocEscaneada = 'El servidor respondió sin contenido del PDF.';
+            this.errorCargaDocEscaneada = 'No se pudo mostrar el PDF.';
             return;
           }
           this.vistaDocEscaneadaObjectUrl = URL.createObjectURL(blob);
@@ -988,7 +1158,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.procesandoPaso = false;
-        this.mensajeProceso = err?.error?.error ?? 'No se pudo enviar.';
+        this.mensajeProceso = textoErrorUsuario(err, 'No se pudo enviar.');
       },
     });
   }
@@ -1000,17 +1170,12 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     this.egresadoService.solicitarRegistroAnteproyectoNoResidencia(this.detalleSeleccionado.id).subscribe({
       next: () => {
         this.procesandoPaso = false;
-        const d = this.detalleSeleccionado;
-        const depto =
-          d?.nombre_departamento_academico?.trim() ||
-          this.catalogoService.nombreDepartamentoPorCarreraSync(d?.datos_personales?.carrera ?? '') ||
-          'el departamento académico de su carrera';
-        this.mensajeProceso = `Envío registrado. El egresado debe aparecer en Anteproyecto de «${depto}» para marcar como registrado.`;
+        this.mensajeProceso = 'Envío registrado.';
         this.refrescarDetalle();
       },
       error: (err) => {
         this.procesandoPaso = false;
-        this.mensajeProceso = err?.error?.error ?? 'No se pudo registrar el envío.';
+        this.mensajeProceso = textoErrorUsuario(err, 'No se pudo registrar el envío.');
       },
     });
   }
@@ -1027,7 +1192,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.procesandoPaso = false;
-        this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar la recepción inicial.';
+        this.mensajeProceso = textoErrorUsuario(err, 'No se pudo confirmar la recepción inicial.');
       },
     });
   }
@@ -1044,7 +1209,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.procesandoPaso = false;
-        this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar.';
+        this.mensajeProceso = textoErrorUsuario(err, 'No se pudo confirmar.');
       },
     });
   }
@@ -1061,7 +1226,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.procesandoPaso = false;
-        this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar.';
+        this.mensajeProceso = textoErrorUsuario(err, 'No se pudo confirmar.');
       },
     });
   }
@@ -1078,7 +1243,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.procesandoPaso = false;
-        this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar la recepción.';
+        this.mensajeProceso = textoErrorUsuario(err, 'No se pudo confirmar la recepción.');
       },
     });
   }
@@ -1095,7 +1260,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.procesandoPaso = false;
-        this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar.';
+        this.mensajeProceso = textoErrorUsuario(err, 'No se pudo confirmar.');
       },
     });
   }
@@ -1133,7 +1298,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.procesandoPaso = false;
-        this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar entrega.';
+        this.mensajeProceso = textoErrorUsuario(err, 'No se pudo confirmar entrega.');
       },
     });
   }
@@ -1150,7 +1315,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.procesandoPaso = false;
-        this.mensajeProceso = err?.error?.error ?? 'No se pudo registrar la solicitud 9.2.';
+        this.mensajeProceso = textoErrorUsuario(err, 'No se pudo registrar la solicitud 9.2.');
       },
     });
   }
@@ -1167,7 +1332,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.procesandoPaso = false;
-        this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar la recepción del 9.2.';
+        this.mensajeProceso = textoErrorUsuario(err, 'No se pudo confirmar la recepción del 9.2.');
       },
     });
   }
@@ -1184,7 +1349,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.procesandoPaso = false;
-        this.mensajeProceso = err?.error?.error ?? 'No se pudo solicitar sinodales.';
+        this.mensajeProceso = textoErrorUsuario(err, 'No se pudo solicitar sinodales.');
       },
     });
   }
@@ -1199,7 +1364,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         timeout(25000),
         catchError((err) => {
           if (err?.name === 'TimeoutError') {
-            return throwError(() => ({ error: { error: 'El servidor no respondió al confirmar sinodales. Intenta de nuevo.' } }));
+            return throwError(() => ({ error: { error: 'Conexión lenta.' } }));
           }
           return throwError(() => err);
         }),
@@ -1219,13 +1384,33 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.procesandoPaso = false;
-          this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar sinodales.';
+          this.mensajeProceso = textoErrorUsuario(err, 'No se pudo confirmar sinodales.');
         },
       });
   }
 
   onActoAgendado(dto: ActoAgendadoDto): void {
     if (!this.detalleSeleccionado || this.procesandoPaso) return;
+    const pasoPropio = this.pasosProcesoTitulacionCache.find(p => p.puedeAccionar && p.accionFlujo === 'Agendar');
+    if (pasoPropio) {
+      this.mostrarModalActo93 = false;
+      this.procesandoPaso = true;
+      this.mensajeProceso = '';
+      this.egresadoService.avanzarFlujoPropio(this.detalleSeleccionado.id, {
+        fechaHora: `${dto.fecha}T${dto.horaInicio}`,
+      }).subscribe({
+        next: (res) => {
+          this.procesandoPaso = false;
+          this.mensajeProceso = res?.mensaje || 'Acto agendado.';
+          this.refrescarDetalle();
+        },
+        error: (err) => {
+          this.procesandoPaso = false;
+          this.mensajeProceso = textoErrorUsuario(err, 'No se pudo agendar el acto.');
+        },
+      });
+      return;
+    }
     this.mostrarModalActo93 = false;
     const fechaHora = `${dto.fecha}T${dto.horaInicio}`;
     this.procesandoPaso = true;
@@ -1260,7 +1445,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.procesandoPaso = false;
-          this.mensajeProceso = err?.error?.error ?? 'No se pudo agendar 9.3.';
+          this.mensajeProceso = textoErrorUsuario(err, 'No se pudo agendar 9.3.');
         },
       });
   }
@@ -1276,7 +1461,10 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         this.descargarBlob(response.body!, `Anexo-9.3-${nc}.pdf`);
         const intentados = Number(response.headers.get('X-Sinodales-Intentados') ?? '0');
         const notificados = Number(response.headers.get('X-Sinodales-Notificados') ?? '0');
-        if (intentados === 0) {
+        const enProceso = Number(response.headers.get('X-Sinodales-En-Proceso') ?? '0');
+        if (enProceso > 0) {
+          this.mensajeProceso = 'Anexo 9.3 generado.';
+        } else if (intentados === 0) {
           // Nadie del tribunal tiene correo capturado en el catálogo de docentes: no es una falla
           // del servidor, es un dato faltante — hay que avisar a los sinodales por otro medio.
           this.mensajeProceso =
@@ -1284,7 +1472,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         } else if (notificados === 0) {
           // Sí había a quién mandarle, pero el envío falló (típicamente el SMTP del servidor).
           this.mensajeProceso =
-            'Anexo 9.3 generado, pero no se pudo enviar el correo a los sinodales (falla del servidor de correo). Avísales manualmente.';
+            'Anexo 9.3 generado, pero no se pudo enviar el correo a los sinodales. Avísales por otro medio.';
         } else if (notificados < intentados) {
           this.mensajeProceso = `Anexo 9.3 generado. Correo enviado a ${notificados} de ${intentados} sinodal(es); revisa a quién le faltó.`;
         } else {
@@ -1317,7 +1505,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       },
       error: (err: { error?: { error?: string } }) => {
         this.procesandoPaso = false;
-        this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar la entrega del 9.3.';
+        this.mensajeProceso = textoErrorUsuario(err, 'No se pudo confirmar la entrega del 9.3.');
       },
     });
   }
@@ -1334,7 +1522,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.procesandoPaso = false;
-        this.mensajeProceso = err?.error?.error ?? 'No se pudo registrar la solicitud.';
+        this.mensajeProceso = textoErrorUsuario(err, 'No se pudo registrar la solicitud.');
       },
     });
   }
@@ -1351,7 +1539,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.procesandoPaso = false;
-        this.mensajeProceso = err?.error?.error ?? 'No se pudo confirmar la recepción.';
+        this.mensajeProceso = textoErrorUsuario(err, 'No se pudo confirmar la recepción.');
       },
     });
   }
@@ -1376,7 +1564,7 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.procesandoPaso = false;
-          this.mensajeProceso = err?.error?.error ?? 'No se pudo solicitar nuevamente.';
+          this.mensajeProceso = textoErrorUsuario(err, 'No se pudo solicitar nuevamente.');
         },
       });
   }
@@ -1388,26 +1576,187 @@ export class SeguimientoProcesoComponent implements OnInit, OnDestroy {
     }
     this.egresadoService.listar({ aplicar_scope_departamento: false }).subscribe({
       next: (lista: EgresadoItem[]) => {
-        this.items = lista.map((e) => this.mapearItem(e));
+        const mapeados = lista.map((e) => this.mapearItem(e));
+        this.detectarAvancesPaso(mapeados);
+        this.items = mapeados;
         if (!silencioso) this.cargando = false;
       },
-      error: () => {
+      error: (err) => {
         if (!silencioso) {
-          this.error = 'No se pudo cargar el seguimiento.';
+          this.error = textoErrorUsuario(err, 'No se pudo cargar el seguimiento.');
           this.cargando = false;
         }
       },
     });
   }
 
-  private isoUltimoMovimiento(e: EgresadoItem): string {
-    return (
-      e.fecha_actualizacion ||
-      e.fecha_envio_documentacion_escaneada_egresado ||
-      e.fecha_confirmacion_documentacion_escaneada_recibida ||
-      e.fecha_creacion ||
-      ''
+  /**
+   * Si hay snapshot en sesión (visita previa): IDs con ISO más nuevo → flash + resalte.
+   * Primera visita de la sesión: solo guarda baseline (sin flash).
+   * Alta nueva (ID desconocido): sin flash.
+   */
+  private detectarAvancesPaso(nuevos: SeguimientoItem[]): void {
+    if (!this.baselineUltimoMovListo) {
+      for (const i of nuevos) {
+        this.snapshotUltimoMov.set(i.id, i.ultimoMovimientoIso);
+      }
+      this.baselineUltimoMovListo = true;
+      this.guardarSnapshotEnSesion();
+      this.flashInicialHecho = true;
+      return;
+    }
+
+    let huboCambioSnapshot = false;
+    for (const i of nuevos) {
+      const prev = this.snapshotUltimoMov.get(i.id);
+      if (prev === undefined) {
+        this.snapshotUltimoMov.set(i.id, i.ultimoMovimientoIso);
+        huboCambioSnapshot = true;
+        continue;
+      }
+      if (i.ultimoMovimientoIso && i.ultimoMovimientoIso !== prev) {
+        this.snapshotUltimoMov.set(i.id, i.ultimoMovimientoIso);
+        huboCambioSnapshot = true;
+        // Si ya lo tienen abierto, solo actualiza la fecha; no marque como pendiente.
+        if (this.detalleSeleccionado?.id === i.id) continue;
+        this.marcarNovedad(i.id);
+        this.activarFlashPaso(i.id);
+      }
+    }
+    if (huboCambioSnapshot) this.guardarSnapshotEnSesion();
+
+    // Al reabrir Seguimiento: vuelve a parpadear lo que sigue sin revisar.
+    if (!this.flashInicialHecho) {
+      this.flashInicialHecho = true;
+      for (const id of this.idsNovedadSinRevisar) {
+        if (nuevos.some((n) => n.id === id)) this.activarFlashPaso(id);
+      }
+    }
+  }
+
+  private marcarNovedad(id: string): void {
+    if (this.idsNovedadSinRevisar.has(id)) return;
+    this.idsNovedadSinRevisar = new Set(this.idsNovedadSinRevisar).add(id);
+    this.guardarNovedadesEnSesion();
+  }
+
+  private marcarNovedadVista(id: string): void {
+    this.quitarFlashPaso(id);
+    if (!this.idsNovedadSinRevisar.has(id)) return;
+    const next = new Set(this.idsNovedadSinRevisar);
+    next.delete(id);
+    this.idsNovedadSinRevisar = next;
+    this.guardarNovedadesEnSesion();
+  }
+
+  private activarFlashPaso(id: string): void {
+    // Quitar y volver a poner la clase para reiniciar la animación CSS.
+    if (this.idsFlashPaso.has(id)) {
+      const sin = new Set(this.idsFlashPaso);
+      sin.delete(id);
+      this.idsFlashPaso = sin;
+    }
+    setTimeout(() => {
+      this.idsFlashPaso = new Set(this.idsFlashPaso).add(id);
+    }, 20);
+    const prev = this.flashPasoTimers.get(id);
+    if (prev) clearTimeout(prev);
+    this.flashPasoTimers.set(
+      id,
+      setTimeout(
+        () => this.quitarFlashPaso(id),
+        SeguimientoProcesoComponent.DURACION_FLASH_PASO_MS,
+      ),
     );
+  }
+
+  private quitarFlashPaso(id: string): void {
+    const timer = this.flashPasoTimers.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      this.flashPasoTimers.delete(id);
+    }
+    if (!this.idsFlashPaso.has(id)) return;
+    const next = new Set(this.idsFlashPaso);
+    next.delete(id);
+    this.idsFlashPaso = next;
+  }
+
+  private cargarSnapshotDesdeSesion(): void {
+    try {
+      const rawMov = sessionStorage.getItem(SeguimientoProcesoComponent.STORAGE_ULTIMO_MOV);
+      if (rawMov) {
+        const obj = JSON.parse(rawMov) as Record<string, string>;
+        if (obj && typeof obj === 'object') {
+          for (const [id, iso] of Object.entries(obj)) {
+            if (typeof iso === 'string') this.snapshotUltimoMov.set(id, iso);
+          }
+          if (this.snapshotUltimoMov.size > 0) this.baselineUltimoMovListo = true;
+        }
+      }
+      const rawNov = sessionStorage.getItem(SeguimientoProcesoComponent.STORAGE_NOVEDADES);
+      if (rawNov) {
+        const arr = JSON.parse(rawNov) as string[];
+        if (Array.isArray(arr)) this.idsNovedadSinRevisar = new Set(arr.filter((x) => typeof x === 'string'));
+      }
+    } catch {
+      /* storage corrupto */
+    }
+  }
+
+  private guardarSnapshotEnSesion(): void {
+    try {
+      const obj: Record<string, string> = {};
+      this.snapshotUltimoMov.forEach((iso, id) => {
+        obj[id] = iso;
+      });
+      sessionStorage.setItem(SeguimientoProcesoComponent.STORAGE_ULTIMO_MOV, JSON.stringify(obj));
+    } catch {
+      /* cuota */
+    }
+  }
+
+  private guardarNovedadesEnSesion(): void {
+    try {
+      sessionStorage.setItem(
+        SeguimientoProcesoComponent.STORAGE_NOVEDADES,
+        JSON.stringify([...this.idsNovedadSinRevisar]),
+      );
+    } catch {
+      /* cuota */
+    }
+  }
+
+  /** La fecha más reciente entre actualización y fechas de pasos del listado. */
+  private isoUltimoMovimiento(e: EgresadoItem): string {
+    const candidatos = [
+      e.fecha_actualizacion,
+      e.fecha_envio_documentacion_escaneada_egresado,
+      e.fecha_confirmacion_documentacion_escaneada_recibida,
+      e.fecha_solicitud_documentacion_escaneada,
+      e.fecha_confirmacion_entrega_anexo_9_3,
+      e.fecha_creacion_anexo_9_3,
+      e.fecha_agenda_acto_9_3,
+      e.fecha_confirmacion_sinodales_recibidos,
+      e.fecha_solicitud_sinodales,
+      e.fecha_confirmacion_recibido_anexo_9_2,
+      e.fecha_aceptacion_servicios_escolares_anexo_9_2,
+      e.fecha_solicitud_anexo_9_2,
+      e.fecha_confirmacion_entrega_anexo_9_1,
+      e.fecha_creacion_anexo_9_1,
+      e.fecha_confirmacion_recibidos_anexo_xxxi_xxxii,
+      e.fecha_enviado_departamento_academico,
+      e.fecha_recepcion_registro_liberacion_depto_academico,
+      e.fecha_solicitud_registro_liberacion_depto_academico,
+      e.fecha_recepcion_trabajo_division_estudios_prof,
+      e.fecha_confirmacion_recepcion_inicial_anexos_xxxi_xxxii,
+      e.fecha_envio_solicitud_registro_anteproyecto_depto_academico,
+      e.fecha_confirmacion_entrega_egresado_depto,
+      e.fecha_registro_anexo_xxxi,
+      e.fecha_creacion,
+    ].filter((x): x is string => !!x && x.trim().length > 0);
+    if (!candidatos.length) return '';
+    return candidatos.reduce((a, b) => (a > b ? a : b));
   }
 
   /**

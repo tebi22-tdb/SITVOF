@@ -24,7 +24,9 @@ class DocenteController(private val docenteService: DocenteService) {
     @GetMapping
     fun listar(@AuthenticationPrincipal principal: UsuarioPrincipal?): ResponseEntity<Any> {
         if (principal == null)
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("error" to "No autenticado"))
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("error" to "Vuelve a iniciar sesión."))
+        if (!principal.getRol().esAlgunoDe(Rol.ADMINISTRADOR, Rol.DEP, Rol.ACADEMICO, Rol.APOYO_TITULACION))
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "No autorizado para consultar docentes."))
         return ResponseEntity.ok(docenteService.listar())
     }
 
@@ -50,7 +52,7 @@ class DocenteController(private val docenteService: DocenteService) {
         if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede editar docentes"))
         val oid = try { ObjectId(id) } catch (_: Exception) {
-            return ResponseEntity.badRequest().body(mapOf("error" to "ID inválido"))
+            return ResponseEntity.badRequest().body(mapOf("error" to "No se pudo completar la acción."))
         }
         return docenteService.actualizar(oid, req).fold(
             onSuccess = { item ->
@@ -69,7 +71,7 @@ class DocenteController(private val docenteService: DocenteService) {
         if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede eliminar docentes"))
         val oid = try { ObjectId(id) } catch (_: Exception) {
-            return ResponseEntity.badRequest().body(mapOf("error" to "ID inválido"))
+            return ResponseEntity.badRequest().body(mapOf("error" to "No se pudo completar la acción."))
         }
         if (!docenteService.eliminar(oid))
             return ResponseEntity.notFound().build()

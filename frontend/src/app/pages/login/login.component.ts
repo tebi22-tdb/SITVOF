@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { InactivityService } from '../../services/inactivity.service';
+import { LOGO_ITVO, LOGO_TECNM } from '../../core/logos';
+import { mensajeFallaConexion } from '../../core/mensaje-conexion';
 
 @Component({
   selector: 'app-login',
@@ -13,6 +15,8 @@ import { InactivityService } from '../../services/inactivity.service';
   styleUrl: './login.component.css',
 })
 export class LoginComponent implements OnInit {
+  readonly logoTecnm = LOGO_TECNM;
+  readonly logoItvo = LOGO_ITVO;
   username = '';
   password = '';
   error = '';
@@ -67,9 +71,9 @@ export class LoginComponent implements OnInit {
         this.enviandoRecuperar = false;
         this.mensajeRecuperar = res.message;
       },
-      error: () => {
+      error: (err) => {
         this.enviandoRecuperar = false;
-        this.errorRecuperar = 'No se pudo procesar la solicitud. Intenta de nuevo.';
+        this.errorRecuperar = mensajeFallaConexion(err) ?? 'No se pudo procesar la solicitud. Intenta de nuevo.';
       },
     });
   }
@@ -82,27 +86,19 @@ export class LoginComponent implements OnInit {
     }
     this.loading = true;
     this.auth.login(this.username.trim(), this.password).subscribe({
-      next: (user) => {
+      next: () => {
         this.loading = false;
         this.inactivity.reiniciar();
-        const rol = (user?.rol ?? '').toLowerCase();
-        if (rol === 'servicios_escolares') {
-          this.router.navigate(['/servicios-escolares']);
-        } else if (rol === 'academico') {
-          this.router.navigate(['/departamento-academico']);
-        } else if (this.auth.isApoyoTitulacion()) {
-          this.router.navigate(['/home/revisiones']);
-        } else if (this.auth.isDep()) {
-          this.router.navigate(['/home/seguimiento-proceso']);
-        } else if (this.auth.isAdministrador()) {
-          this.router.navigate(['/home']);
-        } else {
-          this.router.navigate(['/seguimiento']);
-        }
+        void this.router.navigateByUrl(this.auth.rutaInicio());
       },
-      error: () => {
+      error: (err) => {
         this.loading = false;
-        this.error = 'Usuario o contraseña incorrectos.';
+        const red = mensajeFallaConexion(err);
+        const status = typeof err?.status === 'number' ? err.status : 0;
+        this.error = red
+          ?? ((status === 401 || status === 400 || status === 403)
+            ? 'Usuario o contraseña incorrectos.'
+            : 'No se pudo entrar. Intenta de nuevo.');
       },
     });
   }

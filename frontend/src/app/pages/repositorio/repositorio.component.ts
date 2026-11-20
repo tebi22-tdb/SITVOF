@@ -2,6 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RepositorioService, TituladoPublico } from '../../services/repositorio.service';
+import { LOGO_ITVO, LOGO_TECNM } from '../../core/logos';
+import { textoErrorUsuario } from '../../core/mensaje-conexion';
 
 @Component({
   selector: 'app-repositorio',
@@ -11,6 +13,8 @@ import { RepositorioService, TituladoPublico } from '../../services/repositorio.
   styleUrl: './repositorio.component.css',
 })
 export class RepositorioComponent implements OnInit {
+  readonly logoTecnm = LOGO_TECNM;
+  readonly logoItvo = LOGO_ITVO;
   titulados: TituladoPublico[] = [];
   cargando = true;
   error = '';
@@ -54,8 +58,9 @@ export class RepositorioComponent implements OnInit {
         window.open(url, '_blank', 'noopener');
         setTimeout(() => URL.revokeObjectURL(url), 60_000);
       },
-      error: () => {
+      error: (err) => {
         this.descargando.delete(egresadoId);
+        this.error = textoErrorUsuario(err, 'No se pudo abrir el documento.');
       },
     });
   }
@@ -66,8 +71,8 @@ export class RepositorioComponent implements OnInit {
         this.titulados = lista;
         this.cargando = false;
       },
-      error: () => {
-        this.error = 'No se pudo cargar el repositorio. Intenta de nuevo más tarde.';
+      error: (err) => {
+        this.error = textoErrorUsuario(err, 'No se pudo cargar la lista. Intenta de nuevo.');
         this.cargando = false;
       },
     });

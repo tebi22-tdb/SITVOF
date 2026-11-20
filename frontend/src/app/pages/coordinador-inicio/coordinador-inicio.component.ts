@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { HeaderComponent } from '../../layout/header/header.component';
 import { AuthService } from '../../services/auth.service';
 import { EgresadoService, EgresadoItem } from '../../services/egresado.service';
-import { ConfigInstitucionalService } from '../../services/config-institucional.service';
+import { textoErrorUsuario } from '../../core/mensaje-conexion';
 
 type EstadoItem = 'en_tiempo' | 'rezagado' | 'vencido' | 'concluido';
 
@@ -66,8 +66,6 @@ export class CoordinadorInicioComponent implements OnInit {
   error = '';
 
   /** Se muestra un aviso en el panel si el último intento de envío de correo (credenciales, avisos, sinodales…) falló. */
-  correoFallando = false;
-  correoUltimoError = '';
 
   private items: DashItem[] = [];
 
@@ -75,14 +73,15 @@ export class CoordinadorInicioComponent implements OnInit {
   modalidadesDisplay: BarDato[] = [];
   carrerasDisplay: BarDato[] = [];
 
-  // Orden = prioridad/frecuencia de uso real (más usado primero), agrupado por
-  // color para que la posición refuerce la categoría en vez de interrumpirla:
-  // Grupo A — Proceso (azul, tints de --color-marca-*) → Grupo B — Administración (--color-admin*).
-  // La intensidad del tono también sigue la prioridad dentro de cada grupo:
-  // más oscuro = más usado, más claro = más ocasional.
-  // Los colores semánticos (rojo/ámbar/verde de vencido-rezagado-en_tiempo) nunca se reusan aquí.
+  // Orden de módulos (flujo operativo + administración + consulta).
+  // Grupo A — Proceso (azul); Grupo B — Administración; Grupo C — Consulta.
   readonly modulosNav: ModuloNav[] = [
-    // ── Grupo A: Proceso de titulación ──
+    // ── Fila 1: Proceso de titulación ──
+    {
+      title: 'Inicio del proceso', sub: 'Registro de egresados',
+      descripcion: 'Registra nuevos egresados al proceso de titulación. Selecciona la modalidad, captura los datos del estudiante y genera el Anexo XXXI de inicio.',
+      color: 'var(--color-marca-oscuro)', key: 'alta', soloPleno: false,
+    },
     {
       title: 'Seguimiento del proceso', sub: 'Envíos, anexos, sinodales',
       descripcion: 'Consulta y gestiona el avance de cada egresado: envío de documentos, generación de anexos XXXII/XXXIII, asignación de sinodales y acto protocolario.',
@@ -90,13 +89,8 @@ export class CoordinadorInicioComponent implements OnInit {
     },
     {
       title: 'Departamento académico', sub: 'Ingenierías, Económico',
-      descripcion: 'Gestión por departamento (Ingenierías, Económico-Administrativo, Virtuales). Visualiza revisiones y libera trabajos hacia la coordinación.',
-      color: 'var(--color-marca-oscuro)', key: 'departamento', soloPleno: true,
-    },
-    {
-      title: 'Inicio del proceso', sub: 'Registro de egresados',
-      descripcion: 'Registra nuevos egresados al proceso de titulación. Selecciona la modalidad, captura los datos del estudiante y genera el Anexo XXXI de inicio.',
-      color: 'var(--color-marca-medio)', key: 'alta', soloPleno: false,
+      descripcion: 'Gestión por departamento. Visualiza revisiones y libera trabajos hacia la coordinación.',
+      color: 'var(--color-marca-medio)', key: 'departamento', soloPleno: true,
     },
     {
       title: 'Revisiones de documentos', sub: 'Estado de la revisión',
@@ -108,36 +102,42 @@ export class CoordinadorInicioComponent implements OnInit {
       descripcion: 'Genera y controla las constancias de no inconveniencia (Anexo 9.2) que emite Servicios Escolares para habilitar el siguiente paso del trámite.',
       color: 'var(--color-marca-claro)', key: 'escolares', soloPleno: true,
     },
-    // ── Grupo B: Administración / consulta ──
+    // ── Fila 2: Administración ──
+    {
+      title: 'Alta de usuarios', sub: 'Nuevo acceso al sistema',
+      descripcion: 'Crea cuentas de personal (administrador, DEP, académico, apoyo a titulación, etc.) y envía las credenciales por correo.',
+      color: 'var(--color-admin)', key: 'agregar-usuario', soloPleno: true,
+    },
+    {
+      title: 'Alta de  asesores, Directores', sub: 'Registra docentes',
+      descripcion: 'Registra a los docentes del plantel que pueden fungir como director, asesor o vocal en el acto protocolario de titulación.',
+      color: 'var(--color-admin)', key: 'docentes', soloPleno: true,
+    },
     {
       title: 'Gestión de cuentas', sub: 'Correo y contraseña',
       descripcion: 'Administra las credenciales de egresados y personal: restablece contraseñas, reactiva cuentas bloqueadas y asigna o modifica roles de acceso.',
       color: 'var(--color-admin)', key: 'cuentas', soloPleno: true,
     },
     {
-      title: 'Alta de docentes', sub: 'Registra docentes',
-      descripcion: 'Registra a los docentes del plantel que pueden fungir como director, asesor o vocal en el acto protocolario de titulación.',
-      color: 'var(--color-admin)', key: 'docentes', soloPleno: true,
-    },
-    {
-      title: 'Reportes y analítica', sub: 'KPIs, tendencias, tiempos',
-      descripcion: 'Consulta indicadores consolidados del proceso de titulación: distribución por modalidad y carrera, tiempos promedio por etapa y tasa de aprobación en primera revisión.',
-      color: 'var(--color-admin-claro)', key: 'reportes', soloPleno: true,
-    },
-    {
-      title: 'Repositorio de documentos', sub: 'Proyectos de egresados',
-      descripcion: 'Consulta el repositorio público de proyectos de egresados titulados, organizados por carrera, modalidad y generación.',
-      color: 'var(--color-admin-claro)', key: 'repositorio', soloPleno: true,
+      title: 'Configuración institucional', sub: 'Imagen TECNM y jefes',
+      descripcion: 'Configura los datos institucionales del plantel: imagen corporativa TECNM, jefes de departamento para la firma en Anexos 32 y 33.',
+      color: 'var(--color-admin-claro)', key: 'config', soloPleno: true,
     },
     {
       title: 'Configuración de catálogos', sub: 'Carreras, niveles, modalid.',
       descripcion: 'Administra los catálogos del sistema: carreras, niveles educativos, modalidades de titulación y departamentos académicos disponibles.',
       color: 'var(--color-admin-claro)', key: 'catalogos', soloPleno: true,
     },
+    // ── Fila 3: Consulta ──
     {
-      title: 'Configuración institucional', sub: 'Imagen TECNM y jefes',
-      descripcion: 'Configura los datos institucionales del plantel: imagen corporativa TECNM, jefes de departamento para la firma en Anexos 32 y 33.',
-      color: 'var(--color-admin-claro)', key: 'config', soloPleno: true,
+      title: 'Repositorio de documentos', sub: 'Proyectos de egresados',
+      descripcion: 'Consulta el repositorio público de proyectos de egresados titulados, organizados por carrera, modalidad y generación.',
+      color: 'var(--color-admin-claro)', key: 'repositorio', soloPleno: true,
+    },
+    {
+      title: 'Reportes y analítica', sub: 'KPIs, tendencias, tiempos',
+      descripcion: 'Consulta indicadores consolidados del proceso de titulación: distribución por modalidad y carrera, tiempos promedio por etapa y tasa de aprobación en primera revisión.',
+      color: 'var(--color-admin-claro)', key: 'reportes', soloPleno: true,
     },
   ];
 
@@ -190,18 +190,9 @@ export class CoordinadorInicioComponent implements OnInit {
     private router: Router,
     private auth: AuthService,
     private egresadoService: EgresadoService,
-    private configInstitucionalService: ConfigInstitucionalService,
   ) {}
 
   ngOnInit(): void {
-    this.configInstitucionalService.getEstadoCorreo().subscribe({
-      next: (estado) => {
-        this.correoFallando = !estado.ok;
-        this.correoUltimoError = estado.ultimo_error ?? '';
-      },
-      // Si el propio chequeo falla (ej. red), no molestamos con un aviso de correo que no confirmamos.
-      error: () => {},
-    });
     this.egresadoService.listar({ aplicar_scope_departamento: false }).subscribe({
       next: (lista) => {
         this.items = lista.map(e => this.mapear(e));
@@ -210,8 +201,8 @@ export class CoordinadorInicioComponent implements OnInit {
         this.carrerasDisplay    = this.buildDistribucion('carrera');
         this.cargando = false;
       },
-      error: () => {
-        this.error = 'No se pudieron cargar los datos del dashboard.';
+      error: (err) => {
+        this.error = textoErrorUsuario(err, 'No se pudo cargar el inicio.');
         this.cargando = false;
       },
     });
@@ -225,6 +216,7 @@ export class CoordinadorInicioComponent implements OnInit {
       revisiones:   ['/home/revisiones'],
       departamento: ['/home/departamento-academico'],
       escolares:    ['/servicios-escolares'],
+      'agregar-usuario': ['/home/agregar-usuario'],
       cuentas:      ['/home/gestion-cuentas'],
       reportes:     ['/home/reportes'],
       repositorio:  ['/repositorio'],
@@ -240,7 +232,7 @@ export class CoordinadorInicioComponent implements OnInit {
     this.router.navigate(['/home/seguimiento-proceso'], carrera ? { queryParams: { carrera } } : undefined);
   }
 
-  // ── Private builders ──
+  //
 
   private buildUrgentesDisplay(): UrgentItem[] {
     return this.items
@@ -293,7 +285,7 @@ export class CoordinadorInicioComponent implements OnInit {
     const maxEntries = field === 'modalidad' ? 5 : 6;
     const entries = [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, maxEntries);
     const max = Math.max(...entries.map(e => e[1]), 1);
-    // Antes eran 6 hex random; ahora tints de marca. La barra ya comunica la
+    // Ahora tints de marca. La barra ya comunica la
     // proporción con su largo — el color aquí solo diferencia visualmente filas
     // consecutivas, no codifica información propia.
     const colors = [

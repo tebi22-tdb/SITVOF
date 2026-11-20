@@ -209,16 +209,17 @@
 
 .sit-btn-limpiar {
   padding: 0.35rem 0.65rem;
-  border: 1px solid #cbd5e0;
+  border: 1px solid #4a5568;
   border-radius: 6px;
-  background: #fff;
-  color: #4a5568;
+  background: #4a5568;
+  color: #fff;
   font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
 }
 
 .sit-btn-limpiar:hover {
-  background: #f7fafc;
+  background: #2d3748;
 }
 
 .sit-lista-cards {
@@ -423,18 +424,18 @@
 .sit-btn-eliminar {
   min-height: 32px;
   padding: 0.34rem 0.72rem;
-  border: 1px solid #e53e3e;
+  border: 1px solid #c53030;
   border-radius: 5px;
-  background: #fff;
+  background: #e53e3e;
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  color: #e53e3e;
+  color: #fff;
   transition: background 0.2s, color 0.2s, transform 0.1s;
 }
 
 .sit-btn-eliminar:hover {
-  background: #fed7d7;
+  background: #c53030;
 }
 
 .sit-btn-eliminar:active {
@@ -444,19 +445,19 @@
 .sit-btn-cerrar {
   min-height: 32px;
   padding: 0.34rem 0.72rem;
-  border: 1px solid #cbd5e0;
+  border: 1px solid #4a5568;
   border-radius: 5px;
-  background: #fff;
+  background: #4a5568;
   font-size: 0.82rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  color: #4a5568;
+  color: #fff;
   transition: background 0.2s, border-color 0.2s, transform 0.1s;
 }
 
 .sit-btn-cerrar:hover {
-  background: #f7fafc;
-  border-color: #a0aec0;
+  background: #2d3748;
+  border-color: #2d3748;
 }
 
 .sit-btn-cerrar:active {

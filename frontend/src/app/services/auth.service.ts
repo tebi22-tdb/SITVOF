@@ -75,6 +75,7 @@ export class AuthService {
             rol: res.rol,
             nombre: res.nombre,
             segmento_academico: res.segmento_academico,
+            carreras_asignadas: res.carreras_asignadas,
           };
         }),
         map((res) => ({
@@ -82,6 +83,7 @@ export class AuthService {
           rol: res.rol,
           nombre: res.nombre,
           segmento_academico: res.segmento_academico,
+          carreras_asignadas: res.carreras_asignadas,
         })),
       );
   }
@@ -101,6 +103,18 @@ export class AuthService {
       `${AUTH}/recuperar-password`,
       { numeroControl: numeroControl.trim() },
     );
+  }
+
+  restablecerPassword(
+    token: string,
+    password: string,
+    passwordConfirm: string,
+  ): Observable<{ ok: boolean; message: string }> {
+    return this.http.post<{ ok: boolean; message: string }>(`${AUTH}/restablecer-password`, {
+      token: token.trim(),
+      password,
+      passwordConfirm,
+    });
   }
 
   logout(): Observable<unknown> {
@@ -163,11 +177,33 @@ export class AuthService {
 
   /** El repositorio ya es público (sin guard); esto solo controla si se muestra su link en algún menú de staff. */
   puedeAccederRepositorio(): boolean {
+    return this.usuario?.rol === 'administrador';
+  }
+
+  /** Reportes y analítica: administrador pleno o Subdirección académica. */
+  puedeAccederReportes(): boolean {
     return this.usuario?.rol === 'administrador' || this.usuario?.rol === 'subdireccion_academica';
   }
 
   isEgresado(): boolean {
     return this.usuario?.rol === 'egresado';
+  }
+
+  /**
+   * Pantalla de inicio de cada perfil. Apoyo se resuelve antes que administrador
+   * porque isAdministrador() también lo incluye.
+   * Cualquier académico (Ingenierías, Ciencias básicas, Económico, Virtuales,
+   * Química y Agroquímica u otro del catálogo) entra a su bandeja de departamento.
+   */
+  rutaInicio(): string {
+    if (this.isServiciosEscolares()) return '/servicios-escolares';
+    if (this.isAcademico()) return '/departamento-academico';
+    if (this.isSubdireccionAcademica()) return '/home/reportes';
+    if (this.isApoyoTitulacion()) return '/home/revisiones';
+    if (this.isDep()) return '/home/seguimiento-proceso';
+    if (this.isAdministrador()) return '/home';
+    if (this.isEgresado()) return '/seguimiento';
+    return '/login';
   }
 
   isAcademico(): boolean {
@@ -188,14 +224,20 @@ export class AuthService {
     message?: string;
     error?: string;
     correo_enviado?: boolean;
+    correo_en_proceso?: boolean;
     detalle_correo?: string;
+    username?: string;
+    password_temporal?: string;
   }> {
     return this.http.post<{
       ok: boolean;
       message?: string;
       error?: string;
       correo_enviado?: boolean;
+      correo_en_proceso?: boolean;
       detalle_correo?: string;
+      username?: string;
+      password_temporal?: string;
     }>(API + '/usuarios', body);
   }
 

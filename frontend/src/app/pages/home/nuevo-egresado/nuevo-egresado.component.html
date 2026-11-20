@@ -8,6 +8,7 @@
       <div class="originalidad-indicador" *ngIf="controlAltaEstado">
         <span *ngIf="controlAltaEstado === 'comprobando'" class="orig-comprobando">Verificando número de control...</span>
         <span *ngIf="controlAltaEstado === 'LIBRE'" class="orig-libre">Número de control disponible</span>
+        <span *ngIf="controlAltaEstado === 'RETOMAR'" class="orig-libre">{{ mensajeBloqueoNumeroControl }}</span>
         <span *ngIf="controlAltaEstado === 'BLOQUEADO'" class="orig-bloqueado">{{ mensajeBloqueoNumeroControl }}</span>
       </div>
     </div>
@@ -96,8 +97,7 @@
       <label for="tipo_titulacion">Tipo de titulación <span class="form-obligatorio">*</span></label>
       <select id="tipo_titulacion" formControlName="tipo_titulacion">
         <option value="">Seleccione tipo</option>
-        <option value="titulacion">TITULACION</option>
-        <option value="titulacion_integral">TITULACION INTEGRAL</option>
+        <option *ngFor="let o of opcionesTitulacion" [value]="o.valor">{{ o.nombre | uppercase }}</option>
       </select>
       <span class="form-error-msg" *ngIf="campoInvalido('tipo_titulacion')">Campo obligatorio</span>
     </div>
@@ -108,13 +108,7 @@
         <option *ngFor="let m of opcionesModalidadTitulacion" [value]="m">{{ m }}</option>
       </select>
     </div>
-    <ng-container *ngIf="esTitulacionIntegral">
-    <div class="form-campo form-campo-checkbox">
-      <label class="form-label-checkbox">
-        <input type="checkbox" formControlName="curso_titulacion" />
-        <span>Curso de titulación</span>
-      </label>
-    </div>
+    <ng-container *ngIf="esFormularioIntegral">
     <div class="form-campo" [class.form-campo-error]="campoInvalido('modalidad')">
       <label for="modalidad">Modalidad específica <span class="form-obligatorio">*</span></label>
       <select id="modalidad" formControlName="modalidad">

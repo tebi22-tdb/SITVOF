@@ -170,6 +170,7 @@ class DepartamentoBandejaTest {
             egresado("R001", procesos = arrayOf(proceso("Residencia Profesional", enviado = T)))
         )
         assertEquals(1, counts["pendientes"], "pendientes debe ser 1 → frontend muestra badge rojo")
+        assertEquals(1, counts["total_residencia"], "el total de la pestaña incluye la pendiente")
         assertEquals(0, counts["aprobados"])
     }
 
@@ -181,6 +182,7 @@ class DepartamentoBandejaTest {
             ))
         )
         assertEquals(0, counts["pendientes"], "pendientes=0 → frontend cambia a badge azul")
+        assertEquals(1, counts["total_residencia"], "badge azul muestra solo residencias del departamento")
         assertEquals(1, counts["aprobados"], "aprobados=1 → badge azul muestra este número")
     }
 
@@ -191,6 +193,7 @@ class DepartamentoBandejaTest {
             egresado("R002", procesos = arrayOf(proceso("Residencia Profesional", enviado = T, recibidoLiberacion = T))),
         )
         assertEquals(1, counts["pendientes"])
+        assertEquals(2, counts["total_residencia"])
         assertEquals(1, counts["aprobados"])
     }
 
@@ -202,6 +205,7 @@ class DepartamentoBandejaTest {
             egresado("R003", procesos = arrayOf(proceso("Residencia Profesional", enviado = T, recibidoLiberacion = T))),
         )
         assertEquals(0, counts["pendientes"])
+        assertEquals(3, counts["total_residencia"], "badge azul debe mostrar las 3 residencias")
         assertEquals(3, counts["aprobados"], "badge azul debe mostrar los 3 liberados")
     }
 
@@ -228,6 +232,32 @@ class DepartamentoBandejaTest {
         ))
         val result = service.listarParaDepartamento("pendientes", COORD, null)
         assertEquals(1, result.size, "sin segmento el aprobado por CAT no aparece en pendientes")
+    }
+
+    @Test
+    fun `lista residencia del academico muestra pendientes y ya liberadas`() {
+        val user = "depto@test.com"
+        `when`(usuarioRepository.findByUsername(user)).thenReturn(
+            Usuario(
+                username = user,
+                passwordHash = "x",
+                rol = Rol.ACADEMICO,
+                segmentoAcademico = SEGMENTO,
+                carrerasAsignadas = listOf(CARRERA),
+            ),
+        )
+        `when`(egresadoRepository.findAll()).thenReturn(
+            listOf(
+                egresado("R020", procesos = arrayOf(proceso("Residencia Profesional", enviado = T))),
+                egresado("R021", procesos = arrayOf(proceso("Residencia Profesional", enviado = T, recibidoLiberacion = T))),
+                egresado("T022", procesos = arrayOf(proceso("Tesis", enviado = T, recibidoLiberacion = T))),
+            ),
+        )
+        val result = service.listarParaDepartamento("pendientes", user, null)
+        val counts = service.contarParaDepartamento(user, null)
+        assertEquals(2, result.size, "la pestaña Residencia conserva las ya liberadas")
+        assertEquals(1, counts["pendientes"], "el rojo solo cuenta la que falta por liberar")
+        assertEquals(2, counts["total_residencia"], "el azul no cuenta la tesis ya aprobada")
     }
 
     // ════════════════════════════════════════════════════════════════════════════════
@@ -476,6 +506,7 @@ class DepartamentoBandejaTest {
 
         // Residencia badges
         assertEquals(1, counts["pendientes"], "residencia: 1 por liberar")
+        assertEquals(2, counts["total_residencia"], "residencia: pendiente y liberada")
         assertEquals(1, counts["aprobados"], "residencia: 1 ya liberada")
 
         // Anteproyecto badges
@@ -485,5 +516,38 @@ class DepartamentoBandejaTest {
         // Sinodales badges
         assertEquals(1, counts["sinodales_por_asignar"], "sinodales: 1 pendiente (MIX004)")
         assertEquals(2, counts["total_sinodales"], "sinodales total: 2 (MIX004 + MIX005)")
+    }
+
+    @Test
+    fun `academico de quimica ve su bandeja aunque el slug no coincida exactamente`() {
+        val user = "agro@test.com"
+        val carrera = "INGENIERIA EN AGRONOMIA"
+        `when`(usuarioRepository.findByUsername(user)).thenReturn(
+            Usuario(
+                username = user,
+                passwordHash = "x",
+                rol = Rol.ACADEMICO,
+                segmentoAcademico = "Quimica-y-Agroquimica",
+                carrerasAsignadas = listOf(carrera),
+            ),
+        )
+        `when`(catalogoRepository.findByTipoAndActivoTrue("departamento")).thenReturn(
+            listOf(
+                Catalogo(
+                    tipo = "departamento",
+                    nombre = "Departamento de Quimica y Agroquimica",
+                    slug = "quimica_y_agroquimica",
+                    carreras = listOf(carrera),
+                ),
+            ),
+        )
+        `when`(egresadoRepository.findAll()).thenReturn(
+            listOf(
+                egresado("A001", carrera = carrera, procesos = arrayOf(proceso("Residencia Profesional", enviado = T))),
+                egresado("A002", carrera = CARRERA_OTRA, procesos = arrayOf(proceso("Residencia Profesional", enviado = T))),
+            ),
+        )
+        val result = service.listarParaDepartamento("todos", user, null)
+        assertEquals(1, result.size, "solo el egresado de Química y Agroquímica")
     }
 }

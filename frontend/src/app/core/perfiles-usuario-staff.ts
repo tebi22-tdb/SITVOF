@@ -6,9 +6,9 @@ export interface PerfilCreacionUsuarioItem {
 
 /** Perfiles estáticos (no dependen del catálogo de departamentos). */
 export const PERFILES_ESTATICOS: PerfilCreacionUsuarioItem[] = [
-  { id: 'apoyo_titulacion',            etiqueta: 'División de Estudios Profesionales — Apoyo a Titulación' },
+  { id: 'administrador',               etiqueta: 'Administrador (acceso completo)' },
   { id: 'dep',                         etiqueta: 'División de Estudios Profesionales (DEP)' },
-  { id: 'academico_general',           etiqueta: 'Coordinacion de apoyo a la titulacion' },
+  { id: 'apoyo_titulacion',             etiqueta: 'Coordinacion de apoyo a la titulacion' },
   { id: 'servicios_escolares',         etiqueta: 'Departamento de Servicios Escolares' },
   { id: 'subdireccion_academica',      etiqueta: 'Subdirección Académica' },
 ];
@@ -38,6 +38,8 @@ export interface DatosRolDesdePerfil {
  */
 export function datosRolDesdePerfil(perfil: string): DatosRolDesdePerfil {
   switch (perfil) {
+    case 'administrador':
+      return { rol: 'administrador', segmento_academico: '', carreras_asignadas: [] };
     case 'apoyo_titulacion':
       return { rol: 'apoyo_titulacion', segmento_academico: '', carreras_asignadas: [] };
     case 'dep':
@@ -47,7 +49,8 @@ export function datosRolDesdePerfil(perfil: string): DatosRolDesdePerfil {
     case 'subdireccion_academica':
       return { rol: 'subdireccion_academica', segmento_academico: '', carreras_asignadas: [] };
     case 'academico_general':
-      return { rol: 'academico', segmento_academico: '', carreras_asignadas: [] };
+      // Compatibilidad: antes se usaba este id por error; debe crear apoyo_titulacion.
+      return { rol: 'apoyo_titulacion', segmento_academico: '', carreras_asignadas: [] };
     default:
       if (perfil.startsWith('academico_')) {
         const slug = perfil.slice('academico_'.length);

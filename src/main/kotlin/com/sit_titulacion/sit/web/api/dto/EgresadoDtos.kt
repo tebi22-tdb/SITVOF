@@ -124,6 +124,14 @@ data class DepartamentoListItemDto(
     @JsonProperty("fecha_generacion_anexos_xxxii_xxxiii") val fechaGeneracionAnexosXxxiiXxxxiii: String? = null,
     @JsonProperty("fecha_generacion_hoja_32") val fechaGeneracionHoja32: String? = null,
     @JsonProperty("fecha_generacion_hoja_33") val fechaGeneracionHoja33: String? = null,
+    /** Si DEP o administrador ya confirmó la entrega del anexo 9.3, los sinodales quedan solo de consulta. */
+    @JsonProperty("fecha_confirmacion_entrega_anexo_9_3") val fechaConfirmacionEntregaAnexo93: String? = null,
+    @JsonProperty("asesor_firma") val asesorFirma: String? = null,
+    @JsonProperty("revisor_1") val revisor1: String? = null,
+    @JsonProperty("revisor_2") val revisor2: String? = null,
+    @JsonProperty("asesor_interno") val asesorInterno: String? = null,
+    @JsonProperty("asesor_externo") val asesorExterno: String? = null,
+    @JsonProperty("observaciones_anexo32") val observacionesAnexo32: String? = null,
 )
 
 /** Cuerpo para asignar o actualizar sinodales (departamento académico). */
@@ -156,6 +164,7 @@ data class RevisionDto(
     val observaciones: String? = null,
     @JsonProperty("enviado_al_egresado") val enviadoAlEgresado: Boolean = false,
     @JsonProperty("fecha_envio_egresado") val fechaEnvioEgresado: String? = null,
+    @JsonProperty("fecha_correccion_egresado") val fechaCorreccionEgresado: String? = null,
     @JsonProperty("tiene_documento_adjunto") val tieneDocumentoAdjunto: Boolean = false,
     @JsonProperty("documento_nombre") val documentoNombre: String? = null,
     @JsonProperty("documento_content_type") val documentoContentType: String? = null,
@@ -174,6 +183,10 @@ data class SolicitarReenvioDocumentacionEscaneadaRequestDto(
 
 data class RevertirPasoSeguimientoRequestDto(
     val paso: String = "",
+)
+
+data class AvanzarFlujoPropioRequest(
+    val fechaHora: String? = null,
 )
 
 data class EgresadoDetailDto(
@@ -251,6 +264,7 @@ data class EgresadoDetailDto(
     @JsonProperty("linea_titulacion") val linea_titulacion: String = "",
     /** Widget "cuadro verde" del paso 4 (desarrollo); null si no aplica a este proceso/etapa. */
     @JsonProperty("plazo_desarrollo") val plazo_desarrollo: PlazoDesarrolloDto? = null,
+    @JsonProperty("avances_flujo_propio") val avances_flujo_propio: List<AvanceFlujoPropioDto> = emptyList(),
 )
 
 data class PlazoDesarrolloDto(
@@ -294,6 +308,11 @@ data class ProcesoAnteriorDto(
     @JsonProperty("fecha_envio_documentacion_escaneada_egresado") val fechaEnvioDocumentacionEscaneadaEgresado: String? = null,
     @JsonProperty("fecha_confirmacion_documentacion_escaneada_recibida") val fechaConfirmacionDocumentacionEscaneadaRecibida: String? = null,
     @JsonProperty("fecha_titulacion") val fechaTitulacion: String? = null,
+)
+
+data class AvanceFlujoPropioDto(
+    val indice: Int,
+    val fecha: String,
 )
 
 data class DocumentoAdjuntoDto(

@@ -2,11 +2,12 @@ import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { CommonModule, DatePipe } from '@angular/common';
+import { LOGO_ITVO, LOGO_TECNM } from '../../core/logos';
+import { textoErrorUsuario } from '../../core/mensaje-conexion';
 
 interface VerificacionResultado {
   valido: boolean;
   nombre?: string;
-  numero_control?: string;
   titulo_proyecto?: string;
   modalidad?: string;
   carrera?: string;
@@ -24,6 +25,8 @@ interface VerificacionResultado {
   styleUrl: './verificar-documento.component.css',
 })
 export class VerificarDocumentoComponent implements OnInit {
+  readonly logoTecnm = LOGO_TECNM;
+  readonly logoItvo = LOGO_ITVO;
   uuid = '';
   resultado: VerificacionResultado | null = null;
   cargando = true;
@@ -34,7 +37,7 @@ export class VerificarDocumentoComponent implements OnInit {
   ngOnInit() {
     this.uuid = this.route.snapshot.paramMap.get('uuid') ?? '';
     if (!this.uuid) {
-      this.error = 'ID de verificacion no especificado.';
+      this.error = 'No se encontró el documento para comprobar.';
       this.cargando = false;
       return;
     }
@@ -43,8 +46,8 @@ export class VerificarDocumentoComponent implements OnInit {
         this.resultado = res;
         this.cargando = false;
       },
-      error: () => {
-        this.error = 'No se pudo conectar al sistema. Intente de nuevo.';
+      error: (err) => {
+        this.error = textoErrorUsuario(err, 'No se pudo comprobar el documento. Intenta de nuevo.');
         this.cargando = false;
       },
     });

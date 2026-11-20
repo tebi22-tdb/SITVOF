@@ -25,7 +25,7 @@ class MongoConfig(private val env: Environment) {
     @Primary
     fun mongoClient(): MongoClient {
         val uri = env.getProperty("spring.data.mongodb.uri")
-            ?: "mongodb://77.37.74.122:27017/sit_titulacion?connectTimeoutMS=10000&serverSelectionTimeoutMS=5000&socketTimeoutMS=5000"
+            ?: "mongodb://127.0.0.1:27017/sit_titulacion?connectTimeoutMS=10000&serverSelectionTimeoutMS=5000&socketTimeoutMS=5000"
         return MongoClients.create(uri)
     }
 

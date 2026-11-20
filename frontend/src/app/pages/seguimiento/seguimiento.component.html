@@ -46,7 +46,7 @@
       </button>
     </div>
 
-    <div *ngIf="!cargando && !error && datos" class="seguimiento-layout" [class.seguimiento-layout--vencido]="procesoBloqueadoPorVencimientoPlazoAlumno">
+    <div *ngIf="!cargando && !error && datos" class="seguimiento-layout" [class.seguimiento-layout--vencido]="procesoBloqueadoPorVencimientoPlazoAlumno" [class.seguimiento-layout--gris]="procesoVistoEstaVencido">
       <div class="seguimiento-timeline-card">
         <div class="proceso-titulo-wrap">
           <h3 class="proceso-titulo">{{ estaViendoProcesoAnterior ? 'Historial del proceso' : 'Tu proceso' }}</h3>
@@ -122,6 +122,13 @@
               </div>
 
               <div class="timeline-cuerpo" *ngIf="!pasoEstaCompacto(paso)">
+                <button
+                  *ngIf="paso.activo && paso.puedeAccionar"
+                  type="button"
+                  class="btn-seguimiento"
+                  [disabled]="avanzandoFlujo"
+                  (click)="avanzarFlujoPropio()"
+                >{{ avanzandoFlujo ? 'Registrando…' : paso.accionFlujo }}</button>
                 <p class="timeline-detalle-alumno" *ngIf="paso.detalle || paso.fechaDetalleResaltada">
                   {{ paso.detalle }}
                   <strong *ngIf="paso.fechaDetalleResaltada" class="timeline-fecha-destacada">{{
@@ -174,16 +181,23 @@
                     <p class="timeline-corregir-expediente__txt">
                       Sustituye el PDF que tiene Coordinación de Apoyo a la Titulación por tu versión corregida.
                     </p>
-                    <input
-                      type="file"
-                      accept=".pdf,application/pdf"
-                      class="timeline-doc-escaneada-input seg-file-input"
-                      [disabled]="enviandoCorreccionExpediente || procesoBloqueadoPorVencimientoPlazoAlumno"
-                      (change)="onArchivoCorreccionExpediente($event)"
-                    />
-                    <p *ngIf="archivoCorreccionExpediente" class="timeline-doc-escaneada-lista">
-                      Archivo: {{ archivoCorreccionExpediente.name }}
-                    </p>
+                    <label
+                      class="seg-file-picker"
+                      [class.seg-file-picker--disabled]="enviandoCorreccionExpediente || procesoBloqueadoPorVencimientoPlazoAlumno"
+                      [class.seg-file-picker--ok]="!!archivoCorreccionExpediente"
+                    >
+                      <span class="seg-file-picker__btn">{{ archivoCorreccionExpediente ? 'Cambiar archivo' : 'Seleccionar archivo' }}</span>
+                      <span class="seg-file-picker__name" [class.seg-file-picker__name--ok]="!!archivoCorreccionExpediente">
+                        {{ archivoCorreccionExpediente ? archivoCorreccionExpediente.name : 'Ningún archivo seleccionado' }}
+                      </span>
+                      <input
+                        type="file"
+                        a       ccept=".pdf,application/pdf"
+                        class="seg-file-picker__input"
+                        [disabled]="enviandoCorreccionExpediente || procesoBloqueadoPorVencimientoPlazoAlumno"
+                        (change)="onArchivoCorreccionExpediente($event)"
+                      />
+                    </label>
                     <p *ngIf="mensajeCorreccionExpediente" class="timeline-doc-escaneada-msg">{{ mensajeCorreccionExpediente }}</p>
                     <button
                       type="button"
@@ -196,8 +210,17 @@
                       {{ enviandoCorreccionExpediente ? 'Enviando…' : 'Enviar expediente corregido' }}
                     </button>
                   </div>
+                  <div
+                    *ngIf="tieneCorreccionEnviadaSinPendiente && !estaViendoProcesoAnterior"
+                    class="timeline-correccion-enviada"
+                    role="status"
+                  >
+                    <p class="timeline-correccion-enviada__tit">Corrección enviada</p>
+                    <p class="timeline-correccion-enviada__txt">
+                      Coordinación de Apoyo a la Titulación ya tiene tu archivo corregido. Cuando haya una nueva revisión, podrás responder de nuevo aquí.
+                    </p>
+                  </div>
                 </div>
-
                 <div *ngIf="(paso.clave === 'doc_escaneada_subir' || paso.clave === 'doc_escaneada_unificada') && mostrarFormularioSubidaDocEscaneada" class="timeline-doc-escaneada">
                   <h4 class="timeline-doc-escaneada-titulo">Subir documentación</h4>
                   <p class="timeline-doc-escaneada-texto">
@@ -234,16 +257,27 @@
                   >
                     Observaciones de la DEP: {{ datos.observaciones_reenvio_documentacion_escaneada }}
                   </p>
-                  <input
-                    type="file"
-                    accept="application/pdf,.pdf"
-                    class="timeline-doc-escaneada-input seg-file-input"
-                    [disabled]="procesoBloqueadoPorVencimientoPlazoAlumno"
-                    (change)="onArchivosDocEscaneadaSeleccionados($event)"
-                  />
-                  <p *ngIf="archivosPdfEscaneados.length" class="timeline-doc-escaneada-lista">
-                    Archivo PDF seleccionado.
+                  <p class="timeline-doc-escaneada-texto">
+                    Si el archivo pesa demasiado, puedes comprimirlo en
+                    <a href="https://www.ilovepdf.com/es/comprimir_pdf" target="_blank" rel="noopener" class="timeline-doc-escaneada-enlace">ilovepdf.com/comprimir_pdf</a>.
                   </p>
+                  <label
+                    class="seg-file-picker"
+                    [class.seg-file-picker--disabled]="procesoBloqueadoPorVencimientoPlazoAlumno"
+                    [class.seg-file-picker--ok]="archivosPdfEscaneados.length"
+                  >
+                    <span class="seg-file-picker__btn">{{ archivosPdfEscaneados.length ? 'Cambiar archivo' : 'Seleccionar archivo' }}</span>
+                    <span class="seg-file-picker__name" [class.seg-file-picker__name--ok]="archivosPdfEscaneados.length">
+                      {{ archivosPdfEscaneados.length ? archivosPdfEscaneados[0].name : 'Ningún archivo seleccionado' }}
+                    </span>
+                    <input
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      class="seg-file-picker__input"
+                      [disabled]="procesoBloqueadoPorVencimientoPlazoAlumno"
+                      (change)="onArchivosDocEscaneadaSeleccionados($event)"
+                    />
+                  </label>
                   <p *ngIf="mensajeDocEscaneada" class="timeline-doc-escaneada-msg">{{ mensajeDocEscaneada }}</p>
                   <button
                     type="button"
@@ -261,7 +295,6 @@
           </div>
         </div>
       </div>
-
       <aside class="seguimiento-aside" *ngIf="!estaViendoProcesoAnterior">
         <div class="seguimiento-card seguimiento-card-perfil">
           <div class="perfil-top">
@@ -280,6 +313,7 @@
               <dt>Carrera</dt>
               <dd>{{ datos.datos_personales.carrera || '—' }}</dd>
             </div>
+              div ava
             <div class="perfil-row">
               <dt>Nivel</dt>
               <dd>{{ datos.datos_personales.nivel || '—' }}</dd>
@@ -320,8 +354,17 @@
           <p *ngIf="errorDescargaRevision" class="seguimiento-error-descarga">{{ errorDescargaRevision }}</p>
           <p *ngIf="cargandoRevisionesEnviadas" class="seguimiento-avance-line">Cargando revisiones…</p>
           <ul *ngIf="!cargandoRevisionesEnviadas && revisionesParaCorregir.length > 0" class="seguimiento-revision-lista">
-            <li *ngFor="let r of revisionesParaCorregir" class="seguimiento-revision-item">
-              <p class="seguimiento-revision-titulo">Revisión recibida; favor de corregir a la brevedad.</p>
+            <li
+              *ngFor="let r of revisionesParaCorregir"
+              class="seguimiento-revision-item"
+              [class.seguimiento-revision-item--enviada]="!!r.fecha_correccion_egresado"
+            >
+              <p
+                class="seguimiento-revision-titulo"
+                [class.seguimiento-revision-titulo--enviada]="!!r.fecha_correccion_egresado"
+              >
+                {{ tituloRevision(r) }}
+              </p>
               <p *ngIf="r.observaciones" class="seguimiento-revision-obs" [class.expandida]="esRevisionExpandida(r.id)">
                 {{ r.observaciones }}
               </p>
@@ -343,6 +386,9 @@
               </button>
               <p class="seguimiento-revision-fecha">
                 {{ formatearFechaHora(r.fecha_envio_egresado || r.fecha) }}
+                <span *ngIf="r.fecha_correccion_egresado">
+                  · Corrección: {{ formatearFechaHora(r.fecha_correccion_egresado) }}
+                </span>
               </p>
             </li>
           </ul>
