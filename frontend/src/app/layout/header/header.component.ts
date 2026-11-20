@@ -1,8 +1,10 @@
-import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnDestroy, OnInit } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { CatalogoService } from '../../services/catalogo.service';
+import { LOGO_ITVO, LOGO_TECNM } from '../../core/logos';
 
 @Component({
   selector: 'app-header',
@@ -11,7 +13,9 @@ import { CatalogoService } from '../../services/catalogo.service';
   templateUrl: './header.component.html',
   styleUrl: './header.component.css',
 })
-export class HeaderComponent implements OnInit {
+export class HeaderComponent implements OnInit, OnDestroy {
+  readonly logoTecnm = LOGO_TECNM;
+  readonly logoItvo = LOGO_ITVO;
   nombreUsuario = '';
   /** Si es false, no se muestra el botón "Nuevo" (ej. en la interfaz de seguimiento del egresado). */
   @Input() showNuevoButton = true;
@@ -26,6 +30,8 @@ export class HeaderComponent implements OnInit {
   @Input() showRegistrarEgresadoButton = false;
   @Output() registrarEgresadoClick = new EventEmitter<void>();
 
+  private catalogoSub: Subscription | null = null;
+
   constructor(
     private auth: AuthService,
     private router: Router,
@@ -33,6 +39,15 @@ export class HeaderComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.actualizarNombre();
+    this.catalogoSub = this.catalogoService.departamentos$.subscribe(() => this.actualizarNombre());
+  }
+
+  ngOnDestroy(): void {
+    this.catalogoSub?.unsubscribe();
+  }
+
+  private actualizarNombre(): void {
     const u = this.auth.getUsuario();
     const username = u?.username ?? '';
     const rol = (u?.rol ?? '').toLowerCase();
@@ -42,7 +57,7 @@ export class HeaderComponent implements OnInit {
       const area =
         this.catalogoService.nombreDepartamentoPorSlug(u?.segmento_academico ?? '') ??
         this.catalogoService.inferirNombreDepartamentoPorCarreras(u?.carreras_asignadas ?? []) ??
-        'Coordinacion de apoyo a la titulacion';
+        'Departamento académico';
       this.nombreUsuario = `${nombre} - ${area}`;
     } else if (rol === 'administrador') {
       this.nombreUsuario = `${nombre} - Administrador`;
@@ -52,6 +67,8 @@ export class HeaderComponent implements OnInit {
       this.nombreUsuario = `${nombre} - DEP`;
     } else if (rol === 'servicios_escolares') {
       this.nombreUsuario = `${nombre} - Servicios escolares`;
+    } else if (rol === 'subdireccion_academica') {
+      this.nombreUsuario = `${nombre} - Subdirección académica`;
     } else {
       this.nombreUsuario = nombre;
     }

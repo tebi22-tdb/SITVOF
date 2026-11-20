@@ -74,6 +74,8 @@ class UsuarioService(
             val actualizado = existente.copy(
                 egresadoId = egresadoId,
                 passwordHash = passwordHash,
+                passwordResetTokenHash = null,
+                passwordResetExpira = null,
                 fechaActualizacion = java.time.Instant.now(),
             )
             usuarioRepository.save(actualizado)

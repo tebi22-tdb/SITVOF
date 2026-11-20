@@ -1,8 +1,10 @@
 package com.sit_titulacion.sit.web.api
 
 import com.sit_titulacion.sit.config.UsuarioPrincipal
+import com.sit_titulacion.sit.domain.NormalizacionTexto
 import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.service.EmailService
+import com.sit_titulacion.sit.service.ModuloCorreo
 import com.sit_titulacion.sit.service.UsuarioService
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
@@ -94,10 +96,13 @@ class UsuarioController(
         val nombre = body.nombre.trim()
         val rolTexto = body.rol.trim().ifBlank { "coordinador" }
         val rol = Rol.desdeBd(rolTexto)
-            ?: return ResponseEntity.badRequest().body(mapOf("error" to "Rol inválido: '$rolTexto'."))
+            ?: return ResponseEntity.badRequest().body(mapOf("error" to "Elige un tipo de usuario válido."))
         val correo = body.correo_electronico.trim()
         val curp = body.curp?.trim()?.uppercase() ?: ""
-        var segmentoAcademico = body.segmento_academico?.trim()?.lowercase()?.ifBlank { null }
+        var segmentoAcademico = body.segmento_academico
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?.let { NormalizacionTexto.normalizarSlug(it) }
         var carrerasAsignadas =
             body.carreras_asignadas
                 ?.map { it.trim() }
@@ -117,7 +122,7 @@ class UsuarioController(
             carrerasAsignadas.isEmpty()
         ) {
             return ResponseEntity.badRequest().body(
-                mapOf("error" to "Para rol académico debes indicar segmento_academico y carreras_asignadas."),
+                mapOf("error" to "Para un usuario de departamento académico indica el departamento y las carreras."),
             )
         }
         return try {
@@ -135,7 +140,11 @@ class UsuarioController(
             val envioFuture =
                 CompletableFuture.supplyAsync {
                     try {
-                        emailService.enviarCredenciales(correo, user, password)
+                        if (emailService.enviarCredenciales(correo, user, password, modulo = ModuloCorreo.ALTA_USUARIOS)) {
+                            "ok"
+                        } else {
+                            "no"
+                        }
                     } catch (mailEx: Exception) {
                         log.error(
                             "Usuario staff {} creado; falló correo a {}: {}",
@@ -144,22 +153,21 @@ class UsuarioController(
                             mailEx.message,
                             mailEx,
                         )
-                        false
+                        if (emailService.esFalloTransitorio(mailEx)) "proceso" else "no"
                     }
                 }
-            val enviado =
+            val resultado =
                 try {
                     envioFuture.get(1, TimeUnit.MINUTES)
                 } catch (_: TimeoutException) {
-                    envioFuture.cancel(true)
                     log.warn("Correo de credenciales a {} superó 1 minuto (usuario={})", correo, user)
-                    false
+                    "proceso"
                 } catch (ex: Exception) {
                     log.error("Error esperando envío de correo a {}: {}", correo, ex.message, ex)
-                    false
+                    "no"
                 }
-            if (enviado) {
-                ResponseEntity.ok(
+            when (resultado) {
+                "ok" -> ResponseEntity.ok(
                     mapOf(
                         "ok" to true,
                         "message" to "Usuario creado. Se han enviado las credenciales al correo.",
@@ -167,12 +175,20 @@ class UsuarioController(
                         "username" to user,
                     ),
                 )
-            } else {
-                ResponseEntity.ok(
+                "proceso" -> ResponseEntity.ok(
+                    mapOf(
+                        "ok" to true,
+                        "message" to "Usuario creado.",
+                        "correo_enviado" to false,
+                        "correo_en_proceso" to true,
+                        "username" to user,
+                    ),
+                )
+                else -> ResponseEntity.ok(
                     mapOf(
                         "ok" to true,
                         "message" to
-                            "Usuario creado. El correo no llegó a tiempo o falló. " +
+                            "Usuario creado. El correo no se pudo enviar. " +
                             "Entrega estas credenciales en persona.",
                         "correo_enviado" to false,
                         "username" to user,

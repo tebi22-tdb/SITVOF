@@ -32,29 +32,35 @@ export const MODALIDADES_CURSO_TITULACION = [
   'Tesina',
 ] as const;
 
-/** Submodalidades de titulación tradicional. Las habilitadas reutilizan el flujo no-residencia (como Tesis / Proyecto de Investigación). */
+/** Submodalidades de titulación tradicional que se ofrecen al dar de alta. */
 export const MODALIDADES_TITULACION = [
   'TESIS PROFESIONAL',
-  'LIBROS DE TEXTO O PROTOTIPOS DIDACTICOS',
   'PROYECTOS DE INVESTIGACION',
-  'DISEÑO Y REDISEÑO DE EQUIPO O MAQUINARIA',
   'CURSOS ESPECIALES DE TITULACION',
-  'EXAMEN POR AREAS DE CONOCIMIENTO',
   'EXAMEN POR AREAS DE CONOCIMIENTO (CENEVAL)',
 ] as const;
 
-/** Modalidades de tipo Titulación ya habilitadas (mismo flujo que su equivalente en titulación integral). */
-export const MODALIDADES_TITULACION_HABILITADAS = [
-  'TESIS PROFESIONAL',
-  'PROYECTOS DE INVESTIGACION',
-] as const;
+/** Todas las opciones visibles ya tienen flujo: tesis, curso de titulación o CENEVAL. */
+export const MODALIDADES_TITULACION_HABILITADAS = MODALIDADES_TITULACION;
 
 export const MODALIDAD_TESIS_PROFESIONAL = 'TESIS PROFESIONAL';
 export const MODALIDAD_PROYECTOS_INVESTIGACION = 'PROYECTOS DE INVESTIGACION';
+export const MODALIDAD_CURSOS_ESPECIALES = 'CURSOS ESPECIALES DE TITULACION';
+export const MODALIDAD_EXAMEN_CENEVAL = 'EXAMEN POR AREAS DE CONOCIMIENTO (CENEVAL)';
 
 export function esModalidadTitulacionHabilitada(nombre: string | null | undefined): boolean {
   const n = (nombre || '').trim().toUpperCase();
   return (MODALIDADES_TITULACION_HABILITADAS as readonly string[]).some((m) => m === n);
+}
+
+/** Mismo trámite que el checkbox «Curso de titulación» (plazo desde la constancia). */
+export function esModalidadTitulacionCurso(nombre: string | null | undefined): boolean {
+  return (nombre || '').trim().toUpperCase() === MODALIDAD_CURSOS_ESPECIALES;
+}
+
+/** Mismo trámite que la modalidad CENEVAL de titulación integral. */
+export function esModalidadTitulacionCeneval(nombre: string | null | undefined): boolean {
+  return (nombre || '').trim().toUpperCase() === MODALIDAD_EXAMEN_CENEVAL;
 }
 
 export interface EgresadoForm {

@@ -6,6 +6,8 @@ import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration, ChartData } from 'chart.js';
 import { CatalogoService, DepartamentoCatalogo } from '../../services/catalogo.service';
 import { HeaderComponent } from '../../layout/header/header.component';
+import { textoErrorUsuario } from '../../core/mensaje-conexion';
+import { AuthService } from '../../services/auth.service';
 import {
   ListadoEgresadosFiltros,
   ReporteEgresadoListado,
@@ -75,8 +77,14 @@ export class ReportesComponent implements OnInit {
   listado: ReporteEgresadoListado[] = [];
   busquedaListado = '';
 
+  /** Subdirección solo ve reportes: no mostrar «Volver al inicio». */
+  get mostrarVolverInicio(): boolean {
+    return !this.auth.isSubdireccionAcademica();
+  }
+
   constructor(
     private router: Router,
+    private auth: AuthService,
     private reporteService: ReporteService,
     private catalogoService: CatalogoService,
   ) {}
@@ -114,6 +122,10 @@ export class ReportesComponent implements OnInit {
   }
 
   volver(): void {
+    if (this.auth.isSubdireccionAcademica()) {
+      this.router.navigate(['/home/reportes']);
+      return;
+    }
     this.router.navigate(['/home']);
   }
 
@@ -134,9 +146,9 @@ export class ReportesComponent implements OnInit {
         this.exportando = false;
         this.descargarBlob(blob, 'reporte-titulacion.xlsx');
       },
-      error: () => {
+      error: (err) => {
         this.exportando = false;
-        this.error = 'No se pudo exportar el reporte a Excel.';
+        this.error = textoErrorUsuario(err, 'No se pudo descargar el reporte.');
       },
     });
   }
@@ -149,9 +161,9 @@ export class ReportesComponent implements OnInit {
         this.exportandoListado = false;
         this.descargarBlob(blob, 'listado-egresados.xlsx');
       },
-      error: () => {
+      error: (err) => {
         this.exportandoListado = false;
-        this.errorListado = 'No se pudo exportar el listado a Excel.';
+        this.errorListado = textoErrorUsuario(err, 'No se pudo descargar el listado.');
       },
     });
   }
@@ -174,8 +186,8 @@ export class ReportesComponent implements OnInit {
         this.construirGraficas(r);
         this.cargando = false;
       },
-      error: () => {
-        this.error = 'No se pudo cargar el reporte. Intenta de nuevo.';
+      error: (err) => {
+        this.error = textoErrorUsuario(err, 'No se pudo cargar el reporte. Intenta de nuevo.');
         this.cargando = false;
       },
     });
@@ -190,8 +202,8 @@ export class ReportesComponent implements OnInit {
         this.listado = items;
         this.cargandoListado = false;
       },
-      error: () => {
-        this.errorListado = 'No se pudo cargar el listado. Intenta de nuevo.';
+      error: (err) => {
+        this.errorListado = textoErrorUsuario(err, 'No se pudo cargar el listado. Intenta de nuevo.');
         this.cargandoListado = false;
       },
     });

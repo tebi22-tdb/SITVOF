@@ -9,6 +9,12 @@ import java.time.Instant
  * Un egresado puede tener varios procesos si el primero venció y solicita con otra modalidad.
  * El proceso activo es siempre el último elemento de Egresado.procesos.
  */
+data class AvanceFlujoPropio(
+    val indice: Int = 0,
+    val fecha: Instant = Instant.now(),
+    val accion: String = "",
+)
+
 data class ProcesoTitulacion(
     val id: ObjectId = ObjectId(),
     val datos_proyecto: DatosProyecto,
@@ -66,6 +72,9 @@ data class ProcesoTitulacion(
     val fechaSolicitudAnexo92: Instant? = null,
     @Field("fecha_creacion_anexo_9_2")
     val fechaCreacionAnexo92: Instant? = null,
+    /** PDF del anexo 9.2. Se reemplaza en cada generación hasta que Servicios escolares marca la solicitud atendida. */
+    @Field("anexo_9_2_pdf")
+    val anexo92Pdf: ByteArray? = null,
     /** Departamento académico confirmó trámite de constancia 9.2 (habilita recepción en DEP). */
     @Field("fecha_confirmacion_departamento_academico_anexo_9_2")
     val fechaConfirmacionDepartamentoAcademicoAnexo92: Instant? = null,
@@ -90,6 +99,12 @@ data class ProcesoTitulacion(
     val fechaReagendaActo93: Instant? = null,
     @Field("fecha_creacion_anexo_9_3")
     val fechaCreacionAnexo93: Instant? = null,
+    /** Direcciones a las que el SMTP ya aceptó el citatorio de este acto. */
+    @Field("correos_sinodales_anexo_93")
+    val correosSinodalesAnexo93: List<String> = emptyList(),
+    /** Direcciones rechazadas (no existen o la cuenta que envía fue rechazada). No se reintentan. */
+    @Field("correos_sinodales_anexo_93_rechazados")
+    val correosSinodalesAnexo93Rechazados: List<String> = emptyList(),
     @Field("fecha_confirmacion_entrega_anexo_9_3")
     val fechaConfirmacionEntregaAnexo93: Instant? = null,
 
@@ -130,4 +145,11 @@ data class ProcesoTitulacion(
     @Field("notif_plazo_nr_tram_4m") val notifPlazoNrTram4m: Instant? = null,
     @Field("notif_plazo_nr_tram_3d") val notifPlazoNrTram3d: Instant? = null,
     @Field("notif_plazo_nr_final") val notifPlazoNrFinal: Instant? = null,
+
+    /** Solo modalidades con flujo propio. No lo usan tesis, residencia ni CENEVAL. */
+    @Field("avances_flujo_propio")
+    val avancesFlujoPropio: List<AvanceFlujoPropio> = emptyList(),
+    /** Pestaña del departamento a la que llegó el último envío de un flujo propio. */
+    @Field("pestana_departamento")
+    val pestanaDepartamento: String? = null,
 )

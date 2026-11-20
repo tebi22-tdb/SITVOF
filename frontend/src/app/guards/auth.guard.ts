@@ -5,25 +5,7 @@ import { map, catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
 
 function redirigirInicioPorRol(auth: AuthService, router: Router): void {
-  if (auth.isServiciosEscolares()) {
-    router.navigate(['/servicios-escolares']);
-  } else if (auth.isAcademico()) {
-    router.navigate(['/departamento-academico']);
-  } else if (auth.isSubdireccionAcademica()) {
-    router.navigate(['/home/reportes']);
-  } else if (auth.isApoyoTitulacion()) {
-    // Antes de isAdministrador(): isAdministrador() incluye a apoyo_titulacion, así
-    // que esta rama debe ganar primero — su única pantalla es Revisiones.
-    router.navigate(['/home/revisiones']);
-  } else if (auth.isDep()) {
-    router.navigate(['/home/seguimiento-proceso']);
-  } else if (auth.isAdministrador()) {
-    router.navigate(['/home']);
-  } else if (auth.isEgresado()) {
-    router.navigate(['/seguimiento']);
-  } else {
-    router.navigate(['/login']);
-  }
+  void router.navigateByUrl(auth.rutaInicio());
 }
 
 /** Gestión de cuentas staff: solo administrador. */

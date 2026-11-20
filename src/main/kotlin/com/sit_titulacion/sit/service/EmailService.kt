@@ -1,5 +1,8 @@
 package com.sit_titulacion.sit.service
 
+import com.sit_titulacion.sit.domain.AdjuntoCorreoGuardado
+import com.sit_titulacion.sit.domain.CorreoPendienteGuardado
+import com.sit_titulacion.sit.repository.CorreoPendienteRepository
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.client.j2se.MatrixToImageWriter
@@ -12,12 +15,18 @@ import org.apache.poi.xwpf.usermodel.XWPFTable
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.core.io.ByteArrayResource
 import org.springframework.core.io.ClassPathResource
 import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.mail.javamail.MimeMessageHelper
+import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
+import jakarta.annotation.PostConstruct
 import java.io.ByteArrayInputStream
+import java.util.UUID
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Semaphore
 
 enum class RolSinodalCorreo {
     PRESIDENTE,
@@ -38,12 +47,41 @@ data class EstadoSmtp(
     val momento: java.time.Instant?,
 )
 
+/** Módulo de la pantalla donde debe verse el aviso mientras el correo sigue en cola. */
+object ModuloCorreo {
+    const val ALTA_EGRESADOS = "alta-egresados"
+    const val ALTA_USUARIOS = "alta-usuarios"
+    const val SEGUIMIENTO = "seguimiento"
+    const val DEPARTAMENTO = "departamento"
+}
+
+data class AvisoCorreoModulo(
+    val modulo: String,
+    val segmento: String?,
+)
+
+/** Cuántos citatorios aceptó el SMTP y cuántos quedaron en reintento. */
+data class ResultadoCorreosSinodales(
+    val aceptados: Int = 0,
+    val enProceso: Int = 0,
+    val correosAceptados: List<String> = emptyList(),
+    val correosRechazados: List<String> = emptyList(),
+)
+
+/** El citatorio de este egresado ya está en la cola. No se encola otra copia. */
+internal class CorreoEnCursoException : RuntimeException()
+
+internal const val MARCA_CITATORIO_SINODAL = "anexo93"
+
 @Service
 class EmailService(
     @Autowired(required = false) private val mailSender: JavaMailSender?,
     @Value("\${spring.mail.username:}") private val fromEmail: String,
     @Value("\${sit.cert.base-url:https://sitvo.net}") private val baseUrl: String,
     private val configInstitucional: ConfiguracionInstitucionalService,
+    @Value("\${sit.mail.reintento.espera-inicial-ms:15000}") private val esperaInicialMs: Long = 15_000,
+    @Autowired(required = false) private val correoPendienteRepository: CorreoPendienteRepository? = null,
+    @Autowired(required = false) private val eventos: ApplicationEventPublisher? = null,
 ) {
     private val log = LoggerFactory.getLogger(EmailService::class.java)
 
@@ -52,7 +90,82 @@ class EmailService(
     @Volatile private var ultimoError: String? = null
     @Volatile private var momentoUltimoError: java.time.Instant? = null
 
+    /** Correos que el SMTP no aceptó por un corte o una demora. Se reintentan hasta que salgan. */
+    private val pendientes = mutableListOf<CorreoPendiente>()
+    /** El egresado y los sinodales salen a la vez; no se forman uno detrás de otro. */
+    private val envioCupo = Semaphore(5)
+
+    /**
+     * Hilos propios para el SMTP. El pool común de Java, en un servidor de un solo núcleo,
+     * se queda bloqueado si una tarea espera a otras tareas del mismo pool: el aviso del
+     * egresado sale y el de los sinodales no arranca.
+     */
+    private val correoExecutor = java.util.concurrent.Executors.newFixedThreadPool(4) { tarea ->
+        Thread(tarea, "sit-correo").apply { isDaemon = true }
+    }
+
+    fun ejecutarEnvio(bloque: () -> Unit) {
+        correoExecutor.execute {
+            try {
+                bloque()
+            } catch (ex: Exception) {
+                log.error("El envío en segundo plano falló: {}", ex.message)
+            }
+        }
+    }
+
+    fun citatorioYaEnCola(egresadoId: String, correo: String): Boolean {
+        val id = egresadoId.trim()
+        val destino = correo.trim()
+        if (id.isBlank() || destino.isBlank()) return false
+        return synchronized(pendientes) {
+            pendientes.any {
+                it.marca == MARCA_CITATORIO_SINODAL &&
+                    it.egresadoId == id &&
+                    it.correoDestino.equals(destino, ignoreCase = true)
+            }
+        }
+    }
+
+    @PostConstruct
+    fun cargarCorreosPendientes() {
+        val repo = correoPendienteRepository ?: return
+        val guardados = try {
+            repo.findAll()
+        } catch (ex: Exception) {
+            log.warn("No se pudieron cargar correos pendientes: {}", ex.message)
+            return
+        }
+        synchronized(pendientes) {
+            for (doc in guardados) {
+                if (pendientes.any { it.id == doc.id }) continue
+                pendientes.add(
+                    CorreoPendiente(
+                        id = doc.id,
+                        correoDestino = doc.correoDestino,
+                        subject = doc.subject,
+                        saludo = doc.saludo,
+                        mensajeDestacado = doc.mensajeDestacado,
+                        cuerpoHtml = doc.cuerpoHtml,
+                        adjuntos = doc.adjuntos.map { it.nombre to it.contenido },
+                        modulos = doc.modulos,
+                        segmento = doc.segmento,
+                        intentos = doc.intentos,
+                        proximoIntentoEpochMs = minOf(doc.proximoIntentoEpochMs, System.currentTimeMillis()),
+                        egresadoId = doc.egresadoId,
+                        marca = doc.marca,
+                        referencia = doc.referencia,
+                    ),
+                )
+            }
+        }
+        if (guardados.isNotEmpty()) {
+            log.info("Hay {} correo(s) pendiente(s) de un arranque anterior. Se seguirán intentando.", guardados.size)
+        }
+    }
+
     private fun registrarExito() {
+        if (synchronized(pendientes) { pendientes.isNotEmpty() }) return
         ultimoError = null
         momentoUltimoError = null
     }
@@ -62,12 +175,24 @@ class EmailService(
         momentoUltimoError = java.time.Instant.now()
     }
 
+    /** Módulos con correos que todavía se están enviando. */
+    fun avisosPendientes(): List<AvisoCorreoModulo> {
+        val items = synchronized(pendientes) { pendientes.toList() }
+        return items.flatMap { pendiente ->
+            val segmento = pendiente.segmento?.trim()?.lowercase()?.ifBlank { null }
+            pendiente.modulos.filter { it.isNotBlank() }.map { AvisoCorreoModulo(it, segmento) }
+        }.distinct()
+    }
+
     /** Para el endpoint de estado que consulta el panel de coordinación. */
-    fun estadoActual(): EstadoSmtp = EstadoSmtp(
-        ok = ultimoError == null,
-        ultimoError = ultimoError,
-        momento = momentoUltimoError,
-    )
+    fun estadoActual(): EstadoSmtp {
+        val hayPendientes = synchronized(pendientes) { pendientes.isNotEmpty() }
+        return EstadoSmtp(
+            ok = ultimoError == null && !hayPendientes,
+            ultimoError = ultimoError ?: if (hayPendientes) "Hay correos pendientes de reintento" else null,
+            momento = momentoUltimoError,
+        )
+    }
 
     /**
      * Envía las credenciales al correo del destinatario (plantilla HTML institucional).
@@ -79,6 +204,8 @@ class EmailService(
         correoDestino: String,
         usuario: String,
         password: String,
+        renovacion: Boolean = false,
+        modulo: String? = null,
     ): Boolean {
         if (password.isBlank()) {
             log.warn("No se envía correo con credenciales: contraseña vacía (usuario={})", usuario)
@@ -99,17 +226,22 @@ class EmailService(
                 correoDestino = correoDestino,
                 subject = "SITVO - Tus credenciales de acceso",
                 saludo = "Hola:",
-                mensajeDestacado = "Se ha creado tu cuenta en el Sistema Integral de Titulación (SITVO).",
+                mensajeDestacado = if (renovacion) {
+                    "Se registró un nuevo proceso de titulación. La contraseña anterior ya no sirve."
+                } else {
+                    "Se ha creado tu cuenta en el Sistema Integral de Titulación (SITVO)."
+                },
                 cuerpoHtml = """
                     <p style="margin:0 0 8px;font-size:14px;color:#374151;line-height:1.7;">
                       <strong>Usuario:</strong> $usuarioEsc<br>
                       <strong>Contraseña:</strong> $passwordEsc
                     </p>
                     <p style="margin:16px 0 0;font-size:14px;color:#374151;line-height:1.7;">
-                      Guarda estas credenciales para iniciar sesión en
+                      ${if (renovacion) "Usa esta contraseña nueva para entrar. La anterior quedó invalidada." else "Guarda estas credenciales para iniciar sesión en"}
                       <a href="https://sitvo.net" style="color:#1f4c8f;">https://sitvo.net</a>.
                     </p>
                 """.trimIndent(),
+                modulos = listOfNotNull(modulo),
             )
             log.info("Correo enviado a {} con credenciales para usuario {}", correoDestino, usuario)
             return true
@@ -176,7 +308,7 @@ class EmailService(
     /**
      * Envía el Anexo 9.3 (citatorio) PDF y, según el rol, el formato de preguntas Word correspondiente.
      *
-     * @return número de correos enviados correctamente.
+     * @return cuántos aceptó el SMTP y cuántos quedaron reintentándose.
      */
     fun enviarAnexo93Sinodales(
         destinatarios: List<SinodalCorreoDestino>,
@@ -187,51 +319,84 @@ class EmailService(
         fileName: String,
         incluirFormatoPreguntas: Boolean = false,
         certId: String = numeroControl,
-    ): Int {
+        segmento: String? = null,
+        egresadoId: String? = null,
+        referenciaActo: String? = null,
+    ): ResultadoCorreosSinodales {
         if (mailSender == null || fromEmail.isBlank()) {
             log.warn("Spring Mail no configurado. No se enviaron correos del Anexo 9.3 a sinodales.")
-            return 0
+            return ResultadoCorreosSinodales()
         }
 
-        var enviados = 0
-        for (dest in destinatarios.filter { it.correo.isNotBlank() }) {
-            val correo = dest.correo.trim()
-            try {
-                val lineaFormatoPreguntas = if (incluirFormatoPreguntas) {
-                    when (dest.rol) {
-                        RolSinodalCorreo.PRESIDENTE,
-                        RolSinodalCorreo.SECRETARIO,
-                        RolSinodalCorreo.VOCAL ->
-                            " También se adjunta el <strong>formato de preguntas</strong> correspondiente a su función en el tribunal."
-                        RolSinodalCorreo.VOCAL_SUPLENTE -> ""
+        val aceptados = java.util.concurrent.atomic.AtomicInteger(0)
+        val enProceso = java.util.concurrent.atomic.AtomicInteger(0)
+        val correosAceptados = java.util.Collections.synchronizedList(mutableListOf<String>())
+        val correosRechazados = java.util.Collections.synchronizedList(mutableListOf<String>())
+        val modulosAnexo = listOf(ModuloCorreo.SEGUIMIENTO, ModuloCorreo.DEPARTAMENTO)
+        val envios = destinatarios.filter { it.correo.isNotBlank() }.map { dest ->
+            CompletableFuture.runAsync({
+                val correo = dest.correo.trim()
+                try {
+                    val lineaFormatoPreguntas = if (incluirFormatoPreguntas) {
+                        when (dest.rol) {
+                            RolSinodalCorreo.PRESIDENTE,
+                            RolSinodalCorreo.SECRETARIO,
+                            RolSinodalCorreo.VOCAL ->
+                                " También se adjunta el <strong>formato de preguntas</strong> correspondiente a su función en el tribunal."
+                            RolSinodalCorreo.VOCAL_SUPLENTE -> ""
+                        }
+                    } else ""
+
+                    val adjuntos = mutableListOf(fileName to pdfBytes)
+                    if (incluirFormatoPreguntas) {
+                        adjuntoFormatoPreguntas(dest.rol, certId)?.let { adjuntos += it }
                     }
-                } else ""
 
-                val adjuntos = mutableListOf(fileName to pdfBytes)
-                if (incluirFormatoPreguntas) {
-                    adjuntoFormatoPreguntas(dest.rol, certId)?.let { adjuntos += it }
+                    enviarMimeInstitucional(
+                        correoDestino = correo,
+                        subject = "SITVO – Citatorio Acto Protocolario: $nombreEgresado",
+                        saludo = "Estimado Sinodal:",
+                        mensajeDestacado = "La División de Estudios Profesionales le comunica la calendarización y horario del acto protocolario.",
+                        cuerpoHtml = """
+                            <p style="margin:0 0 8px;font-size:14px;color:#374151;line-height:1.7;">
+                              Adjunto a este correo encontrará el <strong>Anexo 9.3 (Citatorio)</strong> con los detalles completos del acto protocolario.$lineaFormatoPreguntas
+                            </p>
+                        """.trimIndent(),
+                        adjuntos = adjuntos,
+                        modulos = modulosAnexo,
+                        segmento = segmento,
+                        egresadoId = egresadoId,
+                        marca = if (egresadoId.isNullOrBlank()) null else MARCA_CITATORIO_SINODAL,
+                        referencia = referenciaActo,
+                    )
+                    log.info("Anexo 9.3 enviado a sinodal {} ({}, egresado {})", correo, dest.rol, numeroControl)
+                    aceptados.incrementAndGet()
+                    correosAceptados.add(correo)
+                } catch (ex: CorreoEnCursoException) {
+                    enProceso.incrementAndGet()
+                } catch (ex: Exception) {
+                    registrarFallo(ex.message)
+                    if (esFalloTransitorio(ex)) {
+                        log.warn(
+                            "Anexo 9.3 a sinodal {} no salió y se reintentará hasta enviarlo: {}",
+                            correo,
+                            ex.message,
+                        )
+                        enProceso.incrementAndGet()
+                    } else {
+                        correosRechazados.add(correo)
+                        log.error("Error al enviar Anexo 9.3 a sinodal {}: {}", correo, ex.message)
+                    }
                 }
-
-                enviarMimeInstitucional(
-                    correoDestino = correo,
-                    subject = "SITVO – Citatorio Acto Protocolario: $nombreEgresado",
-                    saludo = "Estimado Sinodal:",
-                    mensajeDestacado = "La División de Estudios Profesionales le comunica la calendarización y horario del acto protocolario.",
-                    cuerpoHtml = """
-                        <p style="margin:0 0 8px;font-size:14px;color:#374151;line-height:1.7;">
-                          Adjunto a este correo encontrará el <strong>Anexo 9.3 (Citatorio)</strong> con los detalles completos del acto protocolario.$lineaFormatoPreguntas
-                        </p>
-                    """.trimIndent(),
-                    adjuntos = adjuntos,
-                )
-                log.info("Anexo 9.3 enviado a sinodal {} ({}, egresado {})", correo, dest.rol, numeroControl)
-                enviados++
-            } catch (ex: Exception) {
-                registrarFallo(ex.message)
-                log.error("Error al enviar Anexo 9.3 a sinodal {}: {}", correo, ex.message)
-            }
+            }, correoExecutor)
         }
-        return enviados
+        envios.forEach { it.join() }
+        return ResultadoCorreosSinodales(
+            aceptados.get(),
+            enProceso.get(),
+            correosAceptados.toList(),
+            correosRechazados.toList(),
+        )
     }
 
     private fun adjuntoFormatoPreguntas(rol: RolSinodalCorreo, certId: String): Pair<String, ByteArray>? {
@@ -287,6 +452,7 @@ class EmailService(
         nombreEgresado: String,
         numeroControl: String,
         fechaHoraActoTexto: String,
+        segmento: String? = null,
     ): Boolean {
         if (correoDestino.isBlank() || mailSender == null || fromEmail.isBlank()) {
             log.warn(
@@ -313,6 +479,8 @@ class EmailService(
                       para continuar con tu trámite.
                     </p>
                 """.trimIndent(),
+                modulos = listOf(ModuloCorreo.SEGUIMIENTO, ModuloCorreo.DEPARTAMENTO),
+                segmento = segmento,
             )
             log.info("Aviso acto protocolario agendado enviado a {} control={}", correoDestino, numeroControl)
             true
@@ -324,8 +492,61 @@ class EmailService(
     }
 
     /**
+     * Avisa al sinodal la fecha del acto en el que participa.
+     * @return `true` si el mensaje se entregó por SMTP.
+     */
+    fun enviarAvisoActoProtocolarioSinodal(
+        correoDestino: String,
+        nombreSinodal: String,
+        nombreEgresado: String,
+        numeroControl: String,
+        fechaHoraActoTexto: String,
+        segmento: String? = null,
+    ): Boolean {
+        if (correoDestino.isBlank() || mailSender == null || fromEmail.isBlank()) {
+            log.warn(
+                "Aviso acto protocolario a sinodal no enviado (SMTP o correo vacío), control={}",
+                numeroControl,
+            )
+            return false
+        }
+        val sinodalEsc = escaparHtml(nombreSinodal)
+        val egresadoEsc = escaparHtml(nombreEgresado)
+        val controlEsc = escaparHtml(numeroControl)
+        val fechaEsc = escaparHtml(fechaHoraActoTexto)
+        return try {
+            enviarMimeInstitucional(
+                correoDestino = correoDestino,
+                subject = "SITVO – Acto protocolario agendado",
+                saludo = "Hola $sinodalEsc:",
+                mensajeDestacado = "La División de Estudios Profesionales agendó un acto protocolario en el que participas como sinodal.",
+                cuerpoHtml = """
+                    <p style="margin:0 0 8px;font-size:14px;color:#374151;line-height:1.7;">
+                      <strong>Egresado:</strong> $egresadoEsc<br>
+                      <strong>Número de control:</strong> $controlEsc<br>
+                      <strong>Fecha y horario:</strong> $fechaEsc
+                    </p>
+                """.trimIndent(),
+                modulos = listOf(ModuloCorreo.SEGUIMIENTO, ModuloCorreo.DEPARTAMENTO),
+                segmento = segmento,
+            )
+            log.info(
+                "Aviso acto protocolario enviado a sinodal {} control={}",
+                correoDestino,
+                numeroControl,
+            )
+            true
+        } catch (e: Exception) {
+            registrarFallo(e.message)
+            log.error("Error al enviar aviso de acto a sinodal {}: {}", correoDestino, e.message)
+            false
+        }
+    }
+
+    /**
      * Plantilla HTML compartida (cabecera ITVO + mensaje destacado + pie).
      * Usada en credenciales, recuperación, Anexo 9.3 y aviso de acto al egresado.
+     * Si el SMTP tarda o se corta, el correo queda pendiente y [reintentarCorreosPendientes] lo manda después.
      */
     private fun enviarMimeInstitucional(
         correoDestino: String,
@@ -334,7 +555,118 @@ class EmailService(
         mensajeDestacado: String,
         cuerpoHtml: String,
         adjuntos: List<Pair<String, ByteArray>> = emptyList(),
+        modulos: List<String> = emptyList(),
+        segmento: String? = null,
+        egresadoId: String? = null,
+        marca: String? = null,
+        referencia: String? = null,
     ) {
+        val pendiente = CorreoPendiente(
+            correoDestino = correoDestino.trim(),
+            subject = subject,
+            saludo = saludo,
+            mensajeDestacado = mensajeDestacado,
+            cuerpoHtml = cuerpoHtml,
+            adjuntos = adjuntos,
+            modulos = modulos,
+            segmento = segmento,
+            egresadoId = egresadoId?.trim()?.ifBlank { null },
+            marca = marca,
+            referencia = referencia,
+        )
+        // Queda guardado antes del SMTP. Si el proceso se cae a mitad del envío, al arrancar se vuelve a intentar.
+        pendiente.proximoIntentoEpochMs = System.currentTimeMillis() + 180_000
+        synchronized(pendientes) {
+            val repetido = pendiente.marca == MARCA_CITATORIO_SINODAL &&
+                pendiente.egresadoId != null &&
+                pendientes.any {
+                    it.marca == MARCA_CITATORIO_SINODAL &&
+                        it.egresadoId == pendiente.egresadoId &&
+                        it.correoDestino.equals(pendiente.correoDestino, ignoreCase = true)
+                }
+            if (repetido) throw CorreoEnCursoException()
+            pendientes.add(pendiente)
+        }
+        guardarPendiente(pendiente)
+        try {
+            enviarPendiente(pendiente)
+            synchronized(pendientes) { pendientes.remove(pendiente) }
+            borrarPendiente(pendiente)
+            registrarExito()
+            publicarMarca(pendiente, true)
+        } catch (e: Exception) {
+            if (esFalloTransitorio(e)) {
+                pendiente.intentos = 1
+                pendiente.proximoIntentoEpochMs = System.currentTimeMillis() + esperaReintentoMs(1)
+                guardarPendiente(pendiente)
+                log.warn(
+                    "El correo a {} no salió ({}). Queda pendiente y se reintentará hasta enviarlo.",
+                    pendiente.correoDestino,
+                    e.message,
+                )
+            } else {
+                publicarMarca(pendiente, false)
+                synchronized(pendientes) { pendientes.remove(pendiente) }
+                borrarPendiente(pendiente)
+            }
+            throw e
+        }
+    }
+
+    /**
+     * Cada pocos segundos revisa los correos que no salieron. Un fallo de red, de tiempo o de cupo se vuelve a intentar.
+     * Una dirección inexistente o un rechazo de la cuenta que envía no se reintenta.
+     */
+    @Scheduled(fixedDelayString = "\${sit.mail.reintento.ms:4000}")
+    fun reintentarCorreosPendientes() {
+        val ahora = System.currentTimeMillis()
+        val lote = synchronized(pendientes) {
+            pendientes.filter { it.proximoIntentoEpochMs <= ahora }.toList()
+        }
+        if (lote.isEmpty()) return
+        val huboRechazoDefinitivo = java.util.concurrent.atomic.AtomicBoolean(false)
+        val envios = lote.map { item ->
+            CompletableFuture.runAsync({
+                try {
+                    enviarPendiente(item)
+                    synchronized(pendientes) { pendientes.remove(item) }
+                    borrarPendiente(item)
+                    publicarMarca(item, true)
+                    log.info("Correo reenviado a {} (asunto={})", item.correoDestino, item.subject)
+                } catch (e: Exception) {
+                    if (!esFalloTransitorio(e)) {
+                        publicarMarca(item, false)
+                        synchronized(pendientes) { pendientes.remove(item) }
+                        borrarPendiente(item)
+                        registrarFallo(e.message)
+                        huboRechazoDefinitivo.set(true)
+                        log.error(
+                            "Correo a {} no se puede enviar y no se reintenta: {}",
+                            item.correoDestino,
+                            e.message,
+                        )
+                    } else {
+                        item.intentos += 1
+                        val espera = esperaReintentoMs(item.intentos)
+                        item.proximoIntentoEpochMs = System.currentTimeMillis() + espera
+                        guardarPendiente(item)
+                        registrarFallo(e.message)
+                        log.warn(
+                            "Reintento {} falló para {}: {}. Siguiente intento en {} s",
+                            item.intentos,
+                            item.correoDestino,
+                            e.message,
+                            espera / 1000,
+                        )
+                    }
+                }
+            }, correoExecutor)
+        }
+        envios.forEach { it.join() }
+        if (!huboRechazoDefinitivo.get() && synchronized(pendientes) { pendientes.isEmpty() }) registrarExito()
+    }
+
+    private fun enviarPendiente(pendiente: CorreoPendiente) {
         val sender = mailSender ?: error("mailSender no configurado")
         val logoResource = try {
             ClassPathResource("templates/html/logo-itvo.png").takeIf { it.exists() }
@@ -354,12 +686,14 @@ class EmailService(
             },
         )
 
-        val mime = sender.createMimeMessage()
-        val helper = MimeMessageHelper(mime, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED, "UTF-8")
-        helper.setFrom(fromEmail)
-        helper.setTo(correoDestino.trim())
-        helper.setSubject(subject)
-        helper.setText(
+        envioCupo.acquire()
+        try {
+            val mime = sender.createMimeMessage()
+            val helper = MimeMessageHelper(mime, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED, "UTF-8")
+            helper.setFrom(fromEmail)
+            helper.setTo(pendiente.correoDestino)
+            helper.setSubject(pendiente.subject)
+            helper.setText(
             """
             <!DOCTYPE html>
             <html lang="es">
@@ -386,12 +720,12 @@ class EmailService(
                     <tr>
                       <td style="padding:36px 36px 32px;">
                         <p style="margin:0 0 22px;font-size:15px;color:#1f2937;line-height:1.6;">
-                          $saludo
+                          ${pendiente.saludo}
                         </p>
                         <p style="margin:0 0 28px;font-size:15px;font-weight:600;color:#1f4c8f;line-height:1.7;border-left:4px solid #1f4c8f;padding-left:14px;">
-                          $mensajeDestacado
+                          ${pendiente.mensajeDestacado}
                         </p>
-                        $cuerpoHtml
+                        ${pendiente.cuerpoHtml}
                         <p style="margin:32px 0 0;font-size:14px;color:#1f2937;line-height:1.7;">
                           Atentamente,<br><br>
                           <strong>$firmaNombre</strong><br>
@@ -421,12 +755,143 @@ class EmailService(
         if (logoResource != null) {
             helper.addInline("logo-itvo", logoResource)
         }
-        for ((nombre, bytes) in adjuntos) {
-            helper.addAttachment(nombre, ByteArrayResource(bytes))
+            for ((nombre, bytes) in pendiente.adjuntos) {
+                helper.addAttachment(nombre, ByteArrayResource(bytes))
+            }
+            sender.send(mime)
+        } finally {
+            envioCupo.release()
         }
-        sender.send(mime)
-        registrarExito()
     }
+
+    /** Corte, demora o cupo: se vuelve a intentar. Cuenta rechazada o dirección inexistente: no. */
+    internal fun esFalloTransitorio(error: Throwable): Boolean {
+        val partes = ArrayList<String>()
+        val tipos = ArrayList<String>()
+        var actual: Throwable? = error
+        var guard = 0
+        while (actual != null && guard < 8) {
+            partes += actual.message.orEmpty()
+            tipos += actual.javaClass.simpleName
+            actual = actual.cause
+            guard++
+        }
+        val texto = partes.joinToString(" ").lowercase()
+        val tipo = tipos.joinToString(" ")
+        if (tipo.contains("AuthenticationFailed") || tipo.contains("MailAuthentication")) return false
+        val transitorioExplicito = listOf(
+            "quota",
+            "try again",
+            "temporar",
+            "timeout",
+            "timed out",
+            "connection reset",
+            "connection refused",
+            "421",
+            "450",
+            "451",
+            "452",
+        )
+        if (transitorioExplicito.any { texto.contains(it) }) return true
+        val permanentes = listOf(
+            "535",
+            "username and password not accepted",
+            "authentication failed",
+            "invalid credentials",
+            "550",
+            "551",
+            "553",
+            "554",
+            "mailbox unavailable",
+            "user unknown",
+            "recipient address rejected",
+            "invalid addresses",
+            "invalid address",
+        )
+        if (permanentes.any { texto.contains(it) }) return false
+        return true
+    }
+
+    private fun esperaReintentoMs(intento: Int): Long {
+        if (esperaInicialMs <= 0L) return 0L
+        val pasos = intento.coerceIn(1, 3)
+        var espera = esperaInicialMs
+        repeat(pasos - 1) { espera = (espera * 2).coerceAtMost(15_000L) }
+        return espera.coerceAtMost(15_000L)
+    }
+
+    private fun guardarPendiente(pendiente: CorreoPendiente) {
+        val repo = correoPendienteRepository ?: return
+        try {
+            repo.save(
+                CorreoPendienteGuardado(
+                    id = pendiente.id,
+                    correoDestino = pendiente.correoDestino,
+                    subject = pendiente.subject,
+                    saludo = pendiente.saludo,
+                    mensajeDestacado = pendiente.mensajeDestacado,
+                    cuerpoHtml = pendiente.cuerpoHtml,
+                    adjuntos = pendiente.adjuntos.map { (nombre, bytes) ->
+                        AdjuntoCorreoGuardado(nombre = nombre, contenido = bytes)
+                    },
+                    modulos = pendiente.modulos,
+                    segmento = pendiente.segmento,
+                    intentos = pendiente.intentos,
+                    proximoIntentoEpochMs = pendiente.proximoIntentoEpochMs,
+                    egresadoId = pendiente.egresadoId,
+                    marca = pendiente.marca,
+                    referencia = pendiente.referencia,
+                ),
+            )
+        } catch (ex: Exception) {
+            log.warn("No se pudo guardar el correo pendiente a {}: {}", pendiente.correoDestino, ex.message)
+        }
+    }
+
+    private fun publicarMarca(pendiente: CorreoPendiente, aceptado: Boolean) {
+        val id = pendiente.egresadoId ?: return
+        val marca = pendiente.marca ?: return
+        val publisher = eventos ?: return
+        try {
+            publisher.publishEvent(
+                CorreoMarcadoEvent(
+                    egresadoId = id,
+                    correo = pendiente.correoDestino,
+                    marca = marca,
+                    aceptado = aceptado,
+                    referencia = pendiente.referencia,
+                ),
+            )
+        } catch (ex: Exception) {
+            log.warn("No se pudo registrar el resultado del correo a {}: {}", pendiente.correoDestino, ex.message)
+        }
+    }
+
+    private fun borrarPendiente(pendiente: CorreoPendiente) {
+        val repo = correoPendienteRepository ?: return
+        try {
+            repo.deleteById(pendiente.id)
+        } catch (ex: Exception) {
+            log.warn("No se pudo quitar el correo pendiente {}: {}", pendiente.id, ex.message)
+        }
+    }
+
+    private class CorreoPendiente(
+        val id: String = UUID.randomUUID().toString(),
+        val correoDestino: String,
+        val subject: String,
+        val saludo: String,
+        val mensajeDestacado: String,
+        val cuerpoHtml: String,
+        val adjuntos: List<Pair<String, ByteArray>>,
+        val modulos: List<String> = emptyList(),
+        val segmento: String? = null,
+        var intentos: Int = 0,
+        var proximoIntentoEpochMs: Long = 0L,
+        val egresadoId: String? = null,
+        val marca: String? = null,
+        val referencia: String? = null,
+    )
 
     private fun escaparHtml(texto: String): String =
         texto
@@ -447,6 +912,7 @@ class EmailService(
         fechaLimiteTexto: String,
         pasoNumero: Int,
         pasoTitulo: String,
+        segmento: String? = null,
     ): Boolean {
         if (correoDestino.isBlank() || mailSender == null || fromEmail.isBlank()) {
             log.warn("Aviso plazo residencia no enviado (SMTP o correo vacío), control={}", numeroControl)
@@ -467,6 +933,8 @@ class EmailService(
                 saludo = "Hola ${escaparHtml(nombreEgresado)}:",
                 mensajeDestacado = mensajeDestacado,
                 cuerpoHtml = cuerpoHtml,
+                modulos = listOf(ModuloCorreo.SEGUIMIENTO, ModuloCorreo.DEPARTAMENTO),
+                segmento = segmento,
             )
             log.info("Aviso plazo residencia ({}) enviado a {} control={}", tipoAviso, correoDestino, numeroControl)
             true
@@ -549,6 +1017,7 @@ class EmailService(
         fechaLimiteTexto: String,
         pasoNumero: Int,
         pasoTitulo: String,
+        segmento: String? = null,
     ): Boolean {
         if (correoDestino.isBlank() || mailSender == null || fromEmail.isBlank()) {
             log.warn("Aviso plazo no residencia no enviado (SMTP o correo vacío), tipo={}", tipoAviso)
@@ -573,6 +1042,8 @@ class EmailService(
                 saludo = "Hola ${escaparHtml(nombreEgresado)}:",
                 mensajeDestacado = mensajeDestacado,
                 cuerpoHtml = cuerpoHtml,
+                modulos = listOf(ModuloCorreo.SEGUIMIENTO, ModuloCorreo.DEPARTAMENTO),
+                segmento = segmento,
             )
             log.info("Aviso plazo no residencia ({}) enviado a {}", tipoAviso, correoDestino)
             true

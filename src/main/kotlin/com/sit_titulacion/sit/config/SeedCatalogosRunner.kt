@@ -50,6 +50,14 @@ class SeedCatalogosRunner(
             creados += sembrarSiNoExiste("nivel", nombre, orden = i)
         }
 
+        listOf(
+            Triple("Titulación", "titulacion", 0),
+            Triple("Titulación integral", "integral", 1),
+            Triple("Curso de titulación", "curso", 2),
+        ).forEach { (nombre, slug, orden) ->
+            creados += sembrarSiNoExiste("opcion", nombre, orden = orden, slug = slug)
+        }
+
         // ── Modalidades ───────────────────────────────────────────────────────
         data class ModalidadSeed(val nombre: String, val meses: Int?, val esResidencia: Boolean, val esCursoTitulacion: Boolean = false)
         listOf(

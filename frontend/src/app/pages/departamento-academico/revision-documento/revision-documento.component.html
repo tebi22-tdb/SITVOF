@@ -137,14 +137,6 @@
           <div class="revision-acciones-stack">
             <button
               type="button"
-              class="revision-btn-aprobar revision-btn-aprobar--full"
-              [disabled]="guardando"
-              (click)="guardarRevision('aprobado')"
-            >
-              Aprobar expediente
-            </button>
-            <button
-              type="button"
               class="revision-btn-primary"
               [disabled]="guardando || !observacionesNueva.trim()"
               (click)="guardarYEnviarRevision()"
@@ -158,6 +150,14 @@
               (click)="guardarRevision('observaciones')"
             >
               Guardar borrador
+            </button>
+            <button
+              type="button"
+              class="revision-btn-aprobar revision-btn-aprobar--full"
+              [disabled]="guardando"
+              (click)="guardarRevision('aprobado')"
+            >
+              Aprobar expediente
             </button>
           </div>
 

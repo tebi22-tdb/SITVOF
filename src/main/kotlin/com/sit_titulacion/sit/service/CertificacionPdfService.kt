@@ -80,6 +80,10 @@ class CertificacionPdfService(
         if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
             Security.addProvider(BouncyCastleProvider())
         }
+        if (keystorePassword.isBlank()) {
+            log.error("Falta SIT_KEYSTORE_PASSWORD. No se genera ni se usa un keystore con clave de desarrollo.")
+            return
+        }
         val ksFile = File(keystorePath)
         if (!ksFile.exists()) {
             try {
@@ -175,7 +179,7 @@ class CertificacionPdfService(
                 val modalidad = safe(egresado.procesoActivoOrNull()?.datos_proyecto?.modalidad ?: "")
                 val carrera = safe(egresado.datos_personales.carrera)
                 val fecha = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
-                    .withZone(ZoneId.systemDefault())
+                    .withZone(ZoneId.of("America/Mexico_City"))
                     .format(Instant.now())
 
                 PDPageContentStream(doc, page, PDPageContentStream.AppendMode.OVERWRITE, true).use { cs ->
@@ -237,7 +241,7 @@ class CertificacionPdfService(
                     cs.setFont(PDType1Font.HELVETICA, 10f)
                     cs.setNonStrokingColor(0.35f, 0.35f, 0.35f)
                     cs.newLineAtOffset(60f, 588f)
-                    cs.showText("Escanee el codigo QR o visite: ${baseUrl.trimEnd('/')}/#/verificar/$certUuid")
+                    cs.showText("Escanee el código QR o visite: ${baseUrl.trimEnd('/')}/#/verificar/$certUuid")
                     cs.endText()
 
                     // QR centrado

@@ -75,6 +75,7 @@ export class AuthService {
             rol: res.rol,
             nombre: res.nombre,
             segmento_academico: res.segmento_academico,
+            carreras_asignadas: res.carreras_asignadas,
           };
         }),
         map((res) => ({
@@ -82,6 +83,7 @@ export class AuthService {
           rol: res.rol,
           nombre: res.nombre,
           segmento_academico: res.segmento_academico,
+          carreras_asignadas: res.carreras_asignadas,
         })),
       );
   }
@@ -187,6 +189,23 @@ export class AuthService {
     return this.usuario?.rol === 'egresado';
   }
 
+  /**
+   * Pantalla de inicio de cada perfil. Apoyo se resuelve antes que administrador
+   * porque isAdministrador() también lo incluye.
+   * Cualquier académico (Ingenierías, Ciencias básicas, Económico, Virtuales,
+   * Química y Agroquímica u otro del catálogo) entra a su bandeja de departamento.
+   */
+  rutaInicio(): string {
+    if (this.isServiciosEscolares()) return '/servicios-escolares';
+    if (this.isAcademico()) return '/departamento-academico';
+    if (this.isSubdireccionAcademica()) return '/home/reportes';
+    if (this.isApoyoTitulacion()) return '/home/revisiones';
+    if (this.isDep()) return '/home/seguimiento-proceso';
+    if (this.isAdministrador()) return '/home';
+    if (this.isEgresado()) return '/seguimiento';
+    return '/login';
+  }
+
   isAcademico(): boolean {
     return this.usuario?.rol === 'academico';
   }
@@ -205,6 +224,7 @@ export class AuthService {
     message?: string;
     error?: string;
     correo_enviado?: boolean;
+    correo_en_proceso?: boolean;
     detalle_correo?: string;
     username?: string;
     password_temporal?: string;
@@ -214,6 +234,7 @@ export class AuthService {
       message?: string;
       error?: string;
       correo_enviado?: boolean;
+      correo_en_proceso?: boolean;
       detalle_correo?: string;
       username?: string;
       password_temporal?: string;

@@ -9,7 +9,6 @@ import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
 import org.springframework.data.mongodb.gridfs.GridFsTemplate
 import org.springframework.http.HttpHeaders
-import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -17,6 +16,9 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import com.sit_titulacion.sit.service.ArchivoPdfValidator
+import java.io.ByteArrayInputStream
+import java.io.SequenceInputStream
 import java.time.ZoneId
 
 @RestController
@@ -75,9 +77,15 @@ class RepositorioController(
         }
         val eg = egresadoRepository.findById(oid).orElse(null)
             ?: return ResponseEntity.notFound().build<Any>()
+        // Solo procesos con documentación escaneada confirmada (mismo criterio que el listado público).
+        // Sin fallback al proceso activo: evita filtrar PDFs de trámites aún en curso.
         val pr = eg.procesos.lastOrNull { it.fechaConfirmacionDocumentacionEscaneadaRecibida != null }
-            ?: eg.procesoActivoOrNull()
             ?: return ResponseEntity.notFound().build<Any>()
+
+        val modalidad = pr.datos_proyecto.modalidad
+        if (modalidad.contains("ceneval", ignoreCase = true)) {
+            return ResponseEntity.notFound().build<Any>()
+        }
 
         val gridfsId = pr.documento_adjunto.gridfs_id
             ?: return ResponseEntity.notFound().build<Any>()
@@ -86,13 +94,20 @@ class RepositorioController(
             ?: return ResponseEntity.notFound().build<Any>()
         val resource = gridFsTemplate.getResource(file)
 
-        val adj = pr.documento_adjunto
-        val contentType = adj.content_type.ifBlank { "application/pdf" }
-        val fileName = adj.nombre_original.ifBlank { "documento.pdf" }
+        val rawName = pr.documento_adjunto.nombre_original.ifBlank { "documento.pdf" }
+        val fileName = rawName.replace(Regex("[\"\\r\\n\\\\]"), "_")
+        val original = resource.inputStream
+        val encabezado = ByteArray(5)
+        val leidos = original.read(encabezado)
+        if (leidos < 5 || !ArchivoPdfValidator.esPdfPorContenido(encabezado.copyOf(leidos))) {
+            original.close()
+            return ResponseEntity.notFound().build<Any>()
+        }
+        val cuerpo = SequenceInputStream(ByteArrayInputStream(encabezado.copyOf(leidos)), original)
 
         return ResponseEntity.ok()
             .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"$fileName\"")
-            .contentType(MediaType.parseMediaType(contentType))
-            .body(InputStreamResource(resource.inputStream))
+            .contentType(MediaType.APPLICATION_PDF)
+            .body(InputStreamResource(cuerpo))
     }
 }

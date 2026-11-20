@@ -22,7 +22,7 @@ class ReporteController(
     private val reporteExcelService: ReporteExcelService,
 ) {
 
-    /** Reporte consolidado — sin scope de departamento (ve todo). Solo administrador/apoyo_titulacion. */
+    /** Reporte consolidado — sin scope de departamento (ve todo). Solo administrador o subdirección. */
     @GetMapping("/coordinador/resumen")
     fun resumenCoordinador(
         @RequestParam(required = false) fecha_desde: String?,
@@ -33,10 +33,10 @@ class ReporteController(
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<Any> {
         if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("error" to "No autenticado"))
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("error" to "Vuelve a iniciar sesión."))
         }
-        if (!principal.getRol().esAlgunoDe(Rol.ADMINISTRADOR, Rol.APOYO_TITULACION)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo coordinación puede ver reportes"))
+        if (!puedeVerReportes(principal)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo administrador o subdirección pueden ver reportes"))
         }
         return ResponseEntity.ok(reporteService.resumenCoordinador(filtrosDesde(fecha_desde, fecha_hasta, modalidad, carrera, generacion)))
     }
@@ -59,10 +59,10 @@ class ReporteController(
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<Any> {
         if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("error" to "No autenticado"))
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("error" to "Vuelve a iniciar sesión."))
         }
-        if (!principal.getRol().esAlgunoDe(Rol.ADMINISTRADOR, Rol.APOYO_TITULACION)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo coordinación puede ver reportes"))
+        if (!puedeVerReportes(principal)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo administrador o subdirección pueden ver reportes"))
         }
         val filtros = filtrosDesde(fecha_desde, fecha_hasta, modalidad, carrera, generacion)
         return ResponseEntity.ok(
@@ -86,10 +86,10 @@ class ReporteController(
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<Any> {
         if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("error" to "No autenticado"))
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("error" to "Vuelve a iniciar sesión."))
         }
-        if (!principal.getRol().esAlgunoDe(Rol.ADMINISTRADOR, Rol.APOYO_TITULACION)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo coordinación puede exportar reportes"))
+        if (!puedeVerReportes(principal)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo administrador o subdirección pueden exportar reportes"))
         }
         val filtros = filtrosDesde(fecha_desde, fecha_hasta, modalidad, carrera, generacion)
         val bytes = reporteExcelService.generar(reporteService.resumenCoordinador(filtros))
@@ -113,10 +113,10 @@ class ReporteController(
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<Any> {
         if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("error" to "No autenticado"))
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("error" to "Vuelve a iniciar sesión."))
         }
-        if (!principal.getRol().esAlgunoDe(Rol.ADMINISTRADOR, Rol.APOYO_TITULACION)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo coordinación puede exportar reportes"))
+        if (!puedeVerReportes(principal)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo administrador o subdirección pueden exportar reportes"))
         }
         val filtros = filtrosDesde(fecha_desde, fecha_hasta, modalidad, carrera, generacion)
         val items = reporteService.listadoEgresados(
@@ -131,6 +131,10 @@ class ReporteController(
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"listado-egresados.xlsx\"")
             .body(bytes)
     }
+
+    private fun puedeVerReportes(principal: UsuarioPrincipal): Boolean =
+        // Alineado con reportesGuard del frontend: admin pleno y subdirección (no apoyo).
+        principal.getRol().esAlgunoDe(Rol.ADMINISTRADOR, Rol.SUBDIRECCION_ACADEMICA)
 
     private fun filtrosDesde(
         fecha_desde: String?,

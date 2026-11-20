@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { HeaderComponent } from '../../../layout/header/header.component';
+import { textoErrorUsuario } from '../../../core/mensaje-conexion';
 import {
   ResidenciaCoordinacionService,
   ResidenciaItem,
@@ -62,8 +63,8 @@ export class ListadoResienciasComponent implements OnInit {
         this.paginaActual = 1;
         this.cargando = false;
       },
-      error: () => {
-        this.error = 'No se pudo cargar la lista. Intenta de nuevo.';
+      error: (err) => {
+        this.error = textoErrorUsuario(err, 'No se pudo cargar la lista. Intenta de nuevo.');
         this.cargando = false;
       },
     });
@@ -131,8 +132,8 @@ export class ListadoResienciasComponent implements OnInit {
         this.cargarStats();
         this.cargar();
       },
-      error: () => {
-        this.error = 'No se pudo eliminar el registro.';
+      error: (err) => {
+        this.error = textoErrorUsuario(err, 'No se pudo eliminar el registro.');
         this.cerrarModal();
       },
     });

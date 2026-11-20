@@ -111,6 +111,11 @@
   color: #0369a1;
 }
 
+.se-tab-badge--nuevo {
+  animation: se-badge-parpadeo 1.15s ease-in-out 3;
+  font-weight: 800;
+}
+
 .se-tab:focus-visible {
   outline: 2px solid #3182ce;
   outline-offset: 2px;
@@ -325,6 +330,7 @@
   flex-direction: column;
   gap: 0.2rem;
   transition: background 0.12s ease;
+  border: 1px solid transparent;
 }
 
 .se-lista-item:hover {
@@ -334,6 +340,79 @@
 .se-lista-item.activo {
   background: #eff6ff;
   box-shadow: inset 3px 0 0 #2563eb;
+}
+
+/* Nuevo pendiente: parpadeo rojo bien visible ×3 */
+.se-lista-item--nuevo {
+  animation: se-nuevo-parpadeo 1.15s ease-in-out 3;
+}
+
+.se-lista-item--nuevo.activo {
+  animation: se-nuevo-parpadeo-activo 1.15s ease-in-out 3;
+}
+
+@keyframes se-nuevo-parpadeo {
+  0%,
+  100% {
+    background: #fef2f2;
+    border-color: #fecaca;
+    box-shadow: inset 4px 0 0 #f87171;
+  }
+  50% {
+    background: #fecaca;
+    border-color: #f87171;
+    box-shadow: inset 4px 0 0 #b91c1c;
+  }
+}
+
+@keyframes se-nuevo-parpadeo-activo {
+  0%,
+  100% {
+    background: #fef2f2;
+    border-color: #fecaca;
+    box-shadow: inset 4px 0 0 #f87171;
+  }
+  50% {
+    background: #fecaca;
+    border-color: #f87171;
+    box-shadow: inset 4px 0 0 #b91c1c;
+  }
+}
+
+@keyframes se-badge-parpadeo {
+  0%,
+  100% {
+    background: #fee2e2;
+    color: #b91c1c;
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45);
+  }
+  50% {
+    background: #b91c1c;
+    color: #fff;
+    transform: scale(1.28);
+    box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.28);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-lista-item--nuevo,
+  .se-lista-item--nuevo.activo,
+  .se-tab-badge--nuevo {
+    animation: none;
+  }
+
+  .se-lista-item--nuevo {
+    background: #fecaca;
+    border-color: #f87171;
+    box-shadow: inset 4px 0 0 #b91c1c;
+  }
+
+  .se-tab-badge--nuevo,
+  .se-lista-badge--nuevo {
+    background: #b91c1c;
+    color: #fff;
+  }
 }
 
 .se-lista-fila-principal {
@@ -359,6 +438,14 @@
   background: #fef2f2;
   color: #b91c1c;
   border-color: #fecaca;
+}
+
+.se-lista-badge--nuevo {
+  background: #b91c1c;
+  color: #fff;
+  border-color: #991b1b;
+  animation: se-badge-parpadeo 1.15s ease-in-out 3;
+  font-weight: 800;
 }
 
 .se-lista-badge--atendido {

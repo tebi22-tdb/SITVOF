@@ -38,15 +38,15 @@ class ResidenciaCoordinacionController(
         @RequestParam(required = false) estado: String?,
         @RequestParam(required = false) busqueda: String?,
     ): ResponseEntity<Any> {
-        if (principal == null)
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("error" to "No autenticado"))
+        if (!puedeVerResidencias(principal))
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "No autorizado para consultar residencias."))
         return ResponseEntity.ok(service.listar(coordinacion, carrera, tipo_proyecto, estado, busqueda))
     }
 
     @GetMapping("/stats")
     fun stats(@AuthenticationPrincipal principal: UsuarioPrincipal?): ResponseEntity<Any> {
-        if (principal == null)
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("error" to "No autenticado"))
+        if (!puedeVerResidencias(principal))
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "No autorizado para consultar residencias."))
         return ResponseEntity.ok(service.stats())
     }
 
@@ -55,9 +55,9 @@ class ResidenciaCoordinacionController(
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
         @PathVariable id: String,
     ): ResponseEntity<Any> {
-        if (principal == null)
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("error" to "No autenticado"))
-        val oid = parseId(id) ?: return ResponseEntity.badRequest().body(mapOf("error" to "ID inválido"))
+        if (!puedeVerResidencias(principal))
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "No autorizado para consultar residencias."))
+        val oid = parseId(id) ?: return ResponseEntity.badRequest().body(mapOf("error" to "No se pudo completar la acción."))
         val item = service.obtenerPorId(oid) ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok(item)
     }
@@ -87,7 +87,7 @@ class ResidenciaCoordinacionController(
     ): ResponseEntity<Any> {
         if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede editar residencias"))
-        val oid = parseId(id) ?: return ResponseEntity.badRequest().body(mapOf("error" to "ID inválido"))
+        val oid = parseId(id) ?: return ResponseEntity.badRequest().body(mapOf("error" to "No se pudo completar la acción."))
         return service.actualizar(oid, req, anexo29, anexo30).fold(
             onSuccess = { item ->
                 if (item == null) ResponseEntity.notFound().build()
@@ -104,7 +104,7 @@ class ResidenciaCoordinacionController(
     ): ResponseEntity<Any> {
         if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede eliminar residencias"))
-        val oid = parseId(id) ?: return ResponseEntity.badRequest().body(mapOf("error" to "ID inválido"))
+        val oid = parseId(id) ?: return ResponseEntity.badRequest().body(mapOf("error" to "No se pudo completar la acción."))
         if (!service.eliminar(oid)) return ResponseEntity.notFound().build()
         return ResponseEntity.ok(mapOf("ok" to true))
     }
@@ -114,9 +114,9 @@ class ResidenciaCoordinacionController(
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
         @PathVariable id: String,
     ): ResponseEntity<Any> {
-        if (principal == null)
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("error" to "No autenticado"))
-        val oid = parseId(id) ?: return ResponseEntity.badRequest().body(mapOf("error" to "ID inválido"))
+        if (!puedeVerResidencias(principal))
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "No autorizado para consultar residencias."))
+        val oid = parseId(id) ?: return ResponseEntity.badRequest().body(mapOf("error" to "No se pudo completar la acción."))
         val doc = service.getAnexo(oid, 29) ?: return ResponseEntity.notFound().build()
         return buildFileResponse(doc)
     }
@@ -126,19 +126,22 @@ class ResidenciaCoordinacionController(
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
         @PathVariable id: String,
     ): ResponseEntity<Any> {
-        if (principal == null)
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("error" to "No autenticado"))
-        val oid = parseId(id) ?: return ResponseEntity.badRequest().body(mapOf("error" to "ID inválido"))
+        if (!puedeVerResidencias(principal))
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "No autorizado para consultar residencias."))
+        val oid = parseId(id) ?: return ResponseEntity.badRequest().body(mapOf("error" to "No se pudo completar la acción."))
         val doc = service.getAnexo(oid, 30) ?: return ResponseEntity.notFound().build()
         return buildFileResponse(doc)
     }
+
+    private fun puedeVerResidencias(principal: UsuarioPrincipal?): Boolean =
+        principal?.getRol() == Rol.ADMINISTRADOR
 
     private fun parseId(id: String): ObjectId? =
         try { ObjectId(id) } catch (_: Exception) { null }
 
     private fun buildFileResponse(doc: DocumentoStream): ResponseEntity<Any> {
         val headers = HttpHeaders().apply {
-            contentType = MediaType.parseMediaType(doc.contentType)
+            contentType = MediaType.APPLICATION_PDF
             setContentDispositionFormData("inline", doc.fileName)
         }
         return ResponseEntity.ok()

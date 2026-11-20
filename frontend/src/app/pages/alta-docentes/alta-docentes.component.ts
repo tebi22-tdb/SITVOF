@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { HeaderComponent } from '../../layout/header/header.component';
 import { DocenteService, DocenteItem } from '../../services/docente.service';
+import { textoErrorUsuario } from '../../core/mensaje-conexion';
 
 @Component({
   selector: 'app-alta-docentes',
@@ -50,8 +51,8 @@ export class AltaDocentesComponent implements OnInit {
         this.docentes = items;
         this.cargando = false;
       },
-      error: () => {
-        this.error = 'No se pudo cargar la lista de docentes.';
+      error: (err) => {
+        this.error = textoErrorUsuario(err, 'No se pudo cargar la lista de docentes.');
         this.cargando = false;
       },
     });
@@ -113,7 +114,7 @@ export class AltaDocentesComponent implements OnInit {
         },
         error: (err: { error?: { error?: string } }) => {
           this.guardando = false;
-          this.errorForm = err?.error?.error ?? 'No se pudo guardar el docente.';
+          this.errorForm = textoErrorUsuario(err, 'No se pudo guardar el docente.');
         },
       });
     } else if (this.modoForm === 'editar' && this.docenteSeleccionado) {
@@ -128,7 +129,7 @@ export class AltaDocentesComponent implements OnInit {
         },
         error: (err: { error?: { error?: string } }) => {
           this.guardando = false;
-          this.errorForm = err?.error?.error ?? 'No se pudo actualizar el docente.';
+          this.errorForm = textoErrorUsuario(err, 'No se pudo actualizar el docente.');
         },
       });
     }
@@ -146,7 +147,7 @@ export class AltaDocentesComponent implements OnInit {
       },
       error: (err: { error?: { error?: string } }) => {
         this.eliminando = false;
-        this.errorForm = err?.error?.error ?? 'No se pudo eliminar el docente.';
+        this.errorForm = textoErrorUsuario(err, 'No se pudo eliminar el docente.');
       },
     });
   }

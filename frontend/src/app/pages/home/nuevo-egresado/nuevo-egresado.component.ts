@@ -6,6 +6,8 @@ import {
   EgresadoForm,
   MODALIDADES_CURSO_TITULACION,
   MODALIDADES_TITULACION,
+  esModalidadTitulacionCeneval,
+  esModalidadTitulacionCurso,
   esModalidadTitulacionHabilitada,
 } from '../../../core/datos';
 import { EgresadoDetail, EgresadoService } from '../../../services/egresado.service';
@@ -50,7 +52,12 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
   niveles: string[] = [];
   modalidadesCatalogo: ModalidadCatalogo[] = [];
 
-  readonly opcionesModalidadTitulacion = [...MODALIDADES_TITULACION];
+  get opcionesModalidadTitulacion(): string[] {
+    const extra = this.modalidadesCatalogo
+      .filter(m => m.tipoUso === 'titulacion')
+      .map(m => m.nombre);
+    return [...MODALIDADES_TITULACION, ...extra.filter(n => !MODALIDADES_TITULACION.includes(n as typeof MODALIDADES_TITULACION[number]))];
+  }
 
   archivoSeleccionado: File | null = null;
   /** Al editar: true si el usuario quiere quitar el archivo actual. */
@@ -69,9 +76,8 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
   originalidadMotivo: string | null = null;
   /** null = sin responder; true = aceptó título compartido; false = rechazó */
   tituloCompartidoConfirmado: boolean | null = null;
-  /** Registros existentes con el mismo título en la misma modalidad (0–3). */
+  /** Registros existentes con el mismo título en la misma modalidad. */
   originalidadCoincidencias = 0;
-  readonly maxTituloPorModalidad = 3;
   /** vencido | titulado | en_proceso cuando originalidadEstado === BLOQUEADO */
   originalidadExpedienteEstado: 'vencido' | 'titulado' | 'en_proceso' | null = null;
 
@@ -82,7 +88,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
   parejaResidenciaConfirmada = false;
   readonly maxTituloParejaResidencia = 2;
 
-  controlAltaEstado: 'LIBRE' | 'BLOQUEADO' | 'comprobando' | null = null;
+  controlAltaEstado: 'LIBRE' | 'BLOQUEADO' | 'RETOMAR' | 'comprobando' | null = null;
   controlAltaExpedienteEstado: 'vencido' | 'titulado' | 'en_proceso' | null = null;
 
   /** true cuando se detectó un proceso vencido y el form actúa como "nuevo proceso" */
@@ -95,6 +101,11 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
   private camposPersonales = ['nombre', 'apellido_paterno', 'apellido_materno', 'genero', 'carrera', 'nivel', 'direccion', 'telefono', 'correo_electronico'];
 
   private destroy$ = new Subject<void>();
+  opcionesTitulacion: { nombre: string; valor: string }[] = [
+    { nombre: 'Titulación', valor: 'titulacion' },
+    { nombre: 'Titulación integral', valor: 'titulacion_integral' },
+    { nombre: 'Curso de titulación', valor: 'curso_titulacion' },
+  ];
 
   constructor(
     private fb: FormBuilder,
@@ -149,32 +160,74 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
     return this.form.get('tipo_titulacion')?.value === 'titulacion_integral';
   }
 
+  get esCursoTitulacionTipo(): boolean {
+    return this.form.get('tipo_titulacion')?.value === 'curso_titulacion';
+  }
+
+  /** Titulación integral, curso y un tipo agregado en el catálogo usan el mismo formulario de modalidad. */
+  get esFormularioIntegral(): boolean {
+    return this.esTitulacionIntegral || this.esCursoTitulacionTipo || this.esTipoPersonalizado;
+  }
+
+  get esTipoPersonalizado(): boolean {
+    const tipo = ((this.form.get('tipo_titulacion')?.value as string) || '').trim();
+    return !!tipo && tipo !== 'titulacion' && tipo !== 'titulacion_integral' && tipo !== 'curso_titulacion';
+  }
+
+  get tiposPersonalizados(): string[] {
+    const fijos = new Set(['', 'titulacion', 'integral', 'curso']);
+    return [...new Set(
+      this.modalidadesCatalogo
+        .map(m => (m.tipoUso || '').trim())
+        .filter(t => !fijos.has(t)),
+    )];
+  }
+
   get esTitulacion(): boolean {
     return this.form.get('tipo_titulacion')?.value === 'titulacion';
   }
 
-  /** Titulación tradicional con modalidad ya habilitada (TESIS PROFESIONAL, PROYECTOS DE INVESTIGACION, …). */
+  /** Titulación tradicional con modalidad que ya tiene flujo (tesis, curso o CENEVAL). */
   get esTitulacionModalidadHabilitada(): boolean {
-    return this.esTitulacion && esModalidadTitulacionHabilitada(this.form.get('modalidad_titulacion')?.value as string);
+    const nombre = this.form.get('modalidad_titulacion')?.value as string;
+    if (!this.esTitulacion) return false;
+    if (esModalidadTitulacionHabilitada(nombre)) return true;
+    return this.modalidadesCatalogo.some(m => m.tipoUso === 'titulacion' && m.nombre === nombre);
   }
 
   /** Muestra campos de proyecto/documentos (integral o modalidad de titulación habilitada). */
   get esFlujoProyectoActivo(): boolean {
-    return this.esTitulacionIntegral || this.esTitulacionModalidadHabilitada;
+    return this.esFormularioIntegral || this.esTitulacionModalidadHabilitada;
   }
 
   get esCenevalModalidad(): boolean {
-    return this.catalogoService.esCeneval((this.form.get('modalidad')?.value as string) || '');
+    const directa = (this.form.get('modalidad')?.value as string) || '';
+    if (this.catalogoService.esCeneval(directa)) return true;
+    const especifica = (this.form.get('modalidad_titulacion')?.value as string) || '';
+    return this.esTitulacion && (esModalidadTitulacionCeneval(especifica) || this.catalogoService.esCeneval(especifica));
   }
 
-  /** Sin curso: todas las modalidades; con curso: solo Monografía, Proyecto de Investigación y Tesina. */
+  /** Integral: modalidades que no son de curso. Curso: solo las marcadas como curso de titulación. */
   get opcionesModalidad(): string[] {
-    const curso = this.form?.get('curso_titulacion')?.value === true;
-    if (curso) {
+    if (this.esCursoTitulacionTipo) {
       const soloCurso = this.modalidadesCatalogo.filter(m => m.esCursoTitulacion).map(m => m.nombre);
       return soloCurso.length ? soloCurso : [...MODALIDADES_CURSO_TITULACION];
     }
-    return this.modalidadesCatalogo.map(m => m.nombre);
+    if (this.esTipoPersonalizado) {
+      const tipo = ((this.form.get('tipo_titulacion')?.value as string) || '').trim();
+      return this.modalidadesCatalogo
+        .filter(m => {
+          const uso = (m.tipoUso || '').trim();
+          return uso === tipo || uso.toLowerCase() === tipo.toLowerCase();
+        })
+        .map(m => m.nombre);
+    }
+    return this.modalidadesCatalogo
+      .filter(m => {
+        const uso = (m.tipoUso || '').trim();
+        return (uso === '' || uso === 'integral') && !m.esCursoTitulacion;
+      })
+      .map(m => m.nombre);
   }
 
   ngOnInit(): void {
@@ -184,6 +237,18 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       .subscribe(lista => (this.niveles = lista));
     this.catalogoService.modalidades$.pipe(takeUntil(this.destroy$))
       .subscribe(lista => (this.modalidadesCatalogo = lista));
+    this.catalogoService.opciones$.pipe(takeUntil(this.destroy$))
+      .subscribe(lista => {
+        const base = [
+          { nombre: 'Titulación', valor: 'titulacion' },
+          { nombre: 'Titulación integral', valor: 'titulacion_integral' },
+          { nombre: 'Curso de titulación', valor: 'curso_titulacion' },
+        ];
+        const extras = lista
+          .filter(o => o.clave !== 'titulacion' && o.clave !== 'integral' && o.clave !== 'curso')
+          .map(o => ({ nombre: o.nombre, valor: o.nombre }));
+        this.opcionesTitulacion = [...base, ...extras];
+      });
 
     this.docenteService
       .listar()
@@ -259,6 +324,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
           return;
         }
         const estado = resultado.estado as 'LIBRE' | 'CONFIRMAR' | 'ADVERTENCIA' | 'BLOQUEADO';
+        // En edición: CONFIRMAR (cupo pareja) no exige checkbox; BLOQUEADO/ADVERTENCIA sí impiden guardar.
         this.originalidadEstado = this.editando && estado === 'CONFIRMAR' ? 'LIBRE' : estado;
         this.originalidadTituloSimilar = resultado.titulo_similar || null;
         this.originalidadMotivo = (resultado.motivo || '').trim() || null;
@@ -300,15 +366,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
         this.controlAltaExpedienteEstado = null;
         return;
       }
-      this.controlAltaEstado = resultado.estado as 'LIBRE' | 'BLOQUEADO';
-      const ex = (resultado.expediente_estado || '').trim();
-      this.controlAltaExpedienteEstado =
-        ex === 'vencido' || ex === 'titulado' || ex === 'en_proceso' ? ex : null;
-
-      if (!this.modoNuevoProceso && resultado.estado === 'BLOQUEADO' && ex === 'vencido' && resultado.egresado_id) {
-        const nc = (this.form.get('numero_control')?.value || '').trim();
-        this.entrarModoNuevoProceso(resultado.egresado_id, nc);
-      }
+      this.aplicarResultadoControlAlta(resultado);
     });
 
     this.form.get('modalidad')!.valueChanges.pipe(
@@ -326,11 +384,35 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       takeUntil(this.destroy$),
     ).subscribe((resultado) => {
       if (resultado === null) return;
-      this.controlAltaEstado = resultado.estado as 'LIBRE' | 'BLOQUEADO';
-      const ex = (resultado.expediente_estado || '').trim();
-      this.controlAltaExpedienteEstado =
-        ex === 'vencido' || ex === 'titulado' || ex === 'en_proceso' ? ex : null;
+      this.aplicarResultadoControlAlta(resultado);
     });
+  }
+
+  /**
+   * Si el NC pertenece a un expediente vencido, siempre entra a «nuevo proceso»
+   * (mismo alumno + historial), nunca a un alta duplicada — aunque la modalidad nueva ya esté elegida.
+   */
+  private aplicarResultadoControlAlta(resultado: {
+    estado: string;
+    expediente_estado?: string;
+    egresado_id?: string;
+  }): void {
+    const estado = (resultado.estado || '').trim().toUpperCase();
+    this.controlAltaEstado =
+      estado === 'BLOQUEADO' || estado === 'RETOMAR' || estado === 'LIBRE'
+        ? (estado as 'LIBRE' | 'BLOQUEADO' | 'RETOMAR')
+        : 'LIBRE';
+    const ex = (resultado.expediente_estado || '').trim();
+    this.controlAltaExpedienteEstado =
+      ex === 'vencido' || ex === 'titulado' || ex === 'en_proceso' ? ex : null;
+
+    const id = (resultado.egresado_id || '').trim();
+    const nc = (this.form.get('numero_control')?.value || '').trim();
+    if (!this.editando && id && ex === 'vencido') {
+      if (!this.modoNuevoProceso || this.egresadoVencidoId !== id) {
+        this.entrarModoNuevoProceso(id, nc);
+      }
+    }
   }
 
   ngOnDestroy(): void {
@@ -344,9 +426,13 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       if (this.modoNuevoProceso) this.salirModoNuevoProceso();
       const isoToDate = (s?: string) => (s ? s.slice(0, 10) : '');
       const modalidadGuardada = d.datos_proyecto.modalidad || '';
-      const tipoGuardado =
+      const tipoBase =
         d.datos_proyecto.tipo_titulacion ||
         (esModalidadTitulacionHabilitada(modalidadGuardada) ? 'titulacion' : 'titulacion_integral');
+      const tipoGuardado =
+        tipoBase !== 'titulacion' && d.datos_proyecto.curso_titulacion === 'si'
+          ? 'curso_titulacion'
+          : tipoBase;
       const esTradicional = tipoGuardado === 'titulacion';
       this.form.patchValue({
         numero_control: d.numero_control,
@@ -399,25 +485,31 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   get mensajeParejaResidencia(): string {
-    const nombre = this.companeroNombre || 'otro alumno';
-    return `Proyecto en pareja: este título ya está registrado por ${nombre} en Residencia Profesional. Marca la casilla para confirmar que es el mismo equipo.`;
+    return 'Este título ya está registrado. Marca la casilla para confirmar usar este título nuevamente.';
   }
 
   toggleParejaResidenciaConfirmada(): void {
     this.parejaResidenciaConfirmada = !this.parejaResidenciaConfirmada;
   }
 
-  /** Texto del cuadro Sí/No según cuántos registros ya existen (1 → 2.º alumno; 2 → 3.º). */
+  /**
+   * Cupo del mismo título en la misma modalidad:
+   * Tesis / Proyecto de Investigación / Residencia → 2; resto (Tesina, Monografía, …) → 1.
+   */
+  get maxTituloPorModalidad(): number {
+    const raw = (this.form.get('modalidad')?.value as string) || '';
+    const mod = raw.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+    if (this.catalogoService.esResidencia(raw)) return 2;
+    if (mod.includes('tesina')) return 1;
+    if (mod.includes('tesis')) return 2;
+    if (mod.includes('proyecto') && mod.includes('investigacion')) return 2;
+    return 1;
+  }
+
+  /** Texto del cuadro Sí/No (solo modalidades con cupo ≥ 2, p. ej. Tesis). */
   get mensajeConfirmacionTituloCompartido(): string {
-    const n = this.originalidadCoincidencias;
     const max = this.maxTituloPorModalidad;
-    if (n === 1) {
-      return `Este título ya está registrado en 1 expediente de la misma modalidad. ¿Desea registrar un segundo egresado con el mismo título? (Máximo ${max} por modalidad.)`;
-    }
-    if (n === 2) {
-      return `Este título ya está registrado en 2 expedientes de la misma modalidad. ¿Desea registrar al tercer egresado con el mismo título? Sería el último permitido.`;
-    }
-    return `Este título ya está asignado a otro registro en la misma modalidad. ¿Desea agregar otro registro con el mismo título? (Máximo ${max} por modalidad.)`;
+    return `Este título ya está registrado en 1 expediente de la misma modalidad. ¿Desea registrar un segundo egresado con el mismo título? (Máximo ${max} por modalidad.)`;
   }
 
   get puedeRegistrarTituloProyecto(): boolean {
@@ -442,8 +534,14 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
 
   get mensajeBloqueoNombreProyecto(): string {
     if (this.originalidadEstado !== 'BLOQUEADO') return '';
+    if (this.originalidadMotivo === 'titulo_vencido') {
+      return 'Este título ya se usó en un proceso vencido. Debes registrar un título distinto.';
+    }
+    if (this.originalidadMotivo === 'titulo_concluido') {
+      return 'Este título ya está registrado. Debes registrar un título distinto.';
+    }
     if (this.originalidadMotivo === 'cupo_pareja_residencia') {
-      return `Ya hay ${this.maxTituloParejaResidencia} egresados con este proyecto de Residencia Profesional (pareja completa). No se puede registrar un tercero.`;
+      return `Ya existen ${this.maxTituloParejaResidencia} registros con este título, no se puede realizar otro registro.`;
     }
     if (this.originalidadMotivo === 'cupo_modalidad') {
       return `Ya hay ${this.maxTituloPorModalidad} egresados con este nombre en la misma modalidad. No se puede registrar otro.`;
@@ -456,6 +554,9 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
 
   /** Mensaje bajo «Número de control» cuando ya está registrado. */
   get mensajeBloqueoNumeroControl(): string {
+    if (this.controlAltaEstado === 'RETOMAR' && this.modoNuevoProceso) {
+      return 'Expediente vencido encontrado. Se registrará un nuevo proceso en el mismo alumno (el anterior queda en historial).';
+    }
     if (this.controlAltaEstado !== 'BLOQUEADO') return '';
     if (this.modoNuevoProceso && this.controlAltaExpedienteEstado === 'vencido') {
       return 'Selecciona una modalidad diferente a la usada en el proceso vencido para continuar.';
@@ -521,7 +622,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
 
   /** Si la modalidad actual no está en las opciones visibles (por cambiar el checkbox), se limpia. */
   private alinearModalidadSiNoAplica(): void {
-    if (!this.esTitulacionIntegral) return;
+    if (!this.esFormularioIntegral) return;
     const opts = this.opcionesModalidad;
     const cur = this.form.get('modalidad')?.value as string | undefined;
     if (cur && !opts.includes(cur)) {
@@ -556,12 +657,15 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
 
   private actualizarValidadoresPorTipoTitulacion(): void {
     const tipo = this.form.get('tipo_titulacion')?.value as string;
-    if (tipo === 'titulacion_integral') {
-      this.form.patchValue({ modalidad_titulacion: '' }, { emitEvent: false });
+    if (tipo === 'titulacion_integral' || tipo === 'curso_titulacion' || this.esTipoPersonalizado) {
+      this.form.patchValue(
+        { modalidad_titulacion: '', curso_titulacion: tipo === 'curso_titulacion' },
+        { emitEvent: false },
+      );
       this.form.get('modalidad_titulacion')?.clearValidators();
       this.form.get('modalidad_titulacion')?.updateValueAndValidity({ emitEvent: false });
       this.form.get('modalidad')?.setValidators(Validators.required);
-      this.actualizarValidadoresPorModalidad();
+      this.alinearModalidadSiNoAplica();
       return;
     }
     if (tipo === 'titulacion') {
@@ -579,24 +683,66 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
     this.limpiarValidadoresProyectoIntegral();
   }
 
-  /** Titulación tradicional: modalidades habilitadas activan el flujo no-residencia (estilo Tesis). */
+  /**
+   * Titulación tradicional:
+   * tesis y proyectos = flujo de tesis; cursos especiales = curso de titulación; examen (CENEVAL) = CENEVAL.
+   */
   private actualizarValidadoresPorModalidadTitulacion(): void {
     if (!this.esTitulacion) return;
     const modTit = ((this.form.get('modalidad_titulacion')?.value as string) || '').trim();
-    if (esModalidadTitulacionHabilitada(modTit)) {
-      this.form.patchValue({ modalidad: modTit, curso_titulacion: false }, { emitEvent: false });
-      this.form.get('modalidad')?.setValidators(Validators.required);
-      this.form.get('modalidad')?.updateValueAndValidity({ emitEvent: false });
-      this.aplicarValidadoresEstiloTesis();
+    if (!esModalidadTitulacionHabilitada(modTit)) {
+      this.form.patchValue({ modalidad: '', curso_titulacion: false }, { emitEvent: false });
+      this.limpiarValidadoresProyectoIntegral();
       return;
     }
-    this.form.patchValue({ modalidad: '' }, { emitEvent: false });
-    this.limpiarValidadoresProyectoIntegral();
+    const esCeneval = esModalidadTitulacionCeneval(modTit);
+    const esCurso = esModalidadTitulacionCurso(modTit);
+    this.form.patchValue({ modalidad: modTit, curso_titulacion: esCurso }, { emitEvent: false });
+    this.form.get('modalidad')?.setValidators(Validators.required);
+    this.form.get('modalidad')?.updateValueAndValidity({ emitEvent: false });
+    if (esCeneval) this.aplicarValidadoresEstiloCeneval();
+    else this.aplicarValidadoresEstiloTesis();
   }
 
-  /** Mentores y fechas iguales a Tesis / Proyecto de Investigación (flujo no-residencia). */
+  /** Carta de no inconveniencia, sin nombre de proyecto ni mentores. Igual que CENEVAL. */
+  private aplicarValidadoresEstiloCeneval(): void {
+    const required = Validators.required;
+    for (const c of ['asesor_interno', 'asesor_externo', 'director', 'asesor_1', 'asesor_2', 'nombre_proyecto', 'fecha_registro_anexo']) {
+      this.form.get(c)?.clearValidators();
+    }
+    this.form.get('fecha_expedicion_constancia')?.setValidators(required);
+    this.form.patchValue(
+      {
+        nombre_proyecto: 'EXAMEN CENEVAL',
+        curso_titulacion: false,
+        fecha_registro_anexo: '',
+        director: '',
+        asesor_1: '',
+        asesor_2: '',
+        asesor_interno: '',
+        asesor_externo: '',
+      },
+      { emitEvent: false },
+    );
+    this.originalidadEstado = null;
+    this.originalidadTituloSimilar = null;
+    this.originalidadMotivo = null;
+    this.errorFechaConstanciaPosterior = false;
+    for (const c of [
+      'nombre_proyecto', 'asesor_interno', 'asesor_externo', 'director', 'asesor_1', 'asesor_2',
+      'fecha_registro_anexo', 'fecha_expedicion_constancia',
+    ]) {
+      this.form.get(c)?.updateValueAndValidity({ emitEvent: false });
+    }
+  }
+
+  /** Mentores y fechas iguales a Tesis / Curso de titulación (flujo no-residencia). */
   private aplicarValidadoresEstiloTesis(): void {
     const required = Validators.required;
+    const nombre = ((this.form.get('nombre_proyecto')?.value as string) || '').trim().toUpperCase();
+    if (nombre === 'EXAMEN CENEVAL') {
+      this.form.patchValue({ nombre_proyecto: '' }, { emitEvent: false });
+    }
     this.form.get('asesor_interno')?.clearValidators();
     this.form.get('asesor_externo')?.clearValidators();
     this.form.get('director')?.setValidators(required);
@@ -622,10 +768,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
 
   /** Según modalidad: mentores, fechas de documentos (CENEVAL: carta de no inconveniencia y archivo). */
   private actualizarValidadoresPorModalidad(): void {
-    if (!this.esTitulacionIntegral) {
-      if (this.esTitulacionModalidadHabilitada) this.aplicarValidadoresEstiloTesis();
-      return;
-    }
+    if (!this.esFormularioIntegral) return;
     const modalidad = this.form.get('modalidad')?.value as string;
     const esCeneval = this.catalogoService.esCeneval(modalidad ?? '');
     const tipo = this.catalogoService.tipoMentoresPorNombre(modalidad ?? '');
@@ -761,6 +904,7 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
     }
     if (!this.esCenevalModalidad && !this.puedeRegistrarTituloProyecto) return;
     if (this.controlAltaEstado === 'BLOQUEADO') return;
+    if (this.controlAltaEstado === 'RETOMAR' && !this.modoNuevoProceso) return;
     if (!this.editando && !this.archivoSeleccionado) {
       this.archivoRequeridoError = true;
       return;
@@ -772,11 +916,14 @@ export class NuevoEgresadoComponent implements OnChanges, OnInit, OnDestroy {
       tipo === 'titulacion' && esModalidadTitulacionHabilitada(modTit)
         ? (modTit as string).trim()
         : (raw.modalidad as string);
+    const esCurso = tipo === 'curso_titulacion' || (tipo === 'titulacion' && esModalidadTitulacionCurso(modTit));
     const datos: EgresadoForm = {
       ...resto,
       modalidad,
-      tipo_titulacion: tipo === 'titulacion' ? 'titulacion' : 'titulacion_integral',
-      curso_titulacion: raw.curso_titulacion ? 'si' : 'no',
+      tipo_titulacion: tipo === 'titulacion'
+        ? 'titulacion'
+        : (tipo === 'curso_titulacion' || tipo === 'titulacion_integral' ? 'titulacion_integral' : tipo.trim().slice(0, 40)),
+      curso_titulacion: esCurso ? 'si' : 'no',
       quitar_archivo: this.editando ? this.quitarArchivoSeleccionado : undefined,
     };
     if (this.modoNuevoProceso && this.egresadoVencidoId) {

@@ -152,8 +152,8 @@ table.ftr { width: 100%; border-collapse: collapse; }
     <td class="meta">Nombre del documento: Formato de Solicitud del Acto de Recepci&#243;n Profesional</td>
     <td class="meta-cod">
       <table class="meta-cod-inner">
-        <tr><td>C&#243;digo: ITVO-AC-PR-05-02</td></tr>
-        <tr><td>Revisi&#243;n: 2</td></tr>
+        <tr><td>C&#243;digo: {{CODIGO_DOCUMENTO}}</td></tr>
+        <tr><td>Revisi&#243;n: {{REVISION_DOCUMENTO}}</td></tr>
       </table>
     </td>
   </tr>
@@ -168,9 +168,9 @@ table.ftr { width: 100%; border-collapse: collapse; }
 <div class="ftr-fixed">
 <table class="ftr" role="presentation">
   <tr>
-    <td class="ftr-l">ITVO-AC-PR-05-02</td>
+    <td class="ftr-l">{{CODIGO_DOCUMENTO}}</td>
     <td class="ftr-c">Toda copia en PAPEL es un &quot;Documento No Controlado&quot; a excepci&#243;n del original.</td>
-    <td class="ftr-r">Rev. 2</td>
+    <td class="ftr-r">Rev. {{REVISION_DOCUMENTO}}</td>
   </tr>
 </table>
 </div>
@@ -178,21 +178,21 @@ table.ftr { width: 100%; border-collapse: collapse; }
 <!-- CUERPO -->
 <div class="doc-body">
 
-<p class="tit-anexo">Anexo 9.1 Formato de Solicitud del Acto de Recepci&#243;n Profesional</p>
-<p class="tit-sol">SOLICITUD DE ACTO DE RECEPCI&#211;N PROFESIONAL</p>
+<p class="tit-anexo" data-texto="91-titulo">Anexo 9.1 Formato de Solicitud del Acto de Recepci&#243;n Profesional</p>
+<p class="tit-sol" data-texto="91-solicitud">SOLICITUD DE ACTO DE RECEPCI&#211;N PROFESIONAL</p>
 
-<p class="fecha-doc">Fecha: {{FECHA_CARTA}}.</p>
+<p class="fecha-doc" data-texto="91-fecha">Fecha: {{FECHA_CARTA}}.</p>
 
 <div class="dest-block">
-  <p>{{DESTINATARIO_SERVICIOS_ESCOLARES}}</p>
-  <p>{{CARGO_SERVICIOS_ESCOLARES}}</p>
-  <p>PRESENTE</p>
+  <p data-texto="91-destinatario">{{DESTINATARIO_SERVICIOS_ESCOLARES}}</p>
+  <p data-texto="91-cargo">{{CARGO_SERVICIOS_ESCOLARES}}</p>
+  <p data-texto="91-presente">PRESENTE</p>
 </div>
 
-<p class="just cuerpo-principal">
+<p class="just cuerpo-principal" data-texto="91-cuerpo">
   Me permito solicitar se autorice la sustentaci&#243;n del Acto de Recepci&#243;n Profesional por la Opci&#243;n
   Titulaci&#243;n integral <span class="b">({{TEXTO_OPCION_TI}})</span>,
-  para obtener mi T&#237;tulo Profesional de <span class="b u">{{TITULO_PROFESIONAL}}</span>
+  para obtener mi T&#237;tulo Profesional de <span class="b u" style="text-transform:uppercase;">{{TITULO_PROFESIONAL}}</span>
   en virtud de haber cubierto los requisitos indispensables para tal efecto.
 </p>
 
@@ -201,11 +201,11 @@ table.ftr { width: 100%; border-collapse: collapse; }
   <p class="qr-msg">Documento certificado:<br/>Verifica la autenticidad.</p>
 </div>
 
-<p class="just campo-line primera"><span>Nombre:</span> <span class="b u">{{NOMBRE}}</span></p>
-<p class="just firma-linea-wrap"><span>Firma:</span><span class="firma-trazo-corta">&#160;</span></p>
-<p class="just campo-line"><span>No. de control:</span> <span class="b u">{{NUMERO_CONTROL}}</span></p>
-<p class="just campo-line"><span>Carrera:</span> <span class="val-mayus">{{CARRERA}}</span></p>
-<p class="just campo-line ultima"><span>Nivel:</span> <span class="val-mayus">{{NIVEL}}</span></p>
+<p class="just campo-line primera" data-texto="91-nombre"><span>Nombre:</span> <span class="b u">{{NOMBRE}}</span></p>
+<p class="just firma-linea-wrap" data-texto="91-firma"><span>Firma:</span><span class="firma-trazo-corta">&#160;</span></p>
+<p class="just campo-line" data-texto="91-control"><span>No. de control:</span> <span class="b u">{{NUMERO_CONTROL}}</span></p>
+<p class="just campo-line" data-texto="91-carrera"><span>Carrera:</span> <span class="val-mayus">{{CARRERA}}</span></p>
+<p class="just campo-line ultima" data-texto="91-nivel"><span>Nivel:</span> <span class="val-mayus">{{NIVEL}}</span></p>
 
 <div class="clearfix"></div>
 

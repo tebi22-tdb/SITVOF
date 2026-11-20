@@ -45,6 +45,8 @@ export class PdfViewerPanelComponent implements OnChanges, OnDestroy {
   private renderTask: RenderTask | null = null;
   private loadGen = 0;
   private resizeObserver: ResizeObserver | null = null;
+  private resizeTimer: number | null = null;
+  private lastRootWidth = 0;
   private pdfData: ArrayBuffer | null = null;
 
   constructor(private sanitizer: DomSanitizer) {}
@@ -57,6 +59,7 @@ export class PdfViewerPanelComponent implements OnChanges, OnDestroy {
 
   ngOnDestroy(): void {
     this.resizeObserver?.disconnect();
+    if (this.resizeTimer != null) window.clearTimeout(this.resizeTimer);
     this.cancelRender();
     void this.pdfDoc?.destroy();
     this.pdfDoc = null;
@@ -179,12 +182,22 @@ export class PdfViewerPanelComponent implements OnChanges, OnDestroy {
   }
 
   private setupResizeObserver(): void {
-    const viewport = this.viewportRef?.nativeElement;
-    if (!viewport || this.resizeObserver) return;
+    const root = this.rootRef?.nativeElement;
+    if (!root || this.resizeObserver) return;
     this.resizeObserver = new ResizeObserver(() => {
-      if (this.fitWidth && this.modo === 'pdfjs') void this.renderPage();
+      if (!this.fitWidth || this.modo !== 'pdfjs') return;
+      const width = Math.round(root.clientWidth);
+      if (Math.abs(width - this.lastRootWidth) < 8) return;
+      if (this.resizeTimer != null) window.clearTimeout(this.resizeTimer);
+      this.resizeTimer = window.setTimeout(() => {
+        this.resizeTimer = null;
+        const ahora = Math.round(root.clientWidth);
+        if (Math.abs(ahora - this.lastRootWidth) < 8) return;
+        this.lastRootWidth = ahora;
+        void this.renderPage();
+      }, 80);
     });
-    this.resizeObserver.observe(viewport);
+    this.resizeObserver.observe(root);
   }
 
   private esperarVistaLista(): Promise<void> {
@@ -243,10 +256,15 @@ export class PdfViewerPanelComponent implements OnChanges, OnDestroy {
       if (!ctx) return;
 
       const outputScale = window.devicePixelRatio || 1;
-      canvas.width = Math.floor(viewport.width * outputScale);
-      canvas.height = Math.floor(viewport.height * outputScale);
-      canvas.style.width = `${viewport.width}px`;
-      canvas.style.height = `${viewport.height}px`;
+      const nextW = Math.floor(viewport.width * outputScale);
+      const nextH = Math.floor(viewport.height * outputScale);
+      if (canvas.width !== nextW || canvas.height !== nextH) {
+        canvas.width = nextW;
+        canvas.height = nextH;
+        canvas.style.width = `${viewport.width}px`;
+        canvas.style.height = `${viewport.height}px`;
+      }
+      this.lastRootWidth = Math.round(this.rootRef?.nativeElement.clientWidth ?? viewportEl.clientWidth);
       ctx.setTransform(outputScale, 0, 0, outputScale, 0, 0);
 
       const task = page.render({ canvasContext: ctx, viewport });

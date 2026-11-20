@@ -5,6 +5,7 @@ import com.sit_titulacion.sit.domain.Rol
 import com.sit_titulacion.sit.repository.EgresadoRepository
 import com.sit_titulacion.sit.service.EgresadoService
 import com.sit_titulacion.sit.service.EmailService
+import com.sit_titulacion.sit.service.ModuloCorreo
 import com.sit_titulacion.sit.service.UsuarioService
 import com.sit_titulacion.sit.web.api.dto.DepartamentoListItemDto
 import com.sit_titulacion.sit.web.api.dto.EgresadoDetailDto
@@ -13,6 +14,7 @@ import com.sit_titulacion.sit.web.api.dto.EgresadoRequestDto
 import com.sit_titulacion.sit.web.api.dto.EgresadoResponseDto
 import com.sit_titulacion.sit.web.api.dto.CreateRevisionRequestDto
 import com.sit_titulacion.sit.web.api.dto.AgendarActoRequestDto
+import com.sit_titulacion.sit.web.api.dto.AvanzarFlujoPropioRequest
 import com.sit_titulacion.sit.web.api.dto.AsignarSinodalesRequestDto
 import com.sit_titulacion.sit.web.api.dto.SinodalesRespuestaDto
 import com.sit_titulacion.sit.web.api.dto.RevisionDto
@@ -102,12 +104,13 @@ class EgresadoController(
             "constancia" -> "constancia"
             else -> null
         }
-        val scopeUsername =
-            if (aplicar_scope_departamento && puedeVerBandejaDepartamento(principal.getRol())) {
-                principal.username
-            } else {
-                null
-            }
+        val rol = principal.getRol()
+        // El parámetro lo manda el navegador. Académico y apoyo no pueden apagar su propio filtro.
+        val scopeUsername = when {
+            rol == Rol.ACADEMICO || rol == Rol.APOYO_TITULACION -> principal.username
+            aplicar_scope_departamento && puedeVerBandejaDepartamento(rol) -> principal.username
+            else -> null
+        }
         val lista = egresadoService.listarParaLista(numero_control, desde, hasta, tipo, scopeUsername)
         return ResponseEntity.ok(lista)
     }
@@ -321,7 +324,9 @@ class EgresadoController(
         @RequestParam(required = false) excluirId: String? = null,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        if (principal == null || !puedeAltaOEditarEgresado(principal.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        }
         val resultado = originalidadService.verificar(titulo, modalidad, excluirId)
         return ResponseEntity.ok(
             mapOf(
@@ -344,7 +349,9 @@ class EgresadoController(
         @RequestParam(required = false) excluirId: String?,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        if (principal == null || !puedeAltaOEditarEgresado(principal.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        }
         val r = egresadoService.verificarDisponibilidadNumeroControlParaAlta(numero_control, excluirId, modalidad)
         return ResponseEntity.ok(
             mapOf(
@@ -424,7 +431,7 @@ class EgresadoController(
                     id = "",
                     numero_control = egresado.numero_control,
                     credenciales_enviadas_correo = false,
-                    aviso_credenciales = "Registro guardado sin identificador; revise la base de datos.",
+                    aviso_credenciales = "El egresado se guardó, pero no se pudo abrir su expediente. Intenta de nuevo.",
                 ),
             )
         }
@@ -440,7 +447,7 @@ class EgresadoController(
                     numero_control = egresado.numero_control,
                     credenciales_enviadas_correo = false,
                     aviso_credenciales =
-                        "Egresado registrado. Error al crear usuario: ${e.message ?: "desconocido"}.",
+                        "El egresado se guardó, pero no se pudo crear su acceso. Intenta de nuevo.",
                 ),
             )
         }
@@ -450,23 +457,31 @@ class EgresadoController(
         if (correo.isBlank()) {
             credencialesOk = false
             aviso =
-                "Usuario creado (inicio de sesión: número de control). No se envió correo: falta correo electrónico en el registro."
+                "El egresado se guardó. Falta el correo, así que no se envió el acceso."
         } else {
             try {
-                val enviado = emailService.enviarCredenciales(correo, user, passwordPlana)
+                val enviado = emailService.enviarCredenciales(
+                    correo,
+                    user,
+                    passwordPlana,
+                    modulo = ModuloCorreo.ALTA_EGRESADOS,
+                )
                 if (enviado) {
                     credencialesOk = true
                     aviso = null
                 } else {
                     credencialesOk = false
                     aviso =
-                        "Usuario creado; no se envió correo (revise correo en el registro y configuración SMTP del servidor)."
+                        "El egresado se guardó, pero no se pudo enviar el correo. Revisa que el correo esté bien escrito."
                 }
             } catch (e: Exception) {
                 log.error("No se pudo enviar correo de credenciales a {}: {}", correo, e.message, e)
                 credencialesOk = false
-                aviso =
-                    "Usuario creado; no se pudo enviar el correo (${e.message ?: "error SMTP"}). Comunique la contraseña por otro medio o reintente."
+                aviso = if (emailService.esFalloTransitorio(e)) {
+                    null
+                } else {
+                    "El egresado se guardó, pero no se pudo enviar el correo. Entrégale el acceso en persona."
+                }
             }
         }
 
@@ -569,16 +584,123 @@ class EgresadoController(
             return ResponseEntity.status(HttpStatus.CONFLICT).body(mapOf("error" to aviso))
         }
         val error = egresadoService.activarNuevoProceso(id, datos, archivo)
-        return if (error == null) {
-            ResponseEntity.ok().build<Void>()
-        } else {
-            ResponseEntity.badRequest().body(mapOf("error" to error))
+        if (error != null) {
+            return ResponseEntity.badRequest().body(mapOf("error" to error))
         }
+        val egresado = try {
+            egresadoRepository.findById(ObjectId(id)).orElse(null)
+        } catch (_: Exception) {
+            null
+        }
+        val egresadoId = egresado?.id
+        if (egresado == null || egresadoId == null) {
+            return ResponseEntity.ok(
+                EgresadoResponseDto(
+                    id = id,
+                    numero_control = datos.numero_control,
+                    credenciales_enviadas_correo = false,
+                    aviso_credenciales = "Proceso registrado, pero no se pudo renovar la contraseña. Revise la cuenta del egresado.",
+                ),
+            )
+        }
+        val correo = egresado.datos_personales.correo_electronico?.trim().orEmpty()
+        val (user, passwordPlana) = try {
+            usuarioService.crearOVincularUsuarioEgresado(egresado.numero_control.trim(), egresadoId)
+        } catch (e: Exception) {
+            log.error("No se pudo renovar la contraseña del egresado id={}: {}", id, e.message, e)
+            return ResponseEntity.ok(
+                EgresadoResponseDto(
+                    id = id,
+                    numero_control = egresado.numero_control,
+                    credenciales_enviadas_correo = false,
+                    aviso_credenciales = "El proceso se registró, pero no se pudo crear el acceso nuevo. Intenta de nuevo.",
+                ),
+            )
+        }
+        if (correo.isBlank()) {
+            return ResponseEntity.ok(
+                EgresadoResponseDto(
+                    id = id,
+                    numero_control = egresado.numero_control,
+                    credenciales_enviadas_correo = false,
+                    aviso_credenciales = "La contraseña anterior ya no sirve. No hay correo en el expediente. Contraseña nueva: $passwordPlana. Entrégala en persona.",
+                ),
+            )
+        }
+        var enviado = false
+        var enProceso = false
+        try {
+            enviado = emailService.enviarCredenciales(
+                correo,
+                user,
+                passwordPlana,
+                renovacion = true,
+                modulo = ModuloCorreo.ALTA_EGRESADOS,
+            )
+        } catch (e: Exception) {
+            log.error("No se pudo enviar credenciales nuevas a {}: {}", correo, e.message, e)
+            enProceso = emailService.esFalloTransitorio(e)
+        }
+        return ResponseEntity.ok(
+            EgresadoResponseDto(
+                id = id,
+                numero_control = egresado.numero_control,
+                credenciales_enviadas_correo = enviado,
+                aviso_credenciales = when {
+                    enviado -> null
+                    enProceso -> "Nuevo proceso registrado. La contraseña anterior ya no sirve."
+                    else ->
+                        "La contraseña anterior ya no sirve y el correo no se envió. Contraseña nueva: $passwordPlana. Entrégala en persona."
+                },
+            ),
+        )
     }
+
+    /** Avanza el paso en curso de una modalidad con flujo propio. No aplica a tesis, residencia ni CENEVAL. */
+    @PostMapping("/{id}/flujo-propio/avanzar")
+    fun avanzarFlujoPropio(
+        @PathVariable id: String,
+        @RequestBody(required = false) body: AvanzarFlujoPropioRequest?,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
+        return respuestaAvanceFlujo(egresadoService.avanzarFlujoPropio(id, false, body?.fechaHora))
+    }
+
+    @PostMapping("/mi-seguimiento/flujo-propio/avanzar")
+    fun miSeguimientoAvanzarFlujoPropio(
+        @RequestBody(required = false) body: AvanzarFlujoPropioRequest?,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        if (principal == null || !esRolEgresado(principal)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to "Solo el egresado puede avanzar su paso."))
+        }
+        val egresadoId = resolverEgresadoIdParaMiSeguimiento(principal)
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("error" to "No se encontró tu registro de titulación."))
+        return respuestaAvanceFlujo(egresadoService.avanzarFlujoPropio(egresadoId, true, body?.fechaHora))
+    }
+
+    private fun respuestaAvanceFlujo(resultado: com.sit_titulacion.sit.service.ResultadoAvanceFlujo): ResponseEntity<*> =
+        when (resultado) {
+            is com.sit_titulacion.sit.service.ResultadoAvanceFlujo.Fallo ->
+                ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("error" to resultado.mensaje))
+            is com.sit_titulacion.sit.service.ResultadoAvanceFlujo.Pdf ->
+                ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"${resultado.nombre}\"")
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .body(resultado.bytes)
+            is com.sit_titulacion.sit.service.ResultadoAvanceFlujo.Hecho ->
+                ResponseEntity.ok(mapOf("mensaje" to resultado.mensaje))
+        }
 
     /** Marca el egresado como "Enviado al departamento académico" (paso 1.1 del seguimiento). */
     @PostMapping("/{id}/enviar-departamento-academico")
-    fun enviarDepartamentoAcademico(@PathVariable id: String): ResponseEntity<*> {
+    fun enviarDepartamentoAcademico(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
         return if (egresadoService.marcarEnviadoDepartamentoAcademico(id)) {
             ResponseEntity.ok().build<Void>()
         } else {
@@ -588,9 +710,15 @@ class EgresadoController(
 
     /** Dashboard departamento: marca el anteproyecto como registrado/acusado en la bandeja. Independiente del flujo de seguimiento. */
     @PostMapping("/{id}/departamento/marcar-registrado")
-    fun marcarRegistradoDepartamento(@PathVariable id: String): ResponseEntity<*> =
-        if (egresadoService.marcarRegistradoDepartamento(id)) ResponseEntity.ok().build<Void>()
+    fun marcarRegistradoDepartamento(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        forbiddenSiNoBandejaDepto(principal)?.let { return it }
+        respuestaSiNoAccesoEgresadoBandeja(id, principal!!)?.let { return it }
+        return if (egresadoService.marcarRegistradoDepartamento(id)) ResponseEntity.ok().build<Void>()
         else ResponseEntity.badRequest().body(mapOf("error" to "No se pudo marcar como registrado."))
+    }
 
     @PostMapping("/{id}/departamento/revertir-liberacion-residencia")
     fun revertirLiberacionResidencia(
@@ -664,29 +792,49 @@ class EgresadoController(
 
     /** No residencia paso 1: DEP confirma entrega del egresado (anexo XXXI y anteproyecto). */
     @PostMapping("/{id}/no-residencia/confirmar-entrega-egresado-depto")
-    fun confirmarEntregaEgresadoDeptoNoResidencia(@PathVariable id: String): ResponseEntity<*> =
-        if (egresadoService.confirmarEntregaEgresadoDeptoNoResidencia(id)) ResponseEntity.ok().build<Void>()
+    fun confirmarEntregaEgresadoDeptoNoResidencia(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
+        return if (egresadoService.confirmarEntregaEgresadoDeptoNoResidencia(id)) ResponseEntity.ok().build<Void>()
         else ResponseEntity.badRequest().body(
             mapOf("error" to "No se pudo confirmar. Solo no residencia y debe estar pendiente el paso 1."),
         )
+    }
 
     /** No residencia paso 2: envío de anteproyecto y solicitud de registro (anexo XXXII) al departamento académico. */
     @PostMapping("/{id}/no-residencia/solicitar-registro-anteproyecto")
-    fun solicitarRegistroAnteproyectoNoResidencia(@PathVariable id: String): ResponseEntity<*> =
-        if (egresadoService.solicitarRegistroAnteproyectoNoResidencia(id)) ResponseEntity.ok().build<Void>()
+    fun solicitarRegistroAnteproyectoNoResidencia(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
+        return if (egresadoService.solicitarRegistroAnteproyectoNoResidencia(id)) ResponseEntity.ok().build<Void>()
         else ResponseEntity.badRequest().body(mapOf("error" to "No se pudo registrar el envío. Confirma antes la entrega del egresado (paso 1)."))
+    }
 
     @PostMapping("/{id}/no-residencia/confirmar-recepcion-inicial-anexos-xxxi-xxxii")
-    fun confirmarRecepcionInicialAnexosXxxiXxxiiNoResidencia(@PathVariable id: String): ResponseEntity<*> =
-        if (egresadoService.confirmarRecepcionInicialAnexosXxxiXxxiiNoResidencia(id)) ResponseEntity.ok().build<Void>()
+    fun confirmarRecepcionInicialAnexosXxxiXxxiiNoResidencia(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
+        return if (egresadoService.confirmarRecepcionInicialAnexosXxxiXxxiiNoResidencia(id)) ResponseEntity.ok().build<Void>()
         else ResponseEntity.badRequest().body(
             mapOf("error" to "No se pudo confirmar. Requiere envío de anteproyecto previo y no aplica a residencia."),
         )
+    }
 
     @PostMapping("/{id}/no-residencia/confirmar-recepcion-trabajo-division")
-    fun confirmarRecepcionTrabajoNoResidencia(@PathVariable id: String): ResponseEntity<*> =
-        if (egresadoService.confirmarRecepcionTrabajoNoResidencia(id)) ResponseEntity.ok().build<Void>()
+    fun confirmarRecepcionTrabajoNoResidencia(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
+        return if (egresadoService.confirmarRecepcionTrabajoNoResidencia(id)) ResponseEntity.ok().build<Void>()
         else ResponseEntity.badRequest().body(mapOf("error" to "No se pudo confirmar. Confirma antes la recepción inicial de anexos XXXI/XXXII (flujo 16) o revisa que no sea residencia."))
+    }
 
     /** No residencia paso 5: departamento académico sube tesis y libera producto. */
     @PostMapping(value = ["/{id}/no-residencia/liberar-producto"], consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
@@ -695,7 +843,8 @@ class EgresadoController(
         @RequestParam("archivo") archivo: MultipartFile,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        forbiddenSiNoBandejaDepto(principal)?.let { return it }
+        respuestaSiNoAccesoEgresadoBandeja(id, principal!!)?.let { return it }
         if (archivo.isEmpty) {
             return ResponseEntity.badRequest().body(mapOf("error" to "Selecciona el PDF de la tesis."))
         }
@@ -705,9 +854,14 @@ class EgresadoController(
     }
 
     @PostMapping("/{id}/no-residencia/confirmar-recepcion-registro-liberacion-depto")
-    fun confirmarRecepcionRegistroLiberacionNoResidencia(@PathVariable id: String): ResponseEntity<*> =
-        if (egresadoService.confirmarRecepcionRegistroLiberacionNoResidencia(id)) ResponseEntity.ok().build<Void>()
+    fun confirmarRecepcionRegistroLiberacionNoResidencia(
+        @PathVariable id: String,
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+    ): ResponseEntity<*> {
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
+        return if (egresadoService.confirmarRecepcionRegistroLiberacionNoResidencia(id)) ResponseEntity.ok().build<Void>()
         else ResponseEntity.badRequest().body(mapOf("error" to "No se pudo confirmar la recepción de registro y liberación."))
+    }
 
     /** Marca "recibido registro y liberación" desde departamento académico (solo Residencia). */
     @PostMapping("/{id}/liberar")
@@ -733,8 +887,7 @@ class EgresadoController(
         @PathVariable id: String,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
         return if (egresadoService.confirmarRecibidosAnexoXxxiXxxii(id)) {
             ResponseEntity.ok().build<Void>()
         } else {
@@ -748,11 +901,10 @@ class EgresadoController(
         @PathVariable id: String,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
         val bytes = egresadoService.crearAnexo91(id)
             ?: return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                mapOf("error" to "No se pudo generar el PDF del anexo 9.1 (plantilla HTML del sistema). Revisa los logs del servidor."),
+                mapOf("error" to "No se pudo generar el anexo 9.1. Intenta de nuevo."),
             )
         val fileName = "Anexo-9.1-$id.pdf"
         return ResponseEntity.ok()
@@ -766,8 +918,7 @@ class EgresadoController(
         @PathVariable id: String,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
         return if (egresadoService.confirmarEntregaAnexo91(id)) {
             ResponseEntity.ok().build<Void>()
         } else {
@@ -781,8 +932,7 @@ class EgresadoController(
         @PathVariable id: String,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
         return if (egresadoService.solicitarConstancia92Division(id)) {
             ResponseEntity.ok().build<Void>()
         } else {
@@ -797,8 +947,10 @@ class EgresadoController(
         @PathVariable id: String,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        if (principal == null || !puedeAccederAnexo92Staff(principal.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to "No autorizado para descargar el anexo 9.2."))
+        }
         val bytes = egresadoService.crearAnexo92(id)
             ?: return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                 mapOf(
@@ -819,8 +971,7 @@ class EgresadoController(
         @PathVariable id: String,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
         return if (egresadoService.confirmarRecibidoAnexo92(id)) {
             ResponseEntity.ok().build<Void>()
         } else {
@@ -838,8 +989,7 @@ class EgresadoController(
         @PathVariable id: String,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
         return if (egresadoService.solicitarSinodales(id)) {
             ResponseEntity.ok().build<Void>()
         } else {
@@ -917,8 +1067,7 @@ class EgresadoController(
         @PathVariable id: String,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
         return if (egresadoService.confirmarSinodalesRecibidos(id)) {
             ResponseEntity.ok().build<Void>()
         } else {
@@ -1074,8 +1223,7 @@ class EgresadoController(
         @RequestBody body: AgendarActoRequestDto,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
         return if (egresadoService.agendarActo93(id, body.fecha_hora)) {
             ResponseEntity.ok().build<Void>()
         } else {
@@ -1087,7 +1235,7 @@ class EgresadoController(
 
     @GetMapping("/agenda-acto-9-3/ocupados")
     fun listarAgendaActo93Ocupados(@AuthenticationPrincipal principal: UsuarioPrincipal?): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
         val fechas = egresadoService.listarActo93Ocupados().map { DateTimeFormatter.ISO_INSTANT.format(it) }
         return ResponseEntity.ok(mapOf("ocupados" to fechas))
     }
@@ -1097,19 +1245,19 @@ class EgresadoController(
         @PathVariable id: String,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
         val resultado = egresadoService.crearAnexo93(id)
             ?: return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                mapOf("error" to "No se pudo generar el PDF del anexo 9.3 (plantilla HTML del sistema). Revisa los logs del servidor."),
+                mapOf("error" to "No se pudo generar el anexo 9.3. Intenta de nuevo."),
             )
         val fileName = "Anexo-9.3-$id.pdf"
         return ResponseEntity.ok()
             .contentType(MediaType.APPLICATION_PDF)
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"$fileName\"")
-            .header("X-Sinodales-Intentados", resultado.second.toString())
-            .header("X-Sinodales-Notificados", resultado.third.toString())
-            .body(resultado.first)
+            .header("X-Sinodales-Intentados", resultado.sinodalesConCorreo.toString())
+            .header("X-Sinodales-Notificados", resultado.notificados.toString())
+            .header("X-Sinodales-En-Proceso", resultado.enProceso.toString())
+            .body(resultado.pdf)
     }
 
     @PostMapping("/{id}/confirmar-entrega-anexo-9-3")
@@ -1117,8 +1265,7 @@ class EgresadoController(
         @PathVariable id: String,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
         return if (egresadoService.confirmarEntregaAnexo93(id)) {
             ResponseEntity.ok().build<Void>()
         } else {
@@ -1133,8 +1280,7 @@ class EgresadoController(
         @PathVariable id: String,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
         return if (egresadoService.solicitarDocumentacionEscaneada(id)) {
             ResponseEntity.ok().build<Void>()
         } else {
@@ -1149,8 +1295,7 @@ class EgresadoController(
         @PathVariable id: String,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
         return if (egresadoService.confirmarDocumentacionEscaneadaRecibida(id)) {
             ResponseEntity.ok().build<Void>()
         } else {
@@ -1165,8 +1310,7 @@ class EgresadoController(
         @PathVariable id: String,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
         val doc = egresadoService.obtenerDocumentacionEscaneadaBytes(id) ?: return ResponseEntity.notFound().build<Void>()
         val headers = HttpHeaders().apply {
             set(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + doc.fileName.replace("\"", "%22") + "\"")
@@ -1185,8 +1329,7 @@ class EgresadoController(
         @RequestBody body: SolicitarReenvioDocumentacionEscaneadaRequestDto,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        forbiddenSiNoSeguimientoDep(principal)?.let { return it }
         return if (egresadoService.solicitarDocumentacionEscaneadaNuevamente(id, body.observaciones)) {
             ResponseEntity.ok().build<Void>()
         } else {
@@ -1242,6 +1385,39 @@ class EgresadoController(
     private fun puedeEliminarEgresado(rol: Rol?): Boolean =
         rol == Rol.ADMINISTRADOR
 
+    /** Avances de seguimiento DEP (9.1, 9.2, sinodales, acto, doc escaneada, no-residencia). */
+    private fun puedeOperarSeguimientoDep(rol: Rol?): Boolean =
+        rol?.esAlgunoDe(Rol.ADMINISTRADOR, Rol.DEP) ?: false
+
+    /** Descarga / consulta Anexo 9.2 desde egresados: DEP, SE o Admin. */
+    private fun puedeAccederAnexo92Staff(rol: Rol?): Boolean =
+        rol?.esAlgunoDe(Rol.ADMINISTRADOR, Rol.DEP, Rol.SERVICIOS_ESCOLARES) ?: false
+
+    private fun forbiddenSiNoSeguimientoDep(principal: UsuarioPrincipal?): ResponseEntity<*>? {
+        if (principal == null || !puedeOperarSeguimientoDep(principal.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to "No autorizado para esta operación de seguimiento."))
+        }
+        return null
+    }
+
+    private fun slugDepartamentoGenerador(principal: UsuarioPrincipal?, solicitado: String?): String? {
+        val pedido = solicitado?.trim()?.takeIf { it.isNotEmpty() }
+        return when (principal?.getRol()) {
+            Rol.ACADEMICO -> principal.getSegmentoAcademico()?.trim()?.takeIf { it.isNotEmpty() }
+            Rol.ADMINISTRADOR, Rol.APOYO_TITULACION -> pedido
+            else -> null
+        }
+    }
+
+    private fun forbiddenSiNoBandejaDepto(principal: UsuarioPrincipal?): ResponseEntity<*>? {
+        if (principal == null || !puedeVerBandejaDepartamento(principal.getRol())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(mapOf("error" to "No autorizado para la bandeja de departamento."))
+        }
+        return null
+    }
+
     /** Académico con carreras asignadas no puede abrir expedientes de otras carreras. */
     private fun respuestaSiAcademicoSinCarrera(id: String, principal: UsuarioPrincipal?): ResponseEntity<*>? {
         if (principal == null) return null
@@ -1252,12 +1428,14 @@ class EgresadoController(
     @GetMapping("/{id}/hoja-32")
     fun descargarHoja32(
         @PathVariable id: String,
+        @RequestParam(required = false) observaciones: String?,
+        @RequestParam(required = false) departamento: String?,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        forbiddenSiNoBandejaDepto(principal)?.let { return it }
+        respuestaSiNoAccesoEgresadoBandeja(id, principal!!)?.let { return it }
         val nc32 = egresadoService.obtenerNumeroControl(id) ?: id
-        val bytes = egresadoService.crearHoja32(id)
+        val bytes = egresadoService.crearHoja32(id, observaciones, slugDepartamentoGenerador(principal, departamento))
             ?: return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                 mapOf("error" to "No se pudo generar la hoja 32. Verifica que el egresado tenga proceso activo."),
             )
@@ -1270,12 +1448,16 @@ class EgresadoController(
     @GetMapping("/{id}/hoja-33")
     fun descargarHoja33(
         @PathVariable id: String,
+        @RequestParam(required = false) asesor: String?,
+        @RequestParam(required = false) revisor1: String?,
+        @RequestParam(required = false) revisor2: String?,
+        @RequestParam(required = false) departamento: String?,
         @AuthenticationPrincipal principal: UsuarioPrincipal?,
     ): ResponseEntity<*> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
-        respuestaSiAcademicoSinCarrera(id, principal)?.let { return it }
+        forbiddenSiNoBandejaDepto(principal)?.let { return it }
+        respuestaSiNoAccesoEgresadoBandeja(id, principal!!)?.let { return it }
         val nc33 = egresadoService.obtenerNumeroControl(id) ?: id
-        val bytes = egresadoService.crearHoja33(id)
+        val bytes = egresadoService.crearHoja33(id, asesor, revisor1, revisor2, slugDepartamentoGenerador(principal, departamento))
             ?: return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                 mapOf("error" to "No se pudo generar la hoja 33. Verifica que el egresado tenga proceso activo."),
             )

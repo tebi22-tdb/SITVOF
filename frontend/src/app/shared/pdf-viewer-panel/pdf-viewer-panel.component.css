@@ -91,6 +91,7 @@
   min-height: min(80vh, 780px);
   max-height: min(84vh, calc(100vh - 140px));
   overflow: auto;
+  scrollbar-gutter: stable;
   background: #e2e8f0;
   padding: 0.65rem;
 }

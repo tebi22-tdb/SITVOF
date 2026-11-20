@@ -43,8 +43,6 @@ class NoResidenciaPlazoNotificacionService(
         get() = env.getProperty("sit.plazo.no-res.notificaciones.enabled", "true")!!
             .trim().equals("true", ignoreCase = true)
 
-    private val mesesTramite: Long = 6L
-
     fun procesarTodosLosExpedientesNoResidenciaActivos() {
         if (!habilitado) return
         var procesados = 0
@@ -96,12 +94,14 @@ class NoResidenciaPlazoNotificacionService(
             return
         }
 
-        val inicioDev = if (p0.datos_proyecto.curso_titulacion == "si") {
+        val esCurso = p0.datos_proyecto.curso_titulacion == "si" ||
+            p0.datos_proyecto.modalidad.contains("cursos especiales", ignoreCase = true)
+        val inicioDev = if (esCurso) {
             p0.documentos.constancia_no_inconveniencia.fecha_expedicion ?: return
         } else {
             p0.fechaConfirmacionRecepcionInicialAnexosXxxiXxxii ?: return
         }
-        procesarFaseDesarrollo(egresado, p0, correo, nombre, inicioDev, p0.datos_proyecto.modalidad)
+        procesarFaseDesarrollo(egresado, p0, correo, nombre, inicioDev, p0.datos_proyecto.modalidad, esCurso)
     }
 
     private fun procesarFaseDesarrollo(
@@ -111,9 +111,11 @@ class NoResidenciaPlazoNotificacionService(
         nombre: String,
         inicio: Instant,
         modalidad: String,
+        fechaCapturada: Boolean = false,
     ) {
         val hoy = LocalDate.now(zonaPlazo)
-        val inicioLocal = inicio.atZone(zonaPlazo).toLocalDate()
+        val inicioLocal = if (fechaCapturada) inicio.atZone(java.time.ZoneOffset.UTC).toLocalDate()
+            else inicio.atZone(zonaPlazo).toLocalDate()
         val mesesDev = mesesDesarrollo(modalidad)
         val limite = inicioLocal.plusMonths(mesesDev)
         val diasRestantes = ChronoUnit.DAYS.between(hoy, limite).toInt()
@@ -129,6 +131,7 @@ class NoResidenciaPlazoNotificacionService(
 
         var proceso = p
         for ((mesesTranscurridos, marca, patch) in marcas) {
+            if (mesesTranscurridos >= mesesDev) continue
             if (marca != null) continue
             if (hoy.isBefore(inicioLocal.plusMonths(mesesTranscurridos))) continue
             val dias = ChronoUnit.DAYS.between(hoy, limite).toInt()
@@ -145,6 +148,7 @@ class NoResidenciaPlazoNotificacionService(
                 fechaLimiteTexto = limiteTexto,
                 pasoNumero = pasoActual.numero,
                 pasoTitulo = pasoActual.titulo,
+                segmento = segmentoDe(egresado),
             )
             if (enviado) {
                 guardarMarca(egresado, proceso, patch)
@@ -172,6 +176,7 @@ class NoResidenciaPlazoNotificacionService(
                 fechaLimiteTexto = limiteTexto,
                 pasoNumero = pasoActual.numero,
                 pasoTitulo = pasoActual.titulo,
+                segmento = segmentoDe(egresado),
             )
             if (enviado) guardarMarca(egresado, pAct) { it.copy(notifPlazoNrDev3d = Instant.now()) }
         }
@@ -186,6 +191,7 @@ class NoResidenciaPlazoNotificacionService(
     ) {
         val hoy = LocalDate.now(zonaPlazo)
         val inicioLocal = inicio.atZone(zonaPlazo).toLocalDate()
+        val mesesTramite = mesesTramiteDe(p.datos_proyecto.modalidad)
         val limite = inicioLocal.plusMonths(mesesTramite)
         val limiteTexto = formatearFecha(limite)
         val etiquetaModalidad = etiquetaModalidad(p.datos_proyecto.modalidad)
@@ -205,6 +211,7 @@ class NoResidenciaPlazoNotificacionService(
                 fechaLimiteTexto = limiteTexto,
                 pasoNumero = paso.numero,
                 pasoTitulo = paso.titulo,
+                segmento = segmentoDe(egresado),
             )
             if (enviado) guardarMarca(egresado, p) { it.copy(notifPlazoNrInicioTram = Instant.now()) }
         }
@@ -215,7 +222,7 @@ class NoResidenciaPlazoNotificacionService(
             return
         }
 
-        if (proceso.notifPlazoNrTram2m == null && !hoy.isBefore(inicioLocal.plusMonths(2))) {
+        if (proceso.notifPlazoNrTram2m == null && 2 < mesesTramite && !hoy.isBefore(inicioLocal.plusMonths(2))) {
             val dias = ChronoUnit.DAYS.between(hoy, limite).toInt()
             val pasoActual = pasoActualNoResidencia(proceso)
             val enviado = emailService.enviarAvisoPlazoNoResidencia(
@@ -230,6 +237,7 @@ class NoResidenciaPlazoNotificacionService(
                 fechaLimiteTexto = limiteTexto,
                 pasoNumero = pasoActual.numero,
                 pasoTitulo = pasoActual.titulo,
+                segmento = segmentoDe(egresado),
             )
             if (enviado) {
                 guardarMarca(egresado, proceso) { it.copy(notifPlazoNrTram2m = Instant.now()) }
@@ -242,7 +250,7 @@ class NoResidenciaPlazoNotificacionService(
             return
         }
 
-        if (proceso.notifPlazoNrTram4m == null && !hoy.isBefore(inicioLocal.plusMonths(4))) {
+        if (proceso.notifPlazoNrTram4m == null && 4 < mesesTramite && !hoy.isBefore(inicioLocal.plusMonths(4))) {
             val dias = ChronoUnit.DAYS.between(hoy, limite).toInt()
             val pasoActual = pasoActualNoResidencia(proceso)
             val enviado = emailService.enviarAvisoPlazoNoResidencia(
@@ -257,6 +265,7 @@ class NoResidenciaPlazoNotificacionService(
                 fechaLimiteTexto = limiteTexto,
                 pasoNumero = pasoActual.numero,
                 pasoTitulo = pasoActual.titulo,
+                segmento = segmentoDe(egresado),
             )
             if (enviado) {
                 guardarMarca(egresado, proceso) { it.copy(notifPlazoNrTram4m = Instant.now()) }
@@ -285,6 +294,7 @@ class NoResidenciaPlazoNotificacionService(
                 fechaLimiteTexto = limiteTexto,
                 pasoNumero = pasoActual.numero,
                 pasoTitulo = pasoActual.titulo,
+                segmento = segmentoDe(egresado),
             )
             if (enviado) guardarMarca(egresado, proceso) { it.copy(notifPlazoNrTram3d = Instant.now()) }
         }
@@ -305,7 +315,7 @@ class NoResidenciaPlazoNotificacionService(
             nombreEgresado = nombre,
             tipoAviso = tipo,
             fase = if (p.fechaSolicitudRegistroLiberacionDeptoAcademico != null) "tramite" else "desarrollo",
-            mesesPlazoTotal = if (p.fechaSolicitudRegistroLiberacionDeptoAcademico != null) mesesTramite
+            mesesPlazoTotal = if (p.fechaSolicitudRegistroLiberacionDeptoAcademico != null) mesesTramiteDe(p.datos_proyecto.modalidad)
             else mesesDesarrollo(p.datos_proyecto.modalidad),
             mesesTranscurridos = null,
             etiquetaModalidad = etiquetaModalidad(p.datos_proyecto.modalidad),
@@ -313,9 +323,13 @@ class NoResidenciaPlazoNotificacionService(
             fechaLimiteTexto = "",
             pasoNumero = paso.numero,
             pasoTitulo = paso.titulo,
+                segmento = segmentoDe(egresado),
         )
         if (enviado) guardarMarca(egresado, p) { it.copy(notifPlazoNrFinal = Instant.now()) }
     }
+
+    private fun segmentoDe(egresado: Egresado): String? =
+        catalogoRepository.segmentoDeCarrera(egresado.datos_personales.carrera)
 
     private fun guardarMarca(egresado: Egresado, p: ProcesoTitulacion, patch: (ProcesoTitulacion) -> ProcesoTitulacion) {
         val actualizado = egresado.actualizarProcesoActivo(patch(p).copy(fecha_actualizacion = Instant.now()))
@@ -339,7 +353,15 @@ class NoResidenciaPlazoNotificacionService(
         return cat?.esResidencia ?: nombre.equals("Residencia Profesional", ignoreCase = true)
     }
 
-    private fun mesesDesarrollo(modalidad: String): Long = 12L
+    private fun mesesDesarrollo(modalidad: String): Long = plazosModalidad(modalidad).mesesProyecto
+
+    private fun mesesTramiteDe(modalidad: String): Long = plazosModalidad(modalidad).mesesTitulacion
+
+    private fun plazosModalidad(nombre: String): PlazosModalidad {
+        val cat = catalogoRepository.findByTipoAndActivoTrue("modalidad")
+            .find { it.nombre.trim().equals(nombre.trim(), ignoreCase = true) }
+        return plazosDeModalidad(cat)
+    }
 
     private fun avisosMesesDesarrollo(mesesDev: Long): List<Long> = listOf(3L, 6L, 9L)
 

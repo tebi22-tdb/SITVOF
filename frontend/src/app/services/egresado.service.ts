@@ -93,6 +93,7 @@ export interface EgresadoDetail {
   fecha_recepcion_registro_liberacion_depto_academico?: string;
   fecha_liberacion_documento_coordinacion_cat?: string;
   fecha_enviado_departamento_academico?: string;
+  avances_flujo_propio?: { indice: number; fecha: string }[];
   /** Fecha en que el departamento recibió registro y liberación (paso 2). */
   fecha_recibido_registro_liberacion?: string;
   fecha_confirmacion_recibidos_anexo_xxxi_xxxii?: string;
@@ -234,6 +235,14 @@ export interface DepartamentoListItem {
   fecha_generacion_anexos_xxxii_xxxiii?: string;
   fecha_generacion_hoja_32?: string;
   fecha_generacion_hoja_33?: string;
+  /** Confirmada la entrega del anexo 9.3: los sinodales ya no se editan. */
+  fecha_confirmacion_entrega_anexo_9_3?: string;
+  asesor_firma?: string;
+  revisor_1?: string;
+  revisor_2?: string;
+  asesor_interno?: string;
+  asesor_externo?: string;
+  observaciones_anexo32?: string;
 }
 
 /** Revisión guardada (del backend). */
@@ -260,6 +269,8 @@ export interface DepartamentoCounts {
   pendientes: number;
   en_correccion: number;
   aprobados: number;
+  /** Residencias enviadas al departamento (pendientes y ya liberadas). */
+  total_residencia?: number;
   todos: number;
   sinodales_por_asignar?: number;
   anteproyecto?: number;
@@ -368,11 +379,23 @@ export class EgresadoService {
     return this.http.post(`${API}/eliminar/${id}`, {});
   }
 
-  activarNuevoProceso(id: string, datos: EgresadoForm, archivo: File | null): Observable<unknown> {
+  activarNuevoProceso(id: string, datos: EgresadoForm, archivo: File | null): Observable<EgresadoCrearResponse> {
     const form = new FormData();
     form.append('datos', new Blob([JSON.stringify(datos)], { type: 'application/json' }));
     if (archivo) form.append('archivo', archivo, archivo.name);
-    return this.http.post(`${API}/${id}/nuevo-proceso`, form);
+    return this.http.post<EgresadoCrearResponse>(`${API}/${id}/nuevo-proceso`, form);
+  }
+
+  avanzarFlujoPropio(id: string, body: { fechaHora?: string } = {}): Observable<{ mensaje?: string }> {
+    return this.http.post<{ mensaje?: string }>(`${API}/${id}/flujo-propio/avanzar`, body);
+  }
+
+  avanzarFlujoPropioArchivo(id: string): Observable<Blob> {
+    return this.http.post(`${API}/${id}/flujo-propio/avanzar`, {}, { responseType: 'blob' });
+  }
+
+  avanzarMiFlujoPropio(body: { fechaHora?: string } = {}): Observable<{ mensaje?: string }> {
+    return this.http.post<{ mensaje?: string }>(`${API}/mi-seguimiento/flujo-propio/avanzar`, body);
   }
 
   enviarDepartamentoAcademico(id: string): Observable<unknown> {
@@ -443,10 +466,10 @@ export class EgresadoService {
   getDepartamentoBandeja(
     estado: string,
     segmento?: string | null,
-  ): Observable<{ counts: DepartamentoCounts; items: DepartamentoListItem[] }> {
+  ): Observable<{ counts: DepartamentoCounts; items: DepartamentoListItem[]; pestanas?: { nombre: string; total: number }[] }> {
     let params = new HttpParams().set('estado', estado);
     if (segmento?.trim()) params = params.set('segmento', segmento.trim());
-    return this.http.get<{ counts: DepartamentoCounts; items: DepartamentoListItem[] }>(
+    return this.http.get<{ counts: DepartamentoCounts; items: DepartamentoListItem[]; pestanas?: { nombre: string; total: number }[] }>(
       `${API}/departamento/bandeja`,
       { params },
     );
@@ -701,9 +724,20 @@ export class EgresadoService {
     return this.http.post(`${API}/${id}/seguimiento/revertir-paso`, { paso });
   }
 
-  descargarHoja32(id: string): Observable<{ blob: Blob; fileName: string }> {
+  descargarHoja32(
+    id: string,
+    observaciones?: string,
+    departamento?: string,
+  ): Observable<{ blob: Blob; fileName: string }> {
+    let params = new HttpParams();
+    if (observaciones !== undefined) {
+      params = params.set('observaciones', observaciones);
+    }
+    if (departamento?.trim()) {
+      params = params.set('departamento', departamento.trim());
+    }
     return this.http
-      .get(`${API}/${id}/hoja-32`, { responseType: 'blob', observe: 'response' })
+      .get(`${API}/${id}/hoja-32`, { responseType: 'blob', observe: 'response', params })
       .pipe(
         map((res) => {
           const disp = res.headers.get('Content-Disposition') ?? '';
@@ -713,9 +747,23 @@ export class EgresadoService {
       );
   }
 
-  descargarHoja33(id: string): Observable<{ blob: Blob; fileName: string }> {
+  descargarHoja33(
+    id: string,
+    firmas?: { asesor: string; revisor1: string; revisor2: string },
+    departamento?: string,
+  ): Observable<{ blob: Blob; fileName: string }> {
+    let params = new HttpParams();
+    if (firmas) {
+      params = params
+        .set('asesor', firmas.asesor)
+        .set('revisor1', firmas.revisor1)
+        .set('revisor2', firmas.revisor2);
+    }
+    if (departamento?.trim()) {
+      params = params.set('departamento', departamento.trim());
+    }
     return this.http
-      .get(`${API}/${id}/hoja-33`, { responseType: 'blob', observe: 'response' })
+      .get(`${API}/${id}/hoja-33`, { responseType: 'blob', observe: 'response', params })
       .pipe(
         map((res) => {
           const disp = res.headers.get('Content-Disposition') ?? '';

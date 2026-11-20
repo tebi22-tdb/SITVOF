@@ -192,4 +192,43 @@ class EgresadoControllerAuthTest {
         assertEquals(HttpStatus.FORBIDDEN, response.statusCode,
             "Sin autenticación debe rechazar con 403")
     }
+
+    // ════════════════════════════════════════════════════════════════════════════════
+    // Transiciones de seguimiento / departamento — solo staff autorizado (anti-IDOR)
+    // ════════════════════════════════════════════════════════════════════════════════
+
+    @Test
+    fun `enviarDepartamentoAcademico - EGRESADO recibe 403`() {
+        val response = controller.enviarDepartamentoAcademico("some-id", principal(Rol.EGRESADO))
+        assertEquals(HttpStatus.FORBIDDEN, response.statusCode)
+    }
+
+    @Test
+    fun `marcarRegistradoDepartamento - EGRESADO recibe 403`() {
+        val response = controller.marcarRegistradoDepartamento("some-id", principal(Rol.EGRESADO))
+        assertEquals(HttpStatus.FORBIDDEN, response.statusCode)
+    }
+
+    @Test
+    fun `confirmarEntregaAnexo91 - EGRESADO recibe 403`() {
+        val response = controller.confirmarEntregaAnexo91("some-id", principal(Rol.EGRESADO))
+        assertEquals(HttpStatus.FORBIDDEN, response.statusCode)
+    }
+
+    @Test
+    fun `agendarActo93 - ACADEMICO recibe 403 (solo DEP o ADMIN)`() {
+        val response = controller.agendarActo93(
+            "some-id",
+            com.sit_titulacion.sit.web.api.dto.AgendarActoRequestDto(fecha_hora = "2026-10-16T11:00:00Z"),
+            principal(Rol.ACADEMICO),
+        )
+        assertEquals(HttpStatus.FORBIDDEN, response.statusCode)
+    }
+
+    @Test
+    fun `descargarHoja32 - EGRESADO recibe 403`() {
+        val response = controller.descargarHoja32("some-id", null, null, principal(Rol.EGRESADO))
+        assertEquals(HttpStatus.FORBIDDEN, response.statusCode)
+    }
 }
+

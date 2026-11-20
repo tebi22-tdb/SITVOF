@@ -28,6 +28,15 @@ export interface ConfigServiciosEscolaresResponse {
   jefeCargo: string;
 }
 
+export interface CodigosAnexos {
+  codigoAnexo91: string;
+  revisionAnexo91: string;
+  codigoAnexo92: string;
+  revisionAnexo92: string;
+  codigoAnexo93: string;
+  revisionAnexo93: string;
+}
+
 export interface ImagenAnexoSlot {
   clave: string;
   etiqueta: string;
@@ -39,10 +48,16 @@ export interface InsigniaAnexo {
   dataUri: string;
 }
 
+export interface AvisoCorreoModulo {
+  modulo: string;
+  segmento?: string | null;
+}
+
 export interface EstadoCorreoResponse {
   ok: boolean;
-  ultimo_error: string | null;
-  momento: string | null;
+  ultimo_error?: string | null;
+  momento?: string | null;
+  avisos?: AvisoCorreoModulo[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -72,6 +87,14 @@ export class ConfigInstitucionalService {
 
   putDepartamento(slug: string, data: Omit<ConfigDepartamentoResponse, 'slug'>): Observable<ConfigDepartamentoResponse> {
     return this.http.put<ConfigDepartamentoResponse>(`${API}/departamento/${slug}`, data);
+  }
+
+  getCodigosAnexos(): Observable<CodigosAnexos> {
+    return this.http.get<CodigosAnexos>(`${API}/codigos-anexos`);
+  }
+
+  putCodigosAnexos(data: CodigosAnexos): Observable<CodigosAnexos> {
+    return this.http.put<CodigosAnexos>(`${API}/codigos-anexos`, data);
   }
 
   getServiciosEscolares(): Observable<ConfigServiciosEscolaresResponse> {
@@ -108,5 +131,13 @@ export class ConfigInstitucionalService {
 
   reordenarInsigniasAnexos(idsEnOrden: string[]): Observable<InsigniaAnexo[]> {
     return this.http.put<InsigniaAnexo[]>(`${API}/insignias-anexos/orden`, { idsEnOrden });
+  }
+
+  vistaTextosAnexo(anexo: string): Observable<string> {
+    return this.http.get(`${API}/textos-anexos/${anexo}`, { responseType: 'text' });
+  }
+
+  guardarTextosAnexo(anexo: string, bloques: Record<string, string>): Observable<{ bloques: Record<string, string> }> {
+    return this.http.put<{ bloques: Record<string, string> }>(`${API}/textos-anexos/${anexo}`, { bloques });
   }
 }

@@ -2,14 +2,14 @@
   <header class="verificar-header">
     <div class="verificar-header-inner">
       <div class="verificar-logo-izq">
-        <img src="assets/images/logo-tecnm.png" alt="TecNM" class="verificar-logo" />
+        <img [src]="logoTecnm" alt="TecNM" class="verificar-logo" />
       </div>
       <div class="verificar-titulo-block">
         <h1 class="verificar-titulo">Verificación de Documentos</h1>
         <h2 class="verificar-subtitulo">Sistema Integral de Titulación del Valle de Oaxaca</h2>
       </div>
       <div class="verificar-logo-der">
-        <img src="assets/images/logo-itvo.png" alt="ITVO" class="verificar-logo" />
+        <img [src]="logoItvo" alt="ITVO" class="verificar-logo" />
       </div>
     </div>
   </header>
@@ -31,11 +31,10 @@
       @if (resultado) {
         @if (resultado.valido) {
           <div class="verificar-resultado verificar-valido">
-            <span class="verificar-icono"><img src="assets/images/logo-itvo.png" alt="ITVO"></span>
+            <span class="verificar-icono"><img [src]="logoItvo" alt="ITVO"></span>
             <h3>Documento Válido</h3>
             <table class="verificar-tabla">
               <tr><th>Alumno</th><td>{{ resultado.nombre }}</td></tr>
-              <tr><th>No. Control</th><td>{{ resultado.numero_control }}</td></tr>
               <tr><th>Título del proyecto</th><td>{{ resultado.titulo_proyecto }}</td></tr>
               <tr><th>Modalidad</th><td>{{ resultado.modalidad }}</td></tr>
               <tr><th>Carrera</th><td>{{ resultado.carrera }}</td></tr>

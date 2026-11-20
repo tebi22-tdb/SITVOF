@@ -6,6 +6,60 @@ import { environment } from '../../environments/environment';
 
 // ── Tipos para gestión CRUD (pantalla coordinador) ────────────────────────────
 
+export const ACCION_CONFIRMAR_AL_AVANZAR = 'Confirmar (hasta que avance el proceso)';
+
+/** Fechas que marcan que quien recibió el paso anterior ya avanzó. */
+export function avancePrevioListo(
+  previo: PasoFlujo | undefined,
+  d: {
+    fecha_recibido_registro_liberacion?: string | null;
+    fecha_registrado_departamento?: string | null;
+    fecha_solicitud_registro_liberacion_depto_academico?: string | null;
+    fecha_asignacion_sinodales?: string | null;
+    fecha_aceptacion_servicios_escolares_anexo_9_2?: string | null;
+    fecha_envio_documentacion_escaneada_egresado?: string | null;
+  } | null | undefined,
+): boolean {
+  if (!previo || !d) return false;
+  const recibe = (previo.recibe || '').toLowerCase();
+  const pestana = (previo.pestanaDepartamento || '').trim().toLowerCase();
+  const tiene = (valor?: string | null) => !!valor && valor.trim().length > 0;
+  if (recibe.includes('departamento')) {
+    if (pestana === 'anteproyecto') return tiene(d.fecha_registrado_departamento);
+    if (pestana === 'liberación de producto' || pestana === 'liberacion de producto') {
+      return tiene(d.fecha_solicitud_registro_liberacion_depto_academico);
+    }
+    if (pestana === 'sinodales') return tiene(d.fecha_asignacion_sinodales);
+    return tiene(d.fecha_recibido_registro_liberacion);
+  }
+  if (recibe.includes('servicios')) return tiene(d.fecha_aceptacion_servicios_escolares_anexo_9_2);
+  if (recibe.includes('egresado')) return tiene(d.fecha_envio_documentacion_escaneada_egresado);
+  return tiene(d.fecha_recibido_registro_liberacion);
+}
+
+export interface PasoFlujo {
+  nombre: string;
+  hace: string;
+  recibe: string;
+  anexo: string;
+  accion?: string;
+  pideArchivo?: boolean;
+  permiteRegreso?: boolean;
+  cierraProceso?: boolean;
+  pestanaDepartamento?: string;
+  llevaPlazo?: boolean;
+  tipoPlazo?: string;
+  meses?: number | null;
+}
+
+export interface PlazoAsignado {
+  inicia: '' | 'anexo_xxxi' | 'carta' | 'paso';
+  pasoInicio: number | null;
+  termina: 'ninguno' | 'paso';
+  pasoFin: number | null;
+  meses: number | null;
+}
+
 export interface CatalogoItem {
   id: string;
   tipo: string;
@@ -13,8 +67,18 @@ export interface CatalogoItem {
   activo: boolean;
   orden: number;
   mesesVigencia: number | null;
+  mesesProyecto: number | null;
+  mesesTitulacion: number | null;
   esResidencia: boolean;
+  esCursoTitulacion: boolean;
   tipoMentores: string | null;
+  tipoUso?: string | null;
+  origenPlazo?: string | null;
+  origenFlujo?: string | null;
+  esCeneval?: boolean;
+  pasos?: PasoFlujo[];
+  plazos?: PlazoAsignado[];
+  mentoresExtra?: string[];
   slug: string | null;
   carreras: string[];
 }
@@ -24,8 +88,18 @@ export interface CatalogoCreateRequest {
   nombre: string;
   orden?: number;
   mesesVigencia?: number | null;
+  mesesProyecto?: number | null;
+  mesesTitulacion?: number | null;
   esResidencia?: boolean;
+  esCursoTitulacion?: boolean;
   tipoMentores?: string | null;
+  tipoUso?: string | null;
+  origenPlazo?: string | null;
+  origenFlujo?: string | null;
+  esCeneval?: boolean;
+  pasos?: PasoFlujo[];
+  plazos?: PlazoAsignado[];
+  mentoresExtra?: string[];
   slug?: string | null;
   carreras?: string[];
 }
@@ -40,12 +114,23 @@ export interface ModalidadCatalogo {
   esCursoTitulacion?: boolean;
   /** "residencia" | "estandar" | "ninguno" | null (null = derivar de esResidencia) */
   tipoMentores: string | null;
+  tipoUso?: string | null;
+  esCeneval?: boolean;
+  origenFlujo?: string | null;
+  /** Solo viene lleno cuando la modalidad tiene un flujo propio. */
+  pasos?: PasoFlujo[];
+  plazos?: PlazoAsignado[];
 }
 
 export interface DepartamentoCatalogo {
   nombre: string;
   slug: string | null;
   carreras: string[];
+}
+
+export interface OpcionTitulacion {
+  nombre: string;
+  clave: string;
 }
 
 // ── Fallbacks (copia exacta de datos.ts) ─────────────
@@ -64,6 +149,12 @@ const CARRERAS_FALLBACK: string[] = [
 ];
 
 const NIVELES_FALLBACK: string[] = ['Licenciatura', 'Maestría', 'Posgrado'];
+
+const OPCIONES_FALLBACK: OpcionTitulacion[] = [
+  { nombre: 'Titulación', clave: 'titulacion' },
+  { nombre: 'Titulación integral', clave: 'integral' },
+  { nombre: 'Curso de titulación', clave: 'curso' },
+];
 
 const MODALIDADES_FALLBACK: ModalidadCatalogo[] = [
   { nombre: 'Tesis',                     mesesVigencia: 12,   esResidencia: false, esCursoTitulacion: false, tipoMentores: 'estandar'   },
@@ -137,6 +228,13 @@ export class CatalogoService {
     shareReplay({ bufferSize: 1, refCount: false }),
   );
 
+  readonly opciones$: Observable<OpcionTitulacion[]> = this._refresh$.pipe(
+    switchMap(() => this.http.get<OpcionTitulacion[]>(`${API}/opciones`).pipe(
+      catchError(() => of(OPCIONES_FALLBACK)),
+    )),
+    shareReplay({ bufferSize: 1, refCount: false }),
+  );
+
   // Cachés sincrónicas para lookups en lógica de negocio sin necesidad de async.
   private modalidadesCached: ModalidadCatalogo[] = MODALIDADES_FALLBACK;
   private departamentosCached: DepartamentoCatalogo[] = DEPARTAMENTOS_FALLBACK;
@@ -184,12 +282,26 @@ export class CatalogoService {
     return m?.esResidencia ?? nombreModalidad.trim().toLowerCase().includes('residencia');
   }
 
+  /**
+   * Pasos armados en el catálogo. Solo si el flujo es propio.
+   * Tesis, residencia y CENEVAL no entran aquí.
+   */
+  flujoPropio(nombreModalidad: string): PasoFlujo[] | null {
+    const nombre = nombreModalidad.trim().toLowerCase();
+    if (!nombre) return null;
+    const m = this.modalidadesCached.find(x => x.nombre.trim().toLowerCase() === nombre);
+    if (!m || m.origenFlujo !== 'personalizado' || !m.pasos?.length) return null;
+    return m.pasos;
+  }
+
   /** Modalidad CENEVAL: recepción solicitud/testimonio y flujo compartido desde 9.1 (como residencia). */
   esCeneval(nombreModalidad: string): boolean {
     const m = this.modalidadesCached.find(
       x => x.nombre.trim().toLowerCase() === nombreModalidad.trim().toLowerCase()
     );
-    if (m !== undefined) return m.nombre.trim().toLowerCase().includes('ceneval');
+    if (m !== undefined) {
+      return !!m.esCeneval || m.origenFlujo === 'ceneval' || m.nombre.trim().toLowerCase().includes('ceneval');
+    }
     return nombreModalidad.trim().toLowerCase().includes('ceneval');
   }
 
@@ -241,6 +353,10 @@ export class CatalogoService {
     return this.http.delete(`${API}/${id}`);
   }
 
+  eliminarItem(id: string): Observable<unknown> {
+    return this.http.delete(`${API}/${id}/eliminar`);
+  }
+
   activarItem(id: string): Observable<unknown> {
     return this.http.post(`${API}/${id}/activar`, {});
   }
@@ -249,28 +365,42 @@ export class CatalogoService {
    * Devuelve las carreras asignadas a un departamento por su slug (sincrónico, usa caché).
    */
   carrerasPorSlugSync(slug: string): string[] {
-    return this.departamentosCached.find(d => d.slug === slug)?.carreras ?? [];
+    const clave = this.normalizarSlug(slug);
+    if (!clave) return [];
+    return this.departamentosCached.find(d => this.normalizarSlug(d.slug) === clave)?.carreras ?? [];
   }
 
   /**
    * Devuelve el nombre del departamento por su slug (sincrónico, usa caché).
+   * Tolera mayúsculas, acentos y guion frente a guion bajo.
    */
   nombreDepartamentoPorSlug(slug: string): string | null {
-    return this.departamentosCached.find(d => d.slug === slug)?.nombre ?? null;
+    const clave = this.normalizarSlug(slug);
+    if (!clave) return null;
+    return this.departamentosCached.find(d => this.normalizarSlug(d.slug) === clave)?.nombre ?? null;
   }
 
   /**
-   * Infiere el nombre del departamento buscando cuál contiene todas las carreras dadas.
-   * Útil cuando el usuario tiene carreras_asignadas pero no slug almacenado.
+   * Infiere el nombre del departamento que contiene todas las carreras dadas.
+   * Si varios coinciden, elige el más específico (el de menos carreras).
    */
   inferirNombreDepartamentoPorCarreras(carreras: string[]): string | null {
     const normalizadas = carreras.map(c => this.normalizarCarreraKey(c)).filter(Boolean);
     if (!normalizadas.length) return null;
-    for (const dep of this.departamentosCached) {
+    const candidatos = this.departamentosCached.filter(dep => {
       const set = new Set(dep.carreras.map(c => this.normalizarCarreraKey(c)));
-      if (normalizadas.every(c => set.has(c))) return dep.nombre;
-    }
-    return null;
+      return normalizadas.every(c => set.has(c));
+    });
+    if (!candidatos.length) return null;
+    const elegido = candidatos.reduce((mejor, dep) =>
+      dep.carreras.length < mejor.carreras.length ? dep : mejor,
+    );
+    return elegido.nombre;
+  }
+
+  /** Igual que NormalizacionTexto.normalizarSlug en el backend. */
+  normalizarSlug(slug: string | null | undefined): string {
+    return this.normalizarCarreraKey((slug ?? '').replace(/[_-]+/g, ' ')).replace(/ /g, '_');
   }
 
   /** Clave normalizada para comparar carreras (sin acentos, espacios colapsados). */

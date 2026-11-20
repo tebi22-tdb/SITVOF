@@ -163,6 +163,75 @@
   border-color: #fca5a5;
 }
 
+/* Proceso vencido: pasos hechos y el paso detenido se ven en gris, no en verde ni azul. */
+.seguimiento-layout--gris .seguimiento-estado-actual {
+  color: #4b5563;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+}
+
+.seguimiento-layout--gris .seguimiento-progreso-lateral-pct {
+  color: #4b5563;
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+
+.seguimiento-layout--gris .seguimiento-progreso-lateral-label {
+  color: #6b7280;
+}
+
+.seguimiento-layout--gris .timeline-fila.ultimo-completado .timeline-content,
+.seguimiento-layout--gris .timeline-item.ultimo-completado .timeline-content,
+.seguimiento-layout--gris .timeline-fila.activo .timeline-content,
+.seguimiento-layout--gris .timeline-item.activo .timeline-content {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  box-shadow: none;
+}
+
+.seguimiento-layout--gris .timeline-fila.completado .timeline-fila-punto,
+.seguimiento-layout--gris .timeline-fila.ultimo-completado .timeline-fila-punto,
+.seguimiento-layout--gris .timeline-fila.activo .timeline-fila-punto,
+.seguimiento-layout--gris .timeline-item.completado .timeline-marker,
+.seguimiento-layout--gris .timeline-item.ultimo-completado .timeline-marker,
+.seguimiento-layout--gris .timeline-item.activo .timeline-marker {
+  background: #9ca3af;
+  border-color: #9ca3af;
+  box-shadow: none;
+}
+
+.seguimiento-layout--gris .timeline-fila-linea.completado,
+.seguimiento-layout--gris .timeline-item.ultimo-completado:not(:last-child)::before {
+  background: #d1d5db;
+}
+
+.seguimiento-layout--gris .timeline-etiqueta--completado,
+.seguimiento-layout--gris .timeline-etiqueta--actual {
+  color: #4b5563;
+  background: #e5e7eb;
+}
+
+.seguimiento-layout--gris .timeline-fila.ultimo-completado .timeline-fecha,
+.seguimiento-layout--gris .timeline-item.ultimo-completado .timeline-fecha,
+.seguimiento-layout--gris .timeline-fila.activo .timeline-fecha,
+.seguimiento-layout--gris .timeline-item.activo .timeline-fecha,
+.seguimiento-layout--gris .timeline-fila.ultimo-completado .timeline-texto,
+.seguimiento-layout--gris .timeline-fila.ultimo-completado .timeline-texto strong,
+.seguimiento-layout--gris .timeline-item.ultimo-completado .timeline-texto,
+.seguimiento-layout--gris .timeline-item.ultimo-completado .timeline-texto strong,
+.seguimiento-layout--gris .timeline-fila.activo .timeline-texto,
+.seguimiento-layout--gris .timeline-fila.activo .timeline-texto strong,
+.seguimiento-layout--gris .timeline-item.activo .timeline-texto,
+.seguimiento-layout--gris .timeline-item.activo .timeline-texto strong {
+  color: #6b7280;
+}
+
+.seguimiento-layout--gris .timeline-fila-punto.activo::after,
+.seguimiento-layout--gris .timeline-marker--activo::after {
+  animation: none;
+  background: #fff;
+}
+
 /* Pestañas de procesos */
 .seg-tabs-wrap {
   display: flex;
@@ -544,10 +613,12 @@
 
 .perfil-row dd {
   margin: 0;
+  min-width: 0;
   font-size: 0.85rem;
   color: #334155;
   font-weight: 600;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .seguimiento-avance-line {

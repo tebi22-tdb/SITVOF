@@ -40,8 +40,6 @@ class ResidenciaPlazoNotificacionService(
     private val habilitado: Boolean
         get() = env.getProperty("sit.residencia.notificaciones.enabled", "true")!!.trim().equals("true", ignoreCase = true)
 
-    private val mesesPlazoResidencia: Long = 6L
-
     fun procesarTodosLosExpedientesResidenciaActivos() {
         if (!habilitado) return
         val todos = egresadoRepository.findAll()
@@ -76,8 +74,11 @@ class ResidenciaPlazoNotificacionService(
         }
 
         val hoy = LocalDate.now(zonaPlazo)
-        val inicioLocal = inicio.atZone(zonaPlazo).toLocalDate()
-        val limite = inicioLocal.plusMonths(mesesPlazoResidencia)
+        val inicioLocal = p0.documentos.anexo_xxxi.fecha_registro
+            ?.atZone(java.time.ZoneOffset.UTC)?.toLocalDate()
+            ?: inicio.atZone(zonaPlazo).toLocalDate()
+        val mesesPlazo = plazosModalidad(p0.datos_proyecto.modalidad).mesesResidencia
+        val limite = inicioLocal.plusMonths(mesesPlazo)
         val diasRestantes = ChronoUnit.DAYS.between(hoy, limite).toInt()
 
         val nombre = listOf(
@@ -94,7 +95,7 @@ class ResidenciaPlazoNotificacionService(
         val paso = pasoActualResidencia(p0, incluirCierre = false)
         val limiteTexto = formatearFecha(limite)
 
-        if (p0.notifPlazoRes2m == null && !hoy.isBefore(inicioLocal.plusMonths(2))) {
+        if (p0.notifPlazoRes2m == null && 2 < mesesPlazo && !hoy.isBefore(inicioLocal.plusMonths(2))) {
             val enviado = emailService.enviarAvisoPlazoResidencia(
                 correoDestino = correo,
                 nombreEgresado = nombre,
@@ -104,6 +105,7 @@ class ResidenciaPlazoNotificacionService(
                 fechaLimiteTexto = limiteTexto,
                 pasoNumero = paso.numero,
                 pasoTitulo = paso.titulo,
+                segmento = segmentoDe(egresado),
             )
             if (enviado) guardarMarca(egresado, p0) { it.copy(notifPlazoRes2m = Instant.now()) }
         }
@@ -111,7 +113,7 @@ class ResidenciaPlazoNotificacionService(
         val p1 = egresadoRepository.findById(egresado.id!!).orElse(egresado).procesoActivoOrNull() ?: return
         if (procesoCerrado(p1)) return
 
-        if (p1.notifPlazoRes4m == null && !hoy.isBefore(inicioLocal.plusMonths(4))) {
+        if (p1.notifPlazoRes4m == null && 4 < mesesPlazo && !hoy.isBefore(inicioLocal.plusMonths(4))) {
             val dias = ChronoUnit.DAYS.between(hoy, limite).toInt()
             val enviado = emailService.enviarAvisoPlazoResidencia(
                 correoDestino = correo,
@@ -122,6 +124,7 @@ class ResidenciaPlazoNotificacionService(
                 fechaLimiteTexto = limiteTexto,
                 pasoNumero = pasoActualResidencia(p1, incluirCierre = false).numero,
                 pasoTitulo = pasoActualResidencia(p1, incluirCierre = false).titulo,
+                segmento = segmentoDe(egresado),
             )
             if (enviado) guardarMarca(egresado, p1) { it.copy(notifPlazoRes4m = Instant.now()) }
         }
@@ -141,6 +144,7 @@ class ResidenciaPlazoNotificacionService(
                 fechaLimiteTexto = limiteTexto,
                 pasoNumero = pasoActualResidencia(p2, incluirCierre = false).numero,
                 pasoTitulo = pasoActualResidencia(p2, incluirCierre = false).titulo,
+                segmento = segmentoDe(egresado),
             )
             if (enviado) guardarMarca(egresado, p2) { it.copy(notifPlazoRes3d = Instant.now()) }
         }
@@ -168,9 +172,13 @@ class ResidenciaPlazoNotificacionService(
             fechaLimiteTexto = formatearFecha(limite),
             pasoNumero = paso.numero,
             pasoTitulo = paso.titulo,
+            segmento = segmentoDe(egresado),
         )
         if (enviado) guardarMarca(egresado, p) { it.copy(notifPlazoResFinal = Instant.now()) }
     }
+
+    private fun segmentoDe(egresado: Egresado): String? =
+        catalogoRepository.segmentoDeCarrera(egresado.datos_personales.carrera)
 
     private fun guardarMarca(egresado: Egresado, p: ProcesoTitulacion, patch: (ProcesoTitulacion) -> ProcesoTitulacion) {
         val actualizado = egresado.actualizarProcesoActivo(patch(p).copy(fecha_actualizacion = Instant.now()))
@@ -185,6 +193,12 @@ class ResidenciaPlazoNotificacionService(
 
     private fun fechaInicioPlazo(p: ProcesoTitulacion): Instant? =
         p.documentos.anexo_xxxi.fecha_registro ?: p.fechaCreacion
+
+    private fun plazosModalidad(nombre: String): PlazosModalidad {
+        val cat = catalogoRepository.findByTipoAndActivoTrue("modalidad")
+            .find { it.nombre.trim().equals(nombre.trim(), ignoreCase = true) }
+        return plazosDeModalidad(cat)
+    }
 
     private fun esResidenciaProfesional(e: Egresado): Boolean {
         val nombre = e.procesoActivoOrNull()?.datos_proyecto?.modalidad?.trim() ?: return false

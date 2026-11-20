@@ -10,4 +10,9 @@ data class SinodalesTribunal(
     val vocal: String = "",
     val vocal_suplente: String = "",
     val numero_oficio: String = "",
+    /** Correo del catálogo en el momento de asignar. El aviso no vuelve a depender de que el nombre coincida. */
+    val correo_presidente: String = "",
+    val correo_secretario: String = "",
+    val correo_vocal: String = "",
+    val correo_vocal_suplente: String = "",
 )

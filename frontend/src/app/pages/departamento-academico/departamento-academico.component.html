@@ -24,15 +24,24 @@
         [class.departamento-tab--pendientes]="mostrarTabsRevisionCoordinacion"
         [class.departamento-tab--residencia]="!mostrarTabsRevisionCoordinacion"
         [class.activo]="tabActivo === 'pendientes'"
+        [class.departamento-tab--novedad]="seccionConNovedad('pendientes')"
         (click)="cambiarTab('pendientes')"
       >
         {{ mostrarTabsRevisionCoordinacion ? 'Pendientes' : 'Residencia' }}
         <ng-container *ngIf="mostrarTabsRevisionCoordinacion">
-          <span *ngIf="counts.pendientes > 0" class="departamento-tab-badge">{{ counts.pendientes }}</span>
+          <span
+            *ngIf="counts.pendientes > 0"
+            class="departamento-tab-badge"
+            [class.departamento-tab-badge--novedad]="seccionConNovedad('pendientes')"
+          >{{ counts.pendientes }}</span>
         </ng-container>
         <ng-container *ngIf="!mostrarTabsRevisionCoordinacion">
-          <span *ngIf="counts.pendientes > 0" class="departamento-tab-badge">{{ counts.pendientes }}</span>
-          <span *ngIf="counts.pendientes === 0 && counts.aprobados > 0" class="departamento-tab-badge departamento-tab-badge--total">{{ counts.aprobados }}</span>
+          <span
+            *ngIf="counts.pendientes > 0"
+            class="departamento-tab-badge"
+            [class.departamento-tab-badge--novedad]="seccionConNovedad('pendientes')"
+          >{{ counts.pendientes }}</span>
+          <span *ngIf="counts.pendientes === 0 && (counts.total_residencia ?? 0) > 0" class="departamento-tab-badge departamento-tab-badge--total">{{ counts.total_residencia }}</span>
         </ng-container>
       </button>
       <button
@@ -40,9 +49,15 @@
         type="button"
         class="departamento-tab departamento-tab--observaciones"
         [class.activo]="tabActivo === 'en_correccion'"
+        [class.departamento-tab--novedad]="seccionConNovedad('en_correccion')"
         (click)="cambiarTab('en_correccion')"
       >
         En corrección
+        <span
+          *ngIf="counts.en_correccion > 0"
+          class="departamento-tab-badge"
+          [class.departamento-tab-badge--novedad]="seccionConNovedad('en_correccion')"
+        >{{ counts.en_correccion }}</span>
       </button>
       <button
         *ngIf="mostrarTabsRevisionCoordinacion"
@@ -58,10 +73,15 @@
         type="button"
         class="departamento-tab departamento-tab--anteproyecto"
         [class.activo]="tabActivo === 'anteproyecto'"
+        [class.departamento-tab--novedad]="seccionConNovedad('anteproyecto')"
         (click)="cambiarTab('anteproyecto')"
       >
         Anteproyecto
-        <span *ngIf="(counts.anteproyecto ?? 0) > 0" class="departamento-tab-badge">{{ counts.anteproyecto }}</span>
+        <span
+          *ngIf="(counts.anteproyecto ?? 0) > 0"
+          class="departamento-tab-badge"
+          [class.departamento-tab-badge--novedad]="seccionConNovedad('anteproyecto')"
+        >{{ counts.anteproyecto }}</span>
         <span *ngIf="(counts.anteproyecto ?? 0) === 0 && (counts.total_anteproyecto ?? 0) > 0" class="departamento-tab-badge departamento-tab-badge--total">{{ counts.total_anteproyecto }}</span>
       </button>
       <button
@@ -69,10 +89,15 @@
         type="button"
         class="departamento-tab departamento-tab--liberacion"
         [class.activo]="tabActivo === 'liberacion_producto'"
+        [class.departamento-tab--novedad]="seccionConNovedad('liberacion_producto')"
         (click)="cambiarTab('liberacion_producto')"
       >
         Liberación de producto
-        <span *ngIf="(counts.liberacion_producto ?? 0) > 0" class="departamento-tab-badge">{{ counts.liberacion_producto }}</span>
+        <span
+          *ngIf="(counts.liberacion_producto ?? 0) > 0"
+          class="departamento-tab-badge"
+          [class.departamento-tab-badge--novedad]="seccionConNovedad('liberacion_producto')"
+        >{{ counts.liberacion_producto }}</span>
         <span *ngIf="(counts.liberacion_producto ?? 0) === 0 && (counts.total_liberacion_producto ?? 0) > 0" class="departamento-tab-badge departamento-tab-badge--total">{{ counts.total_liberacion_producto }}</span>
       </button>
       <button
@@ -80,11 +105,26 @@
         type="button"
         class="departamento-tab departamento-tab--sinodales"
         [class.activo]="tabActivo === 'sinodales'"
+        [class.departamento-tab--novedad]="seccionConNovedad('sinodales')"
         (click)="cambiarTab('sinodales')"
       >
         Sinodales
-        <span *ngIf="(counts.sinodales_por_asignar ?? 0) > 0" class="departamento-tab-badge">{{ counts.sinodales_por_asignar }}</span>
+        <span
+          *ngIf="(counts.sinodales_por_asignar ?? 0) > 0"
+          class="departamento-tab-badge"
+          [class.departamento-tab-badge--novedad]="seccionConNovedad('sinodales')"
+        >{{ counts.sinodales_por_asignar }}</span>
         <span *ngIf="(counts.sinodales_por_asignar ?? 0) === 0 && (counts.total_sinodales ?? 0) > 0" class="departamento-tab-badge departamento-tab-badge--total">{{ counts.total_sinodales }}</span>
+      </button>
+      <button
+        *ngFor="let pestana of pestanasPropias"
+        type="button"
+        class="departamento-tab"
+        [class.activo]="tabActivo === 'pestana:' + pestana.nombre"
+        (click)="cambiarTab('pestana:' + pestana.nombre)"
+      >
+        {{ pestana.nombre }}
+        <span *ngIf="pestana.total > 0" class="departamento-tab-badge">{{ pestana.total }}</span>
       </button>
       <button
         type="button"
@@ -189,7 +229,7 @@
                       type="button"
                       class="departamento-btn-liberar departamento-btn-liberar--panel"
                       (click)="descargarAnexo33(seleccionado.id)"
-                      [disabled]="descargando33Id === seleccionado.id || !!seleccionado.fecha_generacion_hoja_33"
+                      [disabled]="descargando33Id === seleccionado.id"
                     >{{ descargando33Id === seleccionado.id ? 'Descargando…' : seleccionado.fecha_generacion_hoja_33 ? 'XXXIII generado' : 'Anexo XXXIII' }}</button>
                     <button
                       *ngIf="!seleccionado.fecha_generacion_anexos_xxxii_xxxiii"
@@ -208,7 +248,7 @@
                     >{{ revirtiendoId === seleccionado.id ? 'Revirtiendo…' : 'Revertir' }}</button>
                   </ng-container>
                   <button
-                    *ngIf="tabActivo !== 'todos' && tabActivo !== 'anteproyecto' && tabActivo !== 'liberacion_producto' && !esResidencia(seleccionado.modalidad) && seleccionado.estado_revision !== 'aprobado'"
+                    *ngIf="muestraRevisionExpediente(seleccionado)"
                     type="button"
                     class="departamento-btn-revision-panel"
                     (click)="irARevision(seleccionado)"
@@ -262,7 +302,7 @@
                     type="button"
                     class="departamento-btn-liberar departamento-btn-liberar--panel"
                     (click)="descargarAnexo33(seleccionado.id)"
-                    [disabled]="descargando33Id === seleccionado.id || !!seleccionado.fecha_generacion_hoja_33"
+                    [disabled]="descargando33Id === seleccionado.id"
                   >
                     {{ descargando33Id === seleccionado.id ? 'Descargando…' : seleccionado.fecha_generacion_hoja_33 ? 'XXXIII generado' : 'Generar Anexo XXXIII' }}
                   </button>
@@ -352,6 +392,7 @@
           class="departamento-fila departamento-fila--clic"
           [class.departamento-fila--stripe]="i % 2 === 1"
           [class.departamento-fila--activa]="seleccionado?.id === item.id"
+          [class.departamento-fila--nuevo]="esItemNuevo(item.id)"
           (click)="seleccionarFila(item)"
         >
           <td class="departamento-td departamento-td--dot"><span class="departamento-item-dot" aria-hidden="true"></span></td>
@@ -408,6 +449,7 @@
           class="departamento-fila departamento-fila--clic"
           [class.departamento-fila--stripe]="i % 2 === 1"
           [class.departamento-fila--activa]="seleccionado?.id === item.id"
+          [class.departamento-fila--nuevo]="esItemNuevo(item.id)"
           (click)="seleccionarFila(item)"
         >
           <td class="departamento-td departamento-td--dot"><span class="departamento-item-dot" aria-hidden="true"></span></td>
@@ -423,7 +465,7 @@
               type="button"
               class="departamento-btn-liberar"
               (click)="descargarAnexo33(item.id, $event)"
-              [disabled]="descargando33Id === item.id || !!item.fecha_generacion_hoja_33"
+              [disabled]="descargando33Id === item.id"
             >{{ descargando33Id === item.id ? '…' : item.fecha_generacion_hoja_33 ? 'XXXIII' : 'Anexo XXXIII' }}</button>
             <span *ngIf="item.fecha_liberacion_producto" class="departamento-badge departamento-badge--aprobado">{{ fechaLiberacionProducto(item) }}</span>
             <button
@@ -452,7 +494,12 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let item of listaVisible; let i = index" class="departamento-fila" [class.departamento-fila--stripe]="i % 2 === 1">
+        <tr
+          *ngFor="let item of listaVisible; let i = index"
+          class="departamento-fila"
+          [class.departamento-fila--stripe]="i % 2 === 1"
+          [class.departamento-fila--nuevo]="esItemNuevo(item.id)"
+        >
           <td class="departamento-td departamento-td--dot"><span class="departamento-item-dot" aria-hidden="true"></span></td>
           <td class="departamento-td departamento-td--nombre">{{ nombreDisplay(item) }}</td>
           <td class="departamento-td departamento-td--control">{{ item.numero_control }}</td>
@@ -467,8 +514,13 @@
             </span>
           </td>
           <td class="departamento-td departamento-td--accion departamento-td--acciones-sinodales">
-            <button type="button" class="departamento-btn-sinodales" (click)="abrirModalSinodales(item, $event)">
-              {{ item.sinodales_asignados ? 'Editar' : 'Asignar' }}
+            <button
+              type="button"
+              class="departamento-btn-sinodales"
+              [class.departamento-btn-sinodales--concluido]="sinodalesConcluidos(item)"
+              (click)="abrirModalSinodales(item, $event)"
+            >
+              {{ !item.sinodales_asignados ? 'Asignar' : sinodalesConcluidos(item) ? 'Visualizar' : 'Editar' }}
             </button>
             <button
               *ngIf="item.sinodales_asignados"
@@ -510,6 +562,7 @@
           [class.departamento-fila--clic]="usarSplitConDocumento"
           [class.departamento-fila--stripe]="i % 2 === 1"
           [class.departamento-fila--activa]="usarSplitConDocumento && seleccionado?.id === item.id"
+          [class.departamento-fila--nuevo]="esItemNuevo(item.id)"
           (click)="usarSplitConDocumento && seleccionarFila(item)"
         >
           <td class="departamento-td departamento-td--dot"><span class="departamento-item-dot" aria-hidden="true"></span></td>
@@ -540,7 +593,7 @@
                 type="button"
                 class="departamento-btn-liberar"
                 (click)="descargarAnexo33(item.id, $event)"
-                [disabled]="descargando33Id === item.id || !!item.fecha_generacion_hoja_33"
+                [disabled]="descargando33Id === item.id"
               >{{ descargando33Id === item.id ? '…' : item.fecha_generacion_hoja_33 ? 'XXXIII' : 'XXXIII' }}</button>
               <button
                 *ngIf="!item.fecha_generacion_anexos_xxxii_xxxiii"
@@ -566,7 +619,7 @@
               >{{ revirtiendoId === item.id ? '…' : 'Revertir' }}</button>
             </ng-container>
             <button
-              *ngIf="tabActivo !== 'todos' && !esResidencia(item.modalidad) && item.estado_revision !== 'aprobado'"
+              *ngIf="muestraRevisionExpediente(item)"
               type="button"
               class="departamento-btn-liberar"
               (click)="irARevision(item); $event.stopPropagation()"
@@ -600,7 +653,9 @@
     aria-labelledby="sinodales-modal-titulo"
     (click)="$event.stopPropagation()"
   >
-    <h2 id="sinodales-modal-titulo" class="departamento-modal-titulo">Asignar sinodales</h2>
+    <h2 id="sinodales-modal-titulo" class="departamento-modal-titulo">
+      {{ sinodalesSoloLectura ? 'Sinodales' : 'Asignar sinodales' }}
+    </h2>
     <p class="departamento-modal-sub">
       {{ nombreDisplay(sinodalesModalItem) }} — {{ sinodalesModalItem.numero_control }}
     </p>
@@ -619,12 +674,13 @@
           [(ngModel)]="sinodalesNumeroOficio"
           placeholder="Ej. DEA/583/2026"
           autocomplete="off"
-          maxlength="40"
+          [readonly]="sinodalesSoloLectura"
+          [disabled]="sinodalesSoloLectura"
         />
       </div>
       <label class="departamento-modal-label">
         Presidente
-        <select class="departamento-modal-input" [(ngModel)]="sinodalesPresidente">
+        <select class="departamento-modal-input" [(ngModel)]="sinodalesPresidente" [disabled]="sinodalesSoloLectura">
           <option value="">— Seleccionar —</option>
           <option *ngIf="sinodalesPresidente && !docenteEnLista(sinodalesPresidente)" [value]="sinodalesPresidente">{{ sinodalesPresidente }}</option>
           <option *ngFor="let d of docentesLista" [value]="d.nombreCompleto">{{ d.nombreCompleto }}</option>
@@ -632,7 +688,7 @@
       </label>
       <label class="departamento-modal-label">
         Secretario
-        <select class="departamento-modal-input" [(ngModel)]="sinodalesSecretario">
+        <select class="departamento-modal-input" [(ngModel)]="sinodalesSecretario" [disabled]="sinodalesSoloLectura">
           <option value="">— Seleccionar —</option>
           <option *ngIf="sinodalesSecretario && !docenteEnLista(sinodalesSecretario)" [value]="sinodalesSecretario">{{ sinodalesSecretario }}</option>
           <option *ngFor="let d of docentesLista" [value]="d.nombreCompleto">{{ d.nombreCompleto }}</option>
@@ -645,13 +701,15 @@
             class="departamento-modal-input departamento-combobox-input"
             type="text"
             [(ngModel)]="sinodalesVocal"
-            (focus)="vocalDropdownAbierto = true"
-            (input)="vocalDropdownAbierto = true"
+            (focus)="vocalDropdownAbierto = !sinodalesSoloLectura"
+            (input)="vocalDropdownAbierto = !sinodalesSoloLectura"
             (blur)="cerrarVocalDropdown()"
+            [readonly]="sinodalesSoloLectura"
             placeholder="Selecciona o escribe el nombre"
             autocomplete="off"
           />
           <button
+            *ngIf="!sinodalesSoloLectura"
             type="button"
             class="departamento-combobox-toggle"
             tabindex="-1"
@@ -677,13 +735,15 @@
             class="departamento-modal-input departamento-combobox-input"
             type="text"
             [(ngModel)]="sinodalesVocalSuplente"
-            (focus)="vocalSuplenteDropdownAbierto = true"
-            (input)="vocalSuplenteDropdownAbierto = true"
+            (focus)="vocalSuplenteDropdownAbierto = !sinodalesSoloLectura"
+            (input)="vocalSuplenteDropdownAbierto = !sinodalesSoloLectura"
             (blur)="cerrarVocalSuplenteDropdown()"
+            [readonly]="sinodalesSoloLectura"
             placeholder="Selecciona o escribe el nombre"
             autocomplete="off"
           />
           <button
+            *ngIf="!sinodalesSoloLectura"
             type="button"
             class="departamento-combobox-toggle"
             tabindex="-1"
@@ -714,15 +774,127 @@
         {{ descargandoOficioSinodalesId === sinodalesModalItem?.id ? 'Generando…' : 'Descargar oficio' }}
       </button>
       <button type="button" class="departamento-modal-btn departamento-modal-btn--sec" (click)="cerrarModalSinodales()" [disabled]="sinodalesGuardando">
-        Cancelar
+        {{ sinodalesSoloLectura ? 'Cerrar' : 'Cancelar' }}
       </button>
       <button
+        *ngIf="!sinodalesSoloLectura"
         type="button"
         class="departamento-modal-btn departamento-modal-btn--pri"
         (click)="guardarSinodales()"
         [disabled]="sinodalesCargando || sinodalesGuardando"
       >
         {{ sinodalesGuardando ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </div>
+  </div>
+
+  <div
+    *ngIf="xxxiiModalItem"
+    class="departamento-modal-scrim"
+    (click)="cerrarModalXxxii()"
+    role="presentation"
+  ></div>
+  <div
+    *ngIf="xxxiiModalItem"
+    class="departamento-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="xxxii-modal-titulo"
+    (click)="$event.stopPropagation()"
+  >
+    <h2 id="xxxii-modal-titulo" class="departamento-modal-titulo">Anexo XXXII</h2>
+    <p class="departamento-modal-sub">
+      {{ nombreDisplay(xxxiiModalItem) }} — {{ xxxiiModalItem.numero_control }}
+    </p>
+    <div *ngIf="xxxiiError" class="departamento-modal-error">{{ xxxiiError }}</div>
+    <div class="departamento-modal-form">
+      <p class="departamento-modal-sub">{{ nombresAsesoresXxxii(xxxiiModalItem) }}</p>
+      <label class="departamento-modal-label">
+        Observaciones
+        <textarea
+          class="departamento-modal-input departamento-modal-observaciones"
+          rows="3"
+          maxlength="280"
+          [(ngModel)]="xxxiiObservaciones"
+          placeholder="Opcional. Sale en el recuadro del anexo."
+        ></textarea>
+      </label>
+    </div>
+    <div class="departamento-modal-acciones">
+      <button type="button" class="departamento-modal-btn departamento-modal-btn--sec" (click)="cerrarModalXxxii()" [disabled]="!!descargando32Id">
+        Cancelar
+      </button>
+      <button
+        type="button"
+        class="departamento-modal-btn departamento-modal-btn--pri"
+        (click)="confirmarDescargaXxxii()"
+        [disabled]="!!descargando32Id"
+      >
+        {{ descargando32Id ? 'Descargando…' : 'Descargar Anexo XXXII' }}
+      </button>
+    </div>
+  </div>
+
+  <div
+    *ngIf="xxxiiiModalItem"
+    class="departamento-modal-scrim"
+    (click)="cerrarModalXxxiii()"
+    role="presentation"
+  ></div>
+  <div
+    *ngIf="xxxiiiModalItem"
+    class="departamento-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="xxxiii-modal-titulo"
+    (click)="$event.stopPropagation()"
+  >
+    <h2 id="xxxiii-modal-titulo" class="departamento-modal-titulo">Anexo XXXIII</h2>
+    <p class="departamento-modal-sub">
+      {{ nombreDisplay(xxxiiiModalItem) }} — {{ xxxiiiModalItem.numero_control }}
+    </p>
+    <div *ngIf="xxxiiiError" class="departamento-modal-error">{{ xxxiiiError }}</div>
+    <div *ngIf="esResidencia(xxxiiiModalItem.modalidad)" class="departamento-modal-form">
+      <p class="departamento-modal-sub">{{ xxxiiiModalItem.asesor_interno?.trim() || 'No hay asesor interno guardado en el expediente.' }}</p>
+    </div>
+    <div *ngIf="xxxiiiCargando && !esResidencia(xxxiiiModalItem.modalidad)" class="departamento-modal-cargando">Cargando docentes…</div>
+    <div *ngIf="!xxxiiiCargando && !esResidencia(xxxiiiModalItem.modalidad)" class="departamento-modal-form">
+      <label class="departamento-modal-label">
+        {{ etiquetaMentorXxxiii(xxxiiiModalItem.modalidad) }}
+        <select class="departamento-modal-input" [(ngModel)]="xxxiiiAsesor">
+          <option value="">Selecciona al {{ etiquetaMentorXxxiii(xxxiiiModalItem.modalidad).toLowerCase() }}</option>
+          <option *ngIf="xxxiiiAsesor && !docenteEnLista(xxxiiiAsesor)" [value]="xxxiiiAsesor">{{ xxxiiiAsesor }}</option>
+          <option *ngFor="let d of docentesLista" [value]="d.nombreCompleto">{{ d.nombreCompleto }}</option>
+        </select>
+      </label>
+      <label class="departamento-modal-label" *ngIf="!esResidencia(xxxiiiModalItem.modalidad)">
+        Agregar revisor 1
+        <select class="departamento-modal-input" [(ngModel)]="xxxiiiRevisor1">
+          <option value="">Selecciona al revisor 1</option>
+          <option *ngIf="xxxiiiRevisor1 && !docenteEnLista(xxxiiiRevisor1)" [value]="xxxiiiRevisor1">{{ xxxiiiRevisor1 }}</option>
+          <option *ngFor="let d of docentesLista" [value]="d.nombreCompleto">{{ d.nombreCompleto }}</option>
+        </select>
+      </label>
+      <label class="departamento-modal-label" *ngIf="!esResidencia(xxxiiiModalItem.modalidad)">
+        Agregar revisor 2
+        <select class="departamento-modal-input" [(ngModel)]="xxxiiiRevisor2">
+          <option value="">Selecciona al revisor 2</option>
+          <option *ngIf="xxxiiiRevisor2 && !docenteEnLista(xxxiiiRevisor2)" [value]="xxxiiiRevisor2">{{ xxxiiiRevisor2 }}</option>
+          <option *ngFor="let d of docentesLista" [value]="d.nombreCompleto">{{ d.nombreCompleto }}</option>
+        </select>
+      </label>
+    </div>
+    <div class="departamento-modal-acciones">
+      <button type="button" class="departamento-modal-btn departamento-modal-btn--sec" (click)="cerrarModalXxxiii()" [disabled]="!!descargando33Id">
+        Cancelar
+      </button>
+      <button
+        type="button"
+        class="departamento-modal-btn departamento-modal-btn--pri"
+        (click)="confirmarDescargaXxxiii()"
+        [disabled]="(!esResidencia(xxxiiiModalItem.modalidad) && xxxiiiCargando) || !!descargando33Id"
+      >
+        {{ descargando33Id ? 'Descargando…' : 'Descargar Anexo XXXIII' }}
       </button>
     </div>
   </div>

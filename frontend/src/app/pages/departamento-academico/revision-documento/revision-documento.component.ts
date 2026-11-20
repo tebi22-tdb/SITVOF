@@ -9,7 +9,9 @@ import { DomSanitizer, SafeResourceUrl, SafeUrl } from '@angular/platform-browse
 import { HeaderComponent } from '../../../layout/header/header.component';
 import { PdfViewerPanelComponent } from '../../../shared/pdf-viewer-panel/pdf-viewer-panel.component';
 import { AuthService } from '../../../services/auth.service';
+import { CatalogoService } from '../../../services/catalogo.service';
 import { mensajeErrorApiConBlob } from '../../../core/http-blob-error';
+import { textoErrorUsuario } from '../../../core/mensaje-conexion';
 import { EgresadoService, RevisionApi } from '../../../services/egresado.service';
 
 @Component({
@@ -76,6 +78,7 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
     private router: Router,
     private egresadoService: EgresadoService,
     private authService: AuthService,
+    private catalogoService: CatalogoService,
     private sanitizer: DomSanitizer,
   ) {}
 
@@ -101,6 +104,9 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
             modalidad: d.datos_proyecto?.modalidad?.trim() || '—',
             estado: d.estado_general?.trim() || 'En revisión',
           };
+          if (this.catalogoService.esResidencia(this.detalle.modalidad)) {
+            this.volver();
+          }
         },
       }),
     );
@@ -216,8 +222,7 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.cargandoRevisiones = false;
-          const msg = err?.error?.error ?? err?.error?.message ?? err?.message ?? err?.statusText;
-          this.mensaje = msg ? `No se pudieron cargar las revisiones: ${msg}` : 'No se pudieron cargar las revisiones.';
+          this.mensaje = textoErrorUsuario(err, 'No se pudieron cargar las revisiones.');
         },
       }),
     );
@@ -298,12 +303,7 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
         error: (err) => {
           this.subiendoDocumento = false;
           this.errorSubidaArchivo = true;
-          const msg =
-            err?.error?.error ??
-            (typeof err?.error === 'string' ? err.error : null) ??
-            err?.message ??
-            err?.statusText;
-          this.mensajeSubidaArchivo = msg ? `No se pudo subir: ${msg}` : 'No se pudo subir el archivo.';
+          this.mensajeSubidaArchivo = textoErrorUsuario(err, 'No se pudo subir el archivo.');
         },
       }),
     );
@@ -336,8 +336,7 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.guardando = false;
-          const msg = err?.error?.error ?? err?.error?.message ?? err?.message ?? err?.statusText;
-          this.mensaje = msg ? `No se pudo guardar la revisión: ${msg}` : 'No se pudo guardar la revisión.';
+          this.mensaje = textoErrorUsuario(err, 'No se pudo guardar la revisión.');
         },
       }),
     );
@@ -363,8 +362,7 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
           },
           error: (err) => {
             this.guardando = false;
-            const msg = err?.error?.error ?? err?.error?.message ?? err?.message ?? err?.statusText;
-            this.mensaje = msg ? `No se pudo guardar la revisión: ${msg}` : 'No se pudo guardar la revisión.';
+            this.mensaje = textoErrorUsuario(err, 'No se pudo guardar la revisión.');
           },
         }),
     );
@@ -386,8 +384,7 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
         error: (err) => {
           this.enviandoRevisionId = null;
           this.guardando = false;
-          const msg = err?.error?.error ?? err?.error?.message ?? err?.message ?? err?.statusText;
-          this.mensajeEnvio = msg ? `No se pudo enviar la revisión: ${msg}` : 'No se pudo enviar la revisión.';
+          this.mensajeEnvio = textoErrorUsuario(err, 'No se pudo enviar la revisión.');
         },
       }),
     );
@@ -410,8 +407,7 @@ export class RevisionDocumentoComponent implements OnInit, OnDestroy {
           URL.revokeObjectURL(url);
         },
         error: (err) => {
-          const msg = err?.error?.error ?? err?.error?.message ?? err?.message ?? err?.statusText;
-          this.mensajeEnvio = msg ? `No se pudo descargar el adjunto: ${msg}` : 'No se pudo descargar el adjunto.';
+          this.mensajeEnvio = textoErrorUsuario(err, 'No se pudo descargar el adjunto.');
         },
       }),
     );

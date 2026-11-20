@@ -5,6 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { HeaderComponent } from '../../layout/header/header.component';
 import { environment } from '../../../environments/environment';
+import { textoErrorUsuario } from '../../core/mensaje-conexion';
 
 const API = `${environment.apiUrl}/api/usuarios`;
 
@@ -104,7 +105,7 @@ interface UsuarioListaItem {
                 <div class="gc-accion-bloque">
                   <h3>Cambiar correo</h3>
                   <p *ngIf="!usuario.es_egresado" class="gc-desc gc-aviso">
-                    Este usuario es staff — cambiar el correo también cambia su nombre de acceso al sistema.
+                    Este usuario es del personal. Si cambias el correo, también cambia su usuario para entrar.
                   </p>
                   <div class="gc-fila">
                     <input class="gc-input" type="email" placeholder="Nuevo correo electrónico" [(ngModel)]="nuevoCorreo" />
@@ -131,7 +132,7 @@ interface UsuarioListaItem {
                 <div class="gc-accion-bloque gc-accion-peligro">
                   <h3>Eliminar cuenta</h3>
                   <p class="gc-desc">
-                    Borra el acceso al sistema. Si es egresado, el expediente de titulación se conserva; solo se elimina el login.
+                    Se quita el acceso. Si es egresado, su expediente se conserva.
                   </p>
                   <ng-container *ngIf="!confirmarEliminar; else confirmarEliminarTpl">
                     <button class="gc-btn gc-btn-eliminar" type="button" (click)="confirmarEliminar = true" [disabled]="eliminando">
@@ -262,9 +263,9 @@ export class GestionCuentasComponent implements OnInit {
         this.cargandoLista = false;
         this.lista = lista ?? [];
       },
-      error: () => {
+      error: (err) => {
         this.cargandoLista = false;
-        this.errorLista = 'No se pudo cargar el listado de cuentas.';
+        this.errorLista = textoErrorUsuario(err, 'No se pudo cargar la lista.');
       },
     });
   }
@@ -332,7 +333,7 @@ export class GestionCuentasComponent implements OnInit {
       },
       error: (err) => {
         this.guardandoCorreo = false;
-        this.mensajeCorreo = { ok: false, texto: err?.error?.error || 'No se pudo actualizar el correo.' };
+        this.mensajeCorreo = { ok: false, texto: textoErrorUsuario(err, 'No se pudo actualizar el correo.') };
       },
     });
   }
@@ -350,7 +351,7 @@ export class GestionCuentasComponent implements OnInit {
       },
       error: (err) => {
         this.reseteando = false;
-        this.errorReset = err?.error?.error || 'No se pudo resetear la contraseña.';
+        this.errorReset = textoErrorUsuario(err, 'No se pudo restablecer la contraseña.');
       },
     });
   }
@@ -375,7 +376,7 @@ export class GestionCuentasComponent implements OnInit {
         this.eliminando = false;
         this.mensajeEliminar = {
           ok: false,
-          texto: err?.error?.error || 'No se pudo eliminar la cuenta.',
+          texto: textoErrorUsuario(err, 'No se pudo eliminar la cuenta.'),
         };
       },
     });

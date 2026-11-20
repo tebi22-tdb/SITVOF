@@ -238,6 +238,84 @@
   color: #0369a1;
 }
 
+/* Llegó pendiente a esa sección: parpadeo rojo bien visible ×3 */
+.departamento-tab--novedad {
+  animation: depto-tab-flash 1.15s ease-in-out 3;
+  border-radius: 8px;
+}
+
+.departamento-tab-badge--novedad {
+  animation: depto-badge-flash 1.15s ease-in-out 3;
+  font-weight: 800;
+}
+
+@keyframes depto-tab-flash {
+  0%,
+  100% {
+    background: #fef2f2;
+    box-shadow: inset 0 0 0 1px #fecaca;
+  }
+  50% {
+    background: #fecaca;
+    box-shadow: inset 0 0 0 2px #dc2626;
+  }
+}
+
+@keyframes depto-badge-flash {
+  0%,
+  100% {
+    background: #fee2e2;
+    color: #b91c1c;
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45);
+  }
+  50% {
+    background: #b91c1c;
+    color: #fff;
+    transform: scale(1.28);
+    box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.28);
+  }
+}
+
+.departamento-fila--nuevo {
+  animation: depto-fila-flash 1.15s ease-in-out 3;
+}
+
+@keyframes depto-fila-flash {
+  0%,
+  100% {
+    background: #fef2f2;
+    box-shadow: inset 4px 0 0 #f87171;
+  }
+  50% {
+    background: #fecaca;
+    box-shadow: inset 4px 0 0 #b91c1c;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .departamento-tab--novedad,
+  .departamento-tab-badge--novedad,
+  .departamento-fila--nuevo {
+    animation: none;
+  }
+
+  .departamento-tab--novedad {
+    background: #fecaca;
+    box-shadow: inset 0 0 0 2px #dc2626;
+  }
+
+  .departamento-tab-badge--novedad {
+    background: #b91c1c;
+    color: #fff;
+  }
+
+  .departamento-fila--nuevo {
+    background: #fecaca;
+    box-shadow: inset 4px 0 0 #b91c1c;
+  }
+}
+
 .departamento-tab:focus-visible {
   outline: 2px solid #3182ce;
   outline-offset: 2px;
@@ -669,6 +747,14 @@
 .departamento-btn-sinodales:hover {
   background: #ebf8ff;
 }
+.departamento-btn-sinodales--concluido {
+  border-color: #a0aec0;
+  background: #edf2f7;
+  color: #718096;
+}
+.departamento-btn-sinodales--concluido:hover {
+  background: #e2e8f0;
+}
 
 .departamento-td--acciones-sinodales {
   display: flex;
@@ -834,6 +920,13 @@
   outline: none;
   border-color: #3182ce;
   box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.2);
+}
+
+.departamento-modal-observaciones {
+  resize: vertical;
+  min-height: 4.5rem;
+  font-family: inherit;
+  line-height: 1.35;
 }
 
 .departamento-combobox {

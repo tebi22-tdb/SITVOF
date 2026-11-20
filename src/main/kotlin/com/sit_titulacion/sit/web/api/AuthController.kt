@@ -138,21 +138,30 @@ class AuthController(
             )
             val base = publicBaseUrl.trim().trimEnd('/')
             val enlace = "$base/#/restablecer-password?token=${java.net.URLEncoder.encode(tokenPlano, Charsets.UTF_8)}"
-            val enviado = try {
-                emailService.enviarEnlaceRestablecerPassword(correoDestino, usuario.username, enlace, RESET_TOKEN_MINUTOS.toInt())
-            } catch (_: Exception) {
-                false
-            }
-            if (!enviado) {
-                // No dejar token huérfano ni cambiar la contraseña si el correo no salió.
-                usuarioRepository.save(
-                    usuario.copy(
-                        passwordResetTokenHash = null,
-                        passwordResetExpira = null,
-                        fechaActualizacion = Instant.now(),
-                    ),
-                )
-            }
+            val hashGuardado = hashTokenReset(tokenPlano)
+            val usuarioId = usuario.id
+            Thread {
+                val enviado = try {
+                    emailService.enviarEnlaceRestablecerPassword(correoDestino, usuario.username, enlace, RESET_TOKEN_MINUTOS.toInt())
+                } catch (_: Exception) {
+                    false
+                }
+                if (!enviado && usuarioId != null) {
+                    val actual = usuarioRepository.findById(usuarioId).orElse(null) ?: return@Thread
+                    if (actual.passwordResetTokenHash == hashGuardado) {
+                        usuarioRepository.save(
+                            actual.copy(
+                                passwordResetTokenHash = null,
+                                passwordResetExpira = null,
+                                fechaActualizacion = Instant.now(),
+                            ),
+                        )
+                    }
+                }
+            }.apply {
+                isDaemon = true
+                name = "sit-reset-mail"
+            }.start()
         }
         return ResponseEntity.ok(respuestaGenerica)
     }

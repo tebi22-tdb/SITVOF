@@ -20,7 +20,8 @@
   <!-- Mensaje de estado -->
   <p *ngIf="mensaje" class="cat-mensaje" [class.cat-mensaje-error]="mensajeError">{{ mensaje }}</p>
 
-  <!-- Botón agregar -->
+  <p *ngIf="esTabOpcion" class="cat-hint">Opciones de titulación. Aquí se agregan, editan y eliminan.</p>
+
   <div class="cat-acciones-bar">
     <button type="button" class="cat-btn-agregar" (click)="abrirFormularioCrear()" [disabled]="form.visible">
       + Agregar
@@ -29,10 +30,10 @@
 
   <!-- Formulario crear / editar -->
   <div *ngIf="form.visible" class="cat-form-panel">
-    <h3 class="cat-form-titulo">{{ form.modo === 'crear' ? 'Nuevo elemento' : 'Editar elemento' }}</h3>
+    <h3 class="cat-form-titulo">{{ form.modo === 'crear' ? (esTabOpcion ? 'Nueva opción de titulación' : 'Nuevo elemento') : (esTabOpcion ? 'Editar opción de titulación' : 'Editar elemento') }}</h3>
 
-    <div class="cat-form-grid">
-      <div class="cat-campo">
+    <div class="cat-form-grid" [class.cat-form-grid-modalidad]="esTabModalidad">
+      <div class="cat-campo" *ngIf="!esTabModalidad">
         <label class="cat-label">Nombre *</label>
         <input type="text" class="cat-input" [(ngModel)]="form.nombre" placeholder="Nombre" />
       </div>
@@ -48,27 +49,157 @@
 
       <!-- Campos de modalidad -->
       <ng-container *ngIf="esTabModalidad">
-        <div class="cat-campo cat-campo-sm">
-          <label class="cat-label">Duración (meses)</label>
-          <input type="number" class="cat-input" [(ngModel)]="form.mesesVigencia" min="1" placeholder="Sin plazo = vacío" />
-          <span class="cat-hint">Dejar vacío si no hay plazo (ej. CENEVAL).</span>
-        </div>
-        <div class="cat-campo">
-          <label class="cat-label">Campos de mentores / involucrados *</label>
-          <select class="cat-input" [(ngModel)]="form.tipoMentores">
-            <option value="estandar">Estándar — Director, Asesor 1 y Asesor 2</option>
-            <option value="residencia">Residencia — Asesor interno y Asesor externo</option>
-            <option value="ninguno">Ninguno — sin campos de mentores</option>
-          </select>
-          <span class="cat-hint">Define qué campos de mentores se muestran al dar de alta un egresado con esta modalidad.</span>
-        </div>
-        <div class="cat-campo cat-campo-check">
-          <label class="cat-label-check">
-            <input type="checkbox" [(ngModel)]="form.esResidencia" />
-            Es tipo Residencia Profesional
-          </label>
-          <span class="cat-hint">Actívalo si esta modalidad usa el flujo de "Registro y liberación" y aparece en la bandeja de pendientes del departamento académico.</span>
-        </div>
+        <p class="cat-pasos-guia">Paso {{ form.pasoWizard }} de {{ totalPasosWizard }}</p>
+        <ng-container *ngIf="form.pasoWizard === 1">
+          <div class="cat-campo">
+            <label class="cat-label" for="tipo-modalidad">Tipo</label>
+            <select id="tipo-modalidad" class="cat-input" [(ngModel)]="form.tipoUso">
+              <option value="">Selecciona el tipo</option>
+              <option *ngFor="let o of opcionesParaTipo" [value]="o.clave">{{ o.nombre }}</option>
+            </select>
+          </div>
+          <div class="cat-campo">
+            <label class="cat-label" for="nombre-modalidad">Nombre</label>
+            <input id="nombre-modalidad" type="text" class="cat-input" [(ngModel)]="form.nombre" placeholder="Nombre de la modalidad" />
+          </div>
+        </ng-container>
+        <ng-container *ngIf="form.pasoWizard === 2">
+          <p class="cat-label">Flujo de la modalidad</p>
+          <div class="cat-opciones">
+            <button type="button" class="cat-opcion" [class.cat-opcion-activa]="form.origenFlujo === 'tesis'" (click)="elegirFlujoModalidad('tesis')">Tesis · 12 meses de proyecto y 6 de titulación</button>
+            <button type="button" class="cat-opcion" [class.cat-opcion-activa]="form.origenFlujo === 'residencia'" (click)="elegirFlujoModalidad('residencia')">Residencia · 6 meses desde el Anexo XXXI</button>
+            <button type="button" class="cat-opcion" [class.cat-opcion-activa]="form.origenFlujo === 'ceneval'" (click)="elegirFlujoModalidad('ceneval')">CENEVAL · sin plazo</button>
+            <button type="button" class="cat-opcion" [class.cat-opcion-activa]="esFlujoNuevo" (click)="elegirFlujoModalidad('personalizado')">Nuevo flujo</button>
+          </div>
+        </ng-container>
+        <ng-container *ngIf="form.pasoWizard === 3 && esFlujoNuevo">
+          <p class="cat-label">Pasos del flujo</p>
+          <p class="cat-hint">Arrastra un paso para cambiar el orden. Un clic lo abre para editarlo.</p>
+          <div class="cat-pasos" cdkDropList (cdkDropListDropped)="soltarPaso($event)">
+            <article
+              class="cat-paso"
+              *ngFor="let paso of form.pasos; let i = index; let ultimo = last"
+              cdkDrag
+              [cdkDragDisabled]="editandoPaso !== null"
+            >
+              <div *cdkDragPlaceholder class="cat-paso-hueco"></div>
+              <ng-container *ngIf="editandoPaso !== i">
+                <button type="button" class="cat-paso-agarre" cdkDragHandle aria-label="Mover paso" [disabled]="editandoPaso !== null">
+                  <span></span><span></span><span></span>
+                </button>
+                <button type="button" class="cat-paso-cuerpo" (click)="editarPaso(i)">
+                  <strong>{{ i + 1 }}. {{ paso.nombre }}</strong>
+                  <span class="cat-hint">{{ paso.hace }} → {{ paso.recibe }}</span>
+                  <span class="cat-hint">{{ detallePaso(paso) }}</span>
+                </button>
+                <button type="button" class="cat-btn-accion" (click)="duplicarPaso(i)">Duplicar</button>
+              </ng-container>
+              <div *ngIf="editandoPaso === i" class="cat-paso-editor">
+                <p class="cat-label">Paso {{ i + 1 }}</p>
+                <input type="text" class="cat-input" [(ngModel)]="pasoEdicion.nombre" placeholder="Nombre del paso" />
+                <select class="cat-input" [(ngModel)]="pasoEdicion.hace">
+                  <option *ngFor="let a of actores" [value]="a">Lo hace: {{ a }}</option>
+                </select>
+                <select class="cat-input" [(ngModel)]="pasoEdicion.recibe">
+                  <option *ngFor="let a of actores" [value]="a">Lo recibe: {{ a }}</option>
+                </select>
+                <div *ngIf="pasoEdicion.recibe === 'Departamento académico'" class="cat-pestana-depto">
+                  <select
+                    class="cat-input"
+                    [class.cat-pestana-pendiente]="!pasoEdicion.pestanaDepartamento"
+                    [(ngModel)]="pasoEdicion.pestanaDepartamento"
+                  >
+                    <option value="">Enviar pestaña de:</option>
+                    <option *ngFor="let p of pestanasDepartamento" [value]="p">Enviar pestaña de: {{ p }}</option>
+                    <option *ngIf="pasoEdicion.pestanaDepartamento && pasoEdicion.pestanaDepartamento !== '__nueva__' && !pestanasDepartamento.includes(pasoEdicion.pestanaDepartamento)" [value]="pasoEdicion.pestanaDepartamento">Enviar pestaña de: {{ pasoEdicion.pestanaDepartamento }}</option>
+                    <option value="__nueva__">Enviar pestaña de: agregar una nueva</option>
+                  </select>
+                  <input
+                    *ngIf="pasoEdicion.pestanaDepartamento === '__nueva__'"
+                    type="text"
+                    class="cat-input"
+                    [class.cat-pestana-pendiente]="!pestanaNueva.trim()"
+                    [(ngModel)]="pestanaNueva"
+                    placeholder="Nombre de la pestaña nueva"
+                  />
+                </div>
+                <select class="cat-input" [(ngModel)]="pasoEdicion.anexo">
+                  <option *ngFor="let a of anexos" [value]="a">{{ a }}</option>
+                </select>
+                <select class="cat-input" [ngModel]="pasoEdicion.accion" (ngModelChange)="pasoEdicion.accion = $event; alCambiarAccion()">
+                  <option *ngFor="let a of accionesPaso" [value]="a">Acción: {{ a }}</option>
+                </select>
+                <label class="cat-label-check"><input type="checkbox" [(ngModel)]="pasoEdicion.pideArchivo" /> Este paso pide un archivo</label>
+                <label class="cat-label-check"><input type="checkbox" [(ngModel)]="pasoEdicion.permiteRegreso" /> Se puede regresar con observaciones</label>
+                <label class="cat-label-check"><input type="checkbox" [(ngModel)]="pasoEdicion.cierraProceso" /> Este paso cierra el proceso</label>
+                <div class="cat-paso-editor-acciones">
+                  <button type="button" class="cat-btn-guardar" (click)="guardarEdicion()">Guardar cambios</button>
+                  <button type="button" class="cat-btn-cancelar" (click)="cancelarEdicion()">Cancelar</button>
+                  <button type="button" class="cat-btn-accion" (click)="quitarPaso(i)">Quitar</button>
+                </div>
+              </div>
+              <button *ngIf="editandoPaso === null && !ultimo" type="button" class="cat-paso-insertar" (click)="insertarPaso(i + 1)" aria-label="Insertar paso después">+</button>
+            </article>
+          </div>
+          <button *ngIf="editandoPaso === null" type="button" class="cat-btn-agregar" (click)="insertarPaso(form.pasos.length)">
+            {{ form.pasos.length ? '+ Agregar paso' : '+ Agregar el primer paso' }}
+          </button>
+        </ng-container>
+        <ng-container *ngIf="form.pasoWizard === 4 && esFlujoNuevo">
+          <p class="cat-label">Asignación de plazos</p>
+          <p class="cat-hint">Si esta modalidad no lleva plazo, continúa sin agregar ninguno.</p>
+          <article class="cat-plazo-card" *ngFor="let plazo of form.plazos; let i = index">
+            <div class="cat-plazo-card-head">
+              <strong>Plazo {{ i + 1 }}</strong>
+              <button type="button" class="cat-btn-accion" (click)="quitarPlazo(i)">Quitar</button>
+            </div>
+            <label class="cat-label">Inicia en</label>
+            <select class="cat-input" [(ngModel)]="plazo.inicia">
+              <option value="">Selecciona dónde inicia</option>
+              <option value="anexo_xxxi">Fecha del Anexo XXXI</option>
+              <option value="carta">Fecha de la carta de no inconveniencia</option>
+              <option value="paso">Un paso del flujo</option>
+            </select>
+            <select class="cat-input" *ngIf="plazo.inicia === 'paso'" [(ngModel)]="plazo.pasoInicio">
+              <option [ngValue]="null">Selecciona el paso</option>
+              <option *ngFor="let paso of form.pasos; let j = index" [ngValue]="j">Paso {{ j + 1 }}. {{ paso.nombre }}</option>
+            </select>
+            <label class="cat-label">Termina en</label>
+            <select class="cat-input" [(ngModel)]="plazo.termina">
+              <option value="ninguno">Ninguno</option>
+              <option value="paso">Un paso del flujo</option>
+            </select>
+            <select class="cat-input" *ngIf="plazo.termina === 'paso'" [(ngModel)]="plazo.pasoFin">
+              <option [ngValue]="null">Selecciona el paso</option>
+              <option *ngFor="let paso of form.pasos; let j = index" [ngValue]="j">Paso {{ j + 1 }}. {{ paso.nombre }}</option>
+            </select>
+            <label class="cat-label">Duración</label>
+            <div class="cat-plazo-valor">
+              <input type="number" class="cat-input cat-input-meses" [(ngModel)]="plazo.meses" min="1" max="12" step="1" />
+              <span class="cat-plazo-sufijo">meses</span>
+            </div>
+          </article>
+          <button type="button" class="cat-btn-agregar" (click)="agregarPlazo()">+ Agregar plazo</button>
+        </ng-container>
+        <ng-container *ngIf="esUltimoPaso">
+          <p class="cat-label">Mentores</p>
+          <div class="cat-opciones">
+            <button type="button" class="cat-opcion" [class.cat-opcion-activa]="form.tipoMentores === 'estandar'" (click)="elegirMentores('estandar')">Director, Asesor 1 y Asesor 2</button>
+            <button type="button" class="cat-opcion" [class.cat-opcion-activa]="form.tipoMentores === 'residencia'" (click)="elegirMentores('residencia')">Asesor interno y Asesor externo</button>
+            <button type="button" class="cat-opcion" [class.cat-opcion-activa]="form.tipoMentores === 'ninguno'" (click)="elegirMentores('ninguno')">Sin mentores</button>
+          </div>
+          <div class="cat-nuevo-paso">
+            <p class="cat-hint" *ngIf="form.mentoresExtra.length">También: {{ form.mentoresExtra.join(', ') }}</p>
+            <div class="cat-plazo-valor">
+              <input type="text" class="cat-input" [(ngModel)]="form.mentorNuevo" placeholder="Agregar otro mentor" />
+              <button type="button" class="cat-btn-agregar" (click)="agregarMentor()">Agregar</button>
+            </div>
+            <button type="button" class="cat-btn-accion" *ngFor="let m of form.mentoresExtra; let i = index" (click)="quitarMentor(i)">Quitar {{ m }}</button>
+          </div>
+          <label class="cat-label-check" *ngIf="esFlujoNuevo"><input type="checkbox" [(ngModel)]="form.esResidencia" /> Se comporta como residencia</label>
+          <label class="cat-label-check" *ngIf="esFlujoNuevo"><input type="checkbox" [(ngModel)]="form.esCeneval" /> Se comporta como CENEVAL</label>
+          <label class="cat-label-check" *ngIf="form.tipoUso !== 'curso'"><input type="checkbox" [(ngModel)]="form.esCursoTitulacion" /> Solo aparece con curso de titulación</label>
+        </ng-container>
       </ng-container>
 
       <!-- Slug (solo departamentos) -->
@@ -92,7 +223,9 @@
     </div>
 
     <div class="cat-form-botones">
-      <button type="button" class="cat-btn-guardar" (click)="guardar()" [disabled]="guardando">
+      <button *ngIf="esTabModalidad && form.pasoWizard > 1" type="button" class="cat-btn-cancelar" (click)="atras()" [disabled]="guardando">Atrás</button>
+      <button *ngIf="esTabModalidad && !esUltimoPaso" type="button" class="cat-btn-guardar" (click)="siguiente()">Siguiente</button>
+      <button *ngIf="!esTabModalidad || esUltimoPaso" type="button" class="cat-btn-guardar" (click)="guardar()" [disabled]="guardando">
         {{ guardando ? 'Guardando…' : 'Guardar' }}
       </button>
       <button type="button" class="cat-btn-cancelar" (click)="cancelarFormulario()" [disabled]="guardando">
@@ -109,7 +242,7 @@
       <tr>
         <th>Nombre</th>
         <th *ngIf="esTabCarrera">Departamento</th>
-        <th *ngIf="esTabModalidad">Duración</th>
+        <th *ngIf="esTabModalidad">Plazos</th>
         <th *ngIf="esTabModalidad">Tipo</th>
         <th *ngIf="esTabDepartamento">Slug</th>
         <th *ngIf="esTabDepartamento">Carreras</th>
@@ -122,7 +255,7 @@
       <tr *ngFor="let item of itemsActivos">
         <td>{{ item.nombre }}</td>
         <td *ngIf="esTabCarrera">{{ nombreDeptDeCarrera(item.nombre) }}</td>
-        <td *ngIf="esTabModalidad">{{ item.mesesVigencia != null ? (item.mesesVigencia + ' meses') : 'Sin plazo' }}</td>
+        <td *ngIf="esTabModalidad">{{ textoPlazos(item) }}</td>
         <td *ngIf="esTabModalidad">
           <span class="cat-badge" [class.cat-badge-residencia]="item.esResidencia">
             {{ item.esResidencia ? 'Residencia' : 'Estándar' }}
@@ -147,7 +280,7 @@
       <tr *ngFor="let item of itemsInactivos" class="cat-fila-inactiva">
         <td>{{ item.nombre }}</td>
         <td *ngIf="esTabCarrera">—</td>
-        <td *ngIf="esTabModalidad">{{ item.mesesVigencia != null ? (item.mesesVigencia + ' meses') : 'Sin plazo' }}</td>
+        <td *ngIf="esTabModalidad">{{ textoPlazos(item) }}</td>
         <td *ngIf="esTabModalidad">
           <span class="cat-badge" [class.cat-badge-residencia]="item.esResidencia">
             {{ item.esResidencia ? 'Residencia' : 'Estándar' }}
@@ -160,6 +293,7 @@
         <td><span class="cat-estado-inactivo">Inactivo</span></td>
         <td class="cat-td-acciones">
           <button type="button" class="cat-btn-accion cat-btn-activar" (click)="activar(item)">Activar</button>
+          <button *ngIf="esTabModalidad || esTabOpcion" type="button" class="cat-btn-accion cat-btn-eliminar" (click)="eliminar(item)">Eliminar</button>
         </td>
       </tr>
 

@@ -10,55 +10,70 @@
 
   <main class="seg-main">
     <div class="seg-cabecera-main">
-      <h1 class="seg-titulo">Seguimiento</h1>
+      <div class="seg-cabecera-text">
+        <h1 class="seg-titulo">Seguimiento</h1>
+        <p class="seg-subtitulo">Expedientes en proceso de titulación</p>
+      </div>
     </div>
 
-    <section class="seg-kpis">
-      <button type="button" class="kpi kpi-exp" [class.kpi-activo]="esEstadoActivo('todos')" (click)="seleccionarEstado('todos')"><span>Expedientes</span><strong>{{ totalExpedientes }}</strong></button>
-      <button type="button" class="kpi kpi-ok" [class.kpi-activo]="esEstadoActivo('en_tiempo')" (click)="seleccionarEstado('en_tiempo')"><span>En tiempo</span><strong>{{ totalEnTiempo }}</strong></button>
-      <button type="button" class="kpi kpi-mid" [class.kpi-activo]="esEstadoActivo('rezagado')" (click)="seleccionarEstado('rezagado')"><span>Rezagado</span><strong>{{ totalRezagado }}</strong></button>
-      <button type="button" class="kpi kpi-bad" [class.kpi-activo]="esEstadoActivo('vencido')" (click)="seleccionarEstado('vencido')"><span>Vencidos</span><strong>{{ totalVencidos }}</strong></button>
-      <button type="button" class="kpi kpi-concluido" [class.kpi-activo]="esEstadoActivo('concluido')" (click)="seleccionarEstado('concluido')"><span>Concluido</span><strong>{{ totalConcluidos }}</strong></button>
-    </section>
-
-    <section class="seg-filtros">
-      <input type="text" [(ngModel)]="buscarControl" placeholder="Ingrese número de control" />
-      <select [(ngModel)]="filtroCarrera">
-        <option value="">Carrera (todas)</option>
-        <option *ngFor="let c of carrerasDisponibles" [value]="c">{{ c }}</option>
-      </select>
-      <select [(ngModel)]="filtroEstado">
-        <option value="todos">Estado (todos)</option>
-        <option value="en_tiempo">En tiempo</option>
-        <option value="rezagado">Rezagado</option>
-        <option value="vencido">Vencido</option>
-        <option value="concluido">Concluido</option>
-      </select>
-      <button type="button" class="btn-mas-filtros" (click)="mostrarMasFiltros = !mostrarMasFiltros">
-        {{ mostrarMasFiltros ? 'Ocultar filtros' : 'Más filtros' }}
+    <section class="seg-kpis" aria-label="Resumen por estado">
+      <button type="button" class="kpi kpi-exp" [class.kpi-activo]="esEstadoActivo('todos')" (click)="seleccionarEstado('todos')">
+        <strong>{{ totalExpedientes }}</strong><span>Expedientes</span>
       </button>
-      <button type="button" class="btn-limpiar" (click)="limpiarFiltros()">Limpiar filtros</button>
+      <button type="button" class="kpi kpi-ok" [class.kpi-activo]="esEstadoActivo('en_tiempo')" (click)="seleccionarEstado('en_tiempo')">
+        <strong>{{ totalEnTiempo }}</strong><span>En tiempo</span>
+      </button>
+      <button type="button" class="kpi kpi-mid" [class.kpi-activo]="esEstadoActivo('rezagado')" (click)="seleccionarEstado('rezagado')">
+        <strong>{{ totalRezagado }}</strong><span>Rezagado</span>
+      </button>
+      <button type="button" class="kpi kpi-bad" [class.kpi-activo]="esEstadoActivo('vencido')" (click)="seleccionarEstado('vencido')">
+        <strong>{{ totalVencidos }}</strong><span>Vencidos</span>
+      </button>
+      <button type="button" class="kpi kpi-concluido" [class.kpi-activo]="esEstadoActivo('concluido')" (click)="seleccionarEstado('concluido')">
+        <strong>{{ totalConcluidos }}</strong><span>Concluido</span>
+      </button>
     </section>
 
-    <section class="seg-filtros seg-filtros-sec" *ngIf="mostrarMasFiltros">
-      <select [(ngModel)]="filtroModalidad">
-        <option value="">Modalidad (todas)</option>
-        <option *ngFor="let m of modalidadesDisponibles" [value]="m">{{ m }}</option>
-      </select>
-      <select [(ngModel)]="filtroDocumento">
-        <option value="todos">Documento / situación (todos)</option>
-        <option value="Sin atraso">Sin atraso</option>
-        <option value="En curso">En curso</option>
-        <option value="En curso (cerca del límite)">En curso (cerca del límite)</option>
-        <option value="Plazo vencido">Plazo vencido</option>
-        <option value="Proceso concluido">Proceso concluido</option>
-      </select>
-      <select [(ngModel)]="ordenarPor">
-        <option value="reciente">Ordenar por: Más reciente</option>
-        <option value="prioridad">Ordenar por: Prioridad</option>
-        <option value="nombre">Ordenar por: Nombre</option>
-        <option value="control">Ordenar por: No control</option>
-      </select>
+    <section class="seg-toolbar">
+      <div class="seg-filtros">
+        <input type="text" [(ngModel)]="buscarControl" placeholder="Buscar número de control" aria-label="Número de control" />
+        <select [(ngModel)]="filtroCarrera" aria-label="Carrera">
+          <option value="">Carrera (todas)</option>
+          <option *ngFor="let c of carrerasDisponibles" [value]="c">{{ c }}</option>
+        </select>
+        <select [(ngModel)]="filtroEstado" aria-label="Estado">
+          <option value="todos">Estado (todos)</option>
+          <option value="en_tiempo">En tiempo</option>
+          <option value="rezagado">Rezagado</option>
+          <option value="vencido">Vencido</option>
+          <option value="concluido">Concluido</option>
+        </select>
+        <button type="button" class="btn-mas-filtros" (click)="mostrarMasFiltros = !mostrarMasFiltros">
+          {{ mostrarMasFiltros ? 'Menos filtros' : 'Más filtros' }}
+        </button>
+        <button type="button" class="btn-limpiar" (click)="limpiarFiltros()">Limpiar</button>
+      </div>
+
+      <div class="seg-filtros seg-filtros-sec" *ngIf="mostrarMasFiltros">
+        <select [(ngModel)]="filtroModalidad" aria-label="Modalidad">
+          <option value="">Modalidad (todas)</option>
+          <option *ngFor="let m of modalidadesDisponibles" [value]="m">{{ m }}</option>
+        </select>
+        <select [(ngModel)]="filtroDocumento" aria-label="Documento">
+          <option value="todos">Documento / situación (todos)</option>
+          <option value="Sin atraso">Sin atraso</option>
+          <option value="En curso">En curso</option>
+          <option value="En curso (cerca del límite)">En curso (cerca del límite)</option>
+          <option value="Plazo vencido">Plazo vencido</option>
+          <option value="Proceso concluido">Proceso concluido</option>
+        </select>
+        <select [(ngModel)]="ordenarPor" aria-label="Ordenar">
+          <option value="reciente">Más reciente</option>
+          <option value="prioridad">Prioridad</option>
+          <option value="nombre">Nombre</option>
+          <option value="control">No control</option>
+        </select>
+      </div>
     </section>
 
     <div *ngIf="cargando" class="seg-msg">Cargando seguimiento...</div>
@@ -71,11 +86,10 @@
             <tr>
               <th>Alumno</th>
               <th>No control</th>
-              <th>Carrera</th>
+              <th class="col-sec">Carrera</th>
               <th>Estado</th>
-              <th>Documento faltante</th>
               <th>Último mov.</th>
-              <th>Fecha límite</th>
+              <th class="col-sec">Fecha límite</th>
             </tr>
           </thead>
           <tbody>
@@ -84,11 +98,17 @@
               class="seg-fila-click"
               [class.seg-fila-activa]="detalleSeleccionado?.id === item.id"
               [class.seg-fila-concluida]="item.estado === 'concluido'"
+              [class.seg-fila--paso-nuevo]="esPasoReciente(item.id)"
+              [class.seg-fila--novedad]="tieneNovedad(item.id)"
+              [attr.title]="item.documentoFaltante ? ('Documento: ' + item.documentoFaltante) : null"
               (click)="seleccionarEgresado(item)"
             >
-              <td>{{ item.alumno }}</td>
-              <td>{{ item.noControl }}</td>
-              <td>{{ item.carrera }}</td>
+              <td class="td-alumno">
+                {{ item.alumno }}
+                <span *ngIf="tieneNovedad(item.id)" class="seg-chip-avance">Avanzó</span>
+              </td>
+              <td class="td-mono">{{ item.noControl }}</td>
+              <td class="col-sec td-carrera" [attr.title]="item.carrera">{{ item.carrera }}</td>
               <td>
                 <span
                   class="badge"
@@ -99,20 +119,33 @@
                   >{{ badgeEstado(item.estado) }}</span
                 >
               </td>
-              <td>{{ item.documentoFaltante }}</td>
-              <td>{{ item.ultimoMovimiento }}</td>
-              <td>{{ item.fechaLimite }}</td>
+              <td class="td-muted">{{ item.ultimoMovimiento }}</td>
+              <td class="col-sec td-muted">{{ item.fechaLimite }}</td>
             </tr>
             <tr *ngIf="itemsFiltrados.length === 0">
-              <td colspan="7" class="seg-vacio">No hay resultados con esos filtros.</td>
+              <td colspan="6" class="seg-vacio">No hay resultados con esos filtros.</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <aside class="seg-proceso" [class.seg-proceso--vencido-bloqueado]="procesoBloqueadoPorVencimientoPlazo" [class.seg-proceso--concluido]="procesoConcluido">
+      <aside #panelProceso class="seg-proceso" [class.seg-proceso--pantalla]="procesoPantallaCompleta" [class.seg-proceso--vencido-bloqueado]="procesoBloqueadoPorVencimientoPlazo" [class.seg-proceso--concluido]="procesoConcluido">
         <div class="seg-proceso-cabecera">
           <div class="seg-proceso-titulo-row">
+            <button
+              type="button"
+              class="seg-proceso-ampliar"
+              (click)="togglePantallaProceso()"
+              [attr.aria-label]="procesoPantallaCompleta ? 'Salir de pantalla completa' : 'Pantalla completa'"
+              [attr.title]="procesoPantallaCompleta ? 'Salir de pantalla completa' : 'Pantalla completa'"
+            >
+              <svg *ngIf="!procesoPantallaCompleta" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <svg *ngIf="procesoPantallaCompleta" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
             <h3 class="seg-proceso-titulo-seccion">Proceso de titulación</h3>
             <span
               *ngIf="etiquetaPlazoTitulacionCabecera"
@@ -153,28 +186,41 @@
                 {{ etiquetaEstadoPasoPara(paso) }}
               </span>
             </div>
+            <p class="seg-proceso-detalle-flujo" *ngIf="paso.detalleFlujo">{{ paso.detalleFlujo }}</p>
             <div class="seg-proceso-fecha" *ngIf="paso.fecha">
               <span class="seg-proceso-fecha-etiq">Registro</span> {{ formatearFechaHora(paso.fecha) }}
             </div>
             <div *ngIf="paso.plazoDesarrolloRecepcion as plazo" class="plazo-desarrollo-rec" [ngClass]="plazo.clase_semaforo">
               <div class="plazo-desarrollo-rec__cab">
-                <span class="plazo-desarrollo-rec__semaforo" aria-hidden="true"></span>
-                <strong class="plazo-desarrollo-rec__estado">{{ plazo.etiqueta_estado }}</strong>
-                <span class="plazo-desarrollo-rec__vigencia">Vigencia del proyecto: {{ plazo.meses_totales }} mes(es) calendario</span>
+                <div class="plazo-desarrollo-rec__cab-izq">
+                  <span class="plazo-desarrollo-rec__semaforo" aria-hidden="true"></span>
+                  <div class="plazo-desarrollo-rec__cab-text">
+                    <span class="plazo-desarrollo-rec__kicker">Plazo de desarrollo del proyecto</span>
+                    <strong class="plazo-desarrollo-rec__estado">{{ plazo.etiqueta_estado }}</strong>
+                  </div>
+                </div>
+                <span class="plazo-desarrollo-rec__vigencia">{{ plazo.meses_totales }} mes(es) de vigencia</span>
               </div>
               <div class="plazo-desarrollo-rec__fechas-row" role="group" [attr.aria-label]="'Fechas del plazo: ' + plazo.etiqueta_estado">
                 <div class="plazo-desarrollo-rec__fecha-cuadro" [ngClass]="plazo.clase_semaforo">
-                  <span class="plazo-desarrollo-rec__fecha-cuadro-etiq">Fecha de inicio del plazo</span>
+                  <span class="plazo-desarrollo-rec__fecha-cuadro-etiq">Inicio del plazo</span>
                   <strong class="plazo-desarrollo-rec__fecha-cuadro-valor">{{ plazo.fecha_inicio_texto }}</strong>
                 </div>
-                <div class="plazo-desarrollo-rec__fecha-cuadro" [ngClass]="plazo.clase_semaforo">
-                  <span class="plazo-desarrollo-rec__fecha-cuadro-etiq">Fecha límite del periodo</span>
+                <div class="plazo-desarrollo-rec__fecha-cuadro plazo-desarrollo-rec__fecha-cuadro--limite" [ngClass]="plazo.clase_semaforo">
+                  <span class="plazo-desarrollo-rec__fecha-cuadro-etiq">Fecha límite</span>
                   <strong class="plazo-desarrollo-rec__fecha-cuadro-valor">{{ plazo.fecha_limite_texto }}</strong>
                 </div>
               </div>
               <div class="plazo-desarrollo-rec__tiempo-falta">{{ plazo.texto_tiempo_restante_corto }}</div>
             </div>
             <div class="seg-proceso-acciones" *ngIf="detalleSeleccionado">
+              <button
+                *ngIf="paso.puedeAccionar"
+                type="button"
+                class="seg-btn"
+                [disabled]="accionesProcesoBloqueadas"
+                (click)="avanzarFlujoPropio()"
+              >{{ paso.accionFlujo }}</button>
               <button
                 *ngIf="
                   paso.key === 'fecha_confirmacion_entrega_egresado_depto' &&

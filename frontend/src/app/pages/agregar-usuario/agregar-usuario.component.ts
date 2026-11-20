@@ -11,6 +11,7 @@ import {
   datosRolDesdePerfil,
 } from '../../core/perfiles-usuario-staff';
 import { CatalogoService } from '../../services/catalogo.service';
+import { textoErrorUsuario } from '../../core/mensaje-conexion';
 
 interface CrearUsuarioStaffForm extends CrearUsuarioBody {
   perfil: string;
@@ -123,19 +124,20 @@ export class AgregarUsuarioComponent implements OnInit {
       next: (res) => {
         this.guardando = false;
         let m = res?.message ?? 'Usuario creado correctamente.';
-        if (res?.correo_enviado === false && res?.detalle_correo) {
+        if (res?.correo_enviado === false && !res?.correo_en_proceso && res?.detalle_correo) {
           m += ` (${res.detalle_correo})`;
         }
         this.mensajeOk = m;
-        if (res?.password_temporal && res?.username) {
+        if (!res?.correo_en_proceso && res?.password_temporal && res?.username) {
           this.credenciales = { username: res.username, password: res.password_temporal };
+        } else {
+          this.credenciales = null;
         }
         this.form = this.formInicial();
       },
       error: (err) => {
         this.guardando = false;
-        this.mensajeError =
-          err?.error?.error ?? err?.message ?? err?.statusText ?? 'Error al crear el usuario.';
+        this.mensajeError = textoErrorUsuario(err, 'No se pudo crear el usuario.');
       },
     });
   }

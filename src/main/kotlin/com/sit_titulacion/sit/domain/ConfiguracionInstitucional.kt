@@ -28,6 +28,16 @@ data class ConfiguracionInstitucional(
     val jefeIniciales: String? = null,
     /** Correo del departamento, para pie de página de los anexos que genera. */
     val correo: String? = null,
+    // ── Campos tipo codigos_anexos (documento único) ────────────────────────
+    /** Código de control del anexo 9.1 (encabezado y pie). */
+    val codigoAnexo91: String? = null,
+    val revisionAnexo91: String? = null,
+    /** Código de control del anexo 9.2 (encabezado y pie). */
+    val codigoAnexo92: String? = null,
+    val revisionAnexo92: String? = null,
+    /** Código de control del anexo 9.3 (encabezado y pie). */
+    val codigoAnexo93: String? = null,
+    val revisionAnexo93: String? = null,
     // ── Campos tipo imagenes_anexos (documento único) ───────────────────────
     /** Overrides de imágenes de los anexos 32/33: clave = nombre de archivo en el
      *  classpath (ej. "logo-sep-tecnm.png"), valor = data URI subida desde el admin.
@@ -38,6 +48,8 @@ data class ConfiguracionInstitucional(
      *  A diferencia de [imagenesAnexos], esta lista se puede agregar/quitar/reordenar
      *  libremente. Cuando es null, se usan las insignias por defecto del classpath. */
     val insigniasAnexos: List<InsigniaAnexoEntry>? = null,
+    /** Textos editados del cuerpo de los anexos. La llave es "a92|92-cuerpo" (sin puntos: Mongo no los admite). */
+    val textosAnexos: Map<String, String>? = null,
     val fechaActualizacion: Instant = Instant.now(),
 )
 

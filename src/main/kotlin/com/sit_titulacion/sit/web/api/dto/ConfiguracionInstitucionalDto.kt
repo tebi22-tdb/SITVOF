@@ -42,6 +42,20 @@ data class ConfigServiciosEscolaresResponseDto(
     val jefeCargo: String,
 )
 
+data class TextosAnexoDto(
+    val bloques: Map<String, String> = emptyMap(),
+)
+
+/** Código y revisión impresos en el recuadro y el pie de los anexos 9.1, 9.2 y 9.3. */
+data class CodigosAnexosDto(
+    val codigoAnexo91: String,
+    val revisionAnexo91: String,
+    val codigoAnexo92: String,
+    val revisionAnexo92: String,
+    val codigoAnexo93: String,
+    val revisionAnexo93: String,
+)
+
 /** Un "casillero" fijo de imagen para los anexos 32/33 (logos de encabezado, imagen anual). */
 data class ImagenAnexoSlotDto(
     val clave: String,

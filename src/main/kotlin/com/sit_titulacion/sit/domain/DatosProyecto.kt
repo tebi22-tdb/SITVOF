@@ -11,4 +11,6 @@ data class DatosProyecto(
     val director: String? = null,
     val asesor_1: String? = null,
     val asesor_2: String? = null,
+    /** Texto del recuadro Observaciones del Anexo XXXII. */
+    val observaciones_anexo32: String? = null,
 )

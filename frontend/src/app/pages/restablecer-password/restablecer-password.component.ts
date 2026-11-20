@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { LOGO_ITVO, LOGO_TECNM } from '../../core/logos';
+import { textoErrorUsuario } from '../../core/mensaje-conexion';
 
 @Component({
   selector: 'app-restablecer-password',
@@ -62,11 +63,7 @@ export class RestablecerPasswordComponent implements OnInit {
       },
       error: (err) => {
         this.enviando = false;
-        const msg = err?.error?.error;
-        this.error =
-          typeof msg === 'string' && msg.trim()
-            ? msg
-            : 'No se pudo restablecer la contraseña. Solicita un enlace nuevo.';
+        this.error = textoErrorUsuario(err, 'No se pudo restablecer la contraseña. Solicita un enlace nuevo.');
       },
     });
   }

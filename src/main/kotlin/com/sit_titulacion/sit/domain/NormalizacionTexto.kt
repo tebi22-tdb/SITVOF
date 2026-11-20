@@ -18,4 +18,8 @@ object NormalizacionTexto {
             .replace(Regex("\\p{M}+"), "")
         return sinAcentos.replace(Regex("\\s+"), " ").lowercase()
     }
+
+    /** Slug de departamento: minúsculas, sin acentos, guiones y espacios como guion bajo. */
+    fun normalizarSlug(texto: String): String =
+        normalizarClave(texto.replace('_', ' ').replace('-', ' ')).replace(' ', '_')
 }

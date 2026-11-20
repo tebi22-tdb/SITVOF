@@ -37,6 +37,9 @@ class CatalogoController(
     @GetMapping("/departamentos")
     fun departamentos() = catalogoService.departamentos()
 
+    @GetMapping("/opciones")
+    fun opciones() = catalogoService.opciones()
+
     // ─── Endpoints de gestión (solo administrador) ─────────────────────────────
 
     @GetMapping
@@ -68,7 +71,7 @@ class CatalogoController(
         if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede editar catálogos"))
         val oid = try { ObjectId(id) } catch (_: Exception) {
-            return ResponseEntity.badRequest().body(mapOf("error" to "ID inválido"))
+            return ResponseEntity.badRequest().body(mapOf("error" to "No se pudo completar la acción."))
         }
         return catalogoService.actualizar(oid, request).fold(
             onSuccess = { item ->
@@ -87,10 +90,25 @@ class CatalogoController(
         if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede desactivar catálogos"))
         val oid = try { ObjectId(id) } catch (_: Exception) {
-            return ResponseEntity.badRequest().body(mapOf("error" to "ID inválido"))
+            return ResponseEntity.badRequest().body(mapOf("error" to "No se pudo completar la acción."))
         }
         if (!catalogoService.desactivar(oid))
             return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(mapOf("ok" to true))
+    }
+
+    @DeleteMapping("/{id}/eliminar")
+    fun eliminar(
+        @AuthenticationPrincipal principal: UsuarioPrincipal?,
+        @PathVariable id: String,
+    ): ResponseEntity<Any> {
+        if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede eliminar catálogos"))
+        val oid = try { ObjectId(id) } catch (_: Exception) {
+            return ResponseEntity.badRequest().body(mapOf("error" to "No se pudo completar la acción."))
+        }
+        val error = catalogoService.eliminar(oid)
+        if (error != null) return ResponseEntity.badRequest().body(mapOf("error" to error))
         return ResponseEntity.ok(mapOf("ok" to true))
     }
 
@@ -102,7 +120,7 @@ class CatalogoController(
         if (principal == null || principal.getRol() != Rol.ADMINISTRADOR)
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to "Solo el administrador puede activar catálogos"))
         val oid = try { ObjectId(id) } catch (_: Exception) {
-            return ResponseEntity.badRequest().body(mapOf("error" to "ID inválido"))
+            return ResponseEntity.badRequest().body(mapOf("error" to "No se pudo completar la acción."))
         }
         if (!catalogoService.activar(oid))
             return ResponseEntity.notFound().build()
